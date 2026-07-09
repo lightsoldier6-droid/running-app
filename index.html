@@ -304,10 +304,11 @@ function startCloudSync(uid){
     if(remoteV&&remoteV<=localV)return; // già applicato
     localStorage.setItem('rp_cloud_v',remoteV);
     if(d.writer===cloudSessionId)return; // conferma di una mia scrittura, già aggiornato in locale
-    if(d.runs)localStorage.setItem('rp_runs',JSON.stringify(d.runs));
-    if(d.lapsdb)localStorage.setItem('rp_lapsdb',JSON.stringify(d.lapsdb));
-    if(d.edits!==undefined)localStorage.setItem('rp_edits',JSON.stringify(d.edits));
-    if(d.st)localStorage.setItem('rp_st',JSON.stringify(d.st));
+    let payload={};try{payload=JSON.parse(d.payload||'{}')}catch(e){}
+    if(payload.runs)localStorage.setItem('rp_runs',JSON.stringify(payload.runs));
+    if(payload.lapsdb)localStorage.setItem('rp_lapsdb',JSON.stringify(payload.lapsdb));
+    if(payload.edits!==undefined)localStorage.setItem('rp_edits',JSON.stringify(payload.edits));
+    if(payload.st)localStorage.setItem('rp_st',JSON.stringify(payload.st));
     location.reload();
   },err=>console.warn('cloud sync',err));
 }
@@ -318,7 +319,7 @@ function pushCloud(){
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{
     fbDb.collection('users').doc(fbAuth.currentUser.uid).set({
-      runs,lapsdb:lapsDB,edits,st,
+      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st}),
       writer:cloudSessionId,
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true}).catch(e=>console.warn('cloud push',e));
