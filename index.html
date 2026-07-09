@@ -239,7 +239,7 @@ svg text{fill:var(--dim);font-size:9px}
 const LS=(k,v)=>{
   if(v===undefined) return JSON.parse(localStorage.getItem(k)||'null');
   localStorage.setItem(k,JSON.stringify(v));
-  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st') pushCloud();
+  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics') pushCloud();
   return v;
 };
 let edits=LS('rp_edits')||{}; // rinomine ed eliminazioni manuali, sopravvivono ai rebuild
@@ -309,6 +309,9 @@ function startCloudSync(uid){
     if(payload.lapsdb)localStorage.setItem('rp_lapsdb',JSON.stringify(payload.lapsdb));
     if(payload.edits!==undefined)localStorage.setItem('rp_edits',JSON.stringify(payload.edits));
     if(payload.st)localStorage.setItem('rp_st',JSON.stringify(payload.st));
+    if(payload.monitor!==undefined)localStorage.setItem('rp_monitor',JSON.stringify(payload.monitor));
+    if(payload.plan!==undefined)localStorage.setItem('rp_plan',JSON.stringify(payload.plan));
+    if(payload.ics!==undefined)localStorage.setItem('rp_ics',JSON.stringify(payload.ics));
     location.reload();
   },err=>console.warn('cloud sync',err));
 }
@@ -319,7 +322,7 @@ function pushCloud(){
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{
     fbDb.collection('users').doc(fbAuth.currentUser.uid).set({
-      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st}),
+      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics')}),
       writer:cloudSessionId,
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true}).catch(e=>console.warn('cloud push',e));
@@ -1098,7 +1101,7 @@ document.getElementById('mon-ics').addEventListener('change',e=>{
 document.getElementById('mon-clear').addEventListener('click',()=>{
   if(!monitor)return;
   if(!confirm('Rimuovere il piano monitorato? Le corse restano in archivio.'))return;
-  monitor=null;localStorage.removeItem('rp_monitor');rMonitor();
+  monitor=null;localStorage.removeItem('rp_monitor');pushCloud();rMonitor();
 });
 document.getElementById('mon-addrun').addEventListener('click',()=>{
   if(!monitor)return alert('Carica prima un piano .ics');
