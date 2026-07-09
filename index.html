@@ -81,6 +81,17 @@ svg text{fill:var(--dim);font-size:9px}
 </style>
 </head>
 <body>
+<div id="auth-gate" style="position:fixed;inset:0;background:var(--bg);z-index:999;display:none;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="max-width:340px;width:100%">
+    <h2>Accedi</h2>
+    <p class="muted" style="margin-bottom:10px">Accedi con lo stesso account su tutti i dispositivi per avere le corse sempre sincronizzate automaticamente.</p>
+    <label>Email</label><input type="email" id="auth-email" autocomplete="username">
+    <label>Password</label><input type="password" id="auth-pass" autocomplete="current-password">
+    <button class="btn" onclick="authSubmit('signin')">Accedi</button>
+    <button class="btn btn2" onclick="authSubmit('signup')">Crea account (primo accesso)</button>
+    <p id="auth-err" style="color:var(--red);font-size:12px;margin-top:8px"></p>
+  </div>
+</div>
 <header><h1>Run<span>Plan</span></h1><small id="hdr"></small></header>
 <main>
 
@@ -185,6 +196,10 @@ svg text{fill:var(--dim);font-size:9px}
 </div>
 
 <div class="tab" id="tab-data">
+  <div class="card"><h2>Sincronizzazione cloud</h2>
+    <div id="cloud-status" class="muted">Verifica in corso…</div>
+    <button class="btn btn2" id="cloud-logout" style="display:none" onclick="fbAuth.signOut()">Esci</button>
+  </div>
   <div class="card"><h2>Dati</h2>
     <p class="muted" id="dt-info"></p>
     <label style="margin-top:12px">Importa nuovo export Garmin (CSV Attività)</label>
@@ -215,10 +230,18 @@ svg text{fill:var(--dim);font-size:9px}
   <button data-t="data"><div>⚙</div>Dati</button>
 </nav>
 
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="data.js"></script>
 <script>
 /* ---------- storage ---------- */
-const LS=(k,v)=>v===undefined?JSON.parse(localStorage.getItem(k)||'null'):localStorage.setItem(k,JSON.stringify(v));
+const LS=(k,v)=>{
+  if(v===undefined) return JSON.parse(localStorage.getItem(k)||'null');
+  localStorage.setItem(k,JSON.stringify(v));
+  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st') pushCloud();
+  return v;
+};
 let edits=LS('rp_edits')||{}; // rinomine ed eliminazioni manuali, sopravvivono ai rebuild
 let runs=(()=>{ // unione seed (aggiornato dallo script di sync) + import manuali, senza duplicati
   const seen=new Set(),out=[];
@@ -229,6 +252,78 @@ let runs=(()=>{ // unione seed (aggiornato dallo script di sync) + import manual
 let lapsDB=Object.assign({},typeof SEED_LAPS!=='undefined'?SEED_LAPS:{},LS('rp_lapsdb')||{});
 let st=LS('rp_st')||{hrmax:188,hrrest:53};
 let monitor=LS('rp_monitor')||null; // piano .ics caricato per il monitoraggio
+
+/* ---------- cloud sync (Firebase) ---------- */
+const firebaseConfig={apiKey:"AIzaSyBzU-XqbcaYnYIRhLTHzAWhSnHihLir-to",authDomain:"runplan-359bd.firebaseapp.com",projectId:"runplan-359bd",storageBucket:"runplan-359bd.firebasestorage.app",messagingSenderId:"551652841397",appId:"1:551652841397:web:441b785ee34d7000d5abfc"};
+firebase.initializeApp(firebaseConfig);
+const fbAuth=firebase.auth();
+const fbDb=firebase.firestore();
+let cloudReady=false,cloudUnsub=null;
+const cloudSessionId=Math.random().toString(36).slice(2);
+
+function authSubmit(mode){
+  const email=document.getElementById('auth-email').value.trim();
+  const pass=document.getElementById('auth-pass').value;
+  const errEl=document.getElementById('auth-err');
+  errEl.textContent='';
+  const p=mode==='signup'?fbAuth.createUserWithEmailAndPassword(email,pass):fbAuth.signInWithEmailAndPassword(email,pass);
+  p.catch(e=>{errEl.textContent=e.message});
+}
+
+function renderCloudStatus(){
+  const el=document.getElementById('cloud-status'),bt=document.getElementById('cloud-logout');
+  if(!el)return;
+  const u=fbAuth.currentUser;
+  if(u){el.textContent='Connesso come '+u.email+'. Le corse si sincronizzano automaticamente su tutti i dispositivi.';bt.style.display='block'}
+  else{el.textContent='Non connesso.';bt.style.display='none'}
+}
+
+fbAuth.onAuthStateChanged(user=>{
+  const gate=document.getElementById('auth-gate');
+  if(user){
+    gate.style.display='none';
+    startCloudSync(user.uid);
+  }else{
+    gate.style.display='flex';
+    cloudReady=false;
+    if(cloudUnsub){cloudUnsub();cloudUnsub=null}
+  }
+  renderCloudStatus();
+});
+
+function startCloudSync(uid){
+  if(cloudUnsub)return;
+  const ref=fbDb.collection('users').doc(uid);
+  cloudUnsub=ref.onSnapshot(doc=>{
+    if(doc.metadata.hasPendingWrites)return;
+    const d=doc.data();
+    cloudReady=true;
+    if(!d){pushCloud();return} // primo accesso in assoluto: nessun dato cloud, pubblico quello che ho in locale
+    const remoteV=d.updatedAt&&d.updatedAt.toMillis?d.updatedAt.toMillis():0;
+    const localV=+(localStorage.getItem('rp_cloud_v')||0);
+    if(remoteV&&remoteV<=localV)return; // già applicato
+    localStorage.setItem('rp_cloud_v',remoteV);
+    if(d.writer===cloudSessionId)return; // conferma di una mia scrittura, già aggiornato in locale
+    if(d.runs)localStorage.setItem('rp_runs',JSON.stringify(d.runs));
+    if(d.lapsdb)localStorage.setItem('rp_lapsdb',JSON.stringify(d.lapsdb));
+    if(d.edits!==undefined)localStorage.setItem('rp_edits',JSON.stringify(d.edits));
+    if(d.st)localStorage.setItem('rp_st',JSON.stringify(d.st));
+    location.reload();
+  },err=>console.warn('cloud sync',err));
+}
+
+let cloudSyncTimer=null;
+function pushCloud(){
+  if(!cloudReady||!fbAuth.currentUser)return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer=setTimeout(()=>{
+    fbDb.collection('users').doc(fbAuth.currentUser.uid).set({
+      runs,lapsdb:lapsDB,edits,st,
+      writer:cloudSessionId,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true}).catch(e=>console.warn('cloud push',e));
+  },1200);
+}
 
 /* ---------- utils ---------- */
 const fmtP=s=>!s||!isFinite(s)?'–':`${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
