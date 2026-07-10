@@ -714,6 +714,8 @@ function genPlan(silent){
     .sort((a,b)=>new Date(a.date)-new Date(b.date));
   const isSummerW=w=>{const wd=new Date(dateStr+'T12:00:00');wd.setDate(wd.getDate()-(n-w)*7);return [6,7,8].includes(wd.getMonth()+1);};
   const raceAt={};interRaces.forEach(r=>{const w=n-Math.round((new Date(dateStr)-new Date(r.date))/(7*864e5));if(w>=2&&w<=core-1)raceAt[w]=r;});
+  // gara intermedia in arrivo entro `within` settimane (per avvicinare il lungo alla distanza gara)
+  const nextRaceWithin=(w,within)=>{for(let k=1;k<=within;k++)if(raceAt[w+k])return raceAt[w+k];return null;};
   // finestra velocità (diamante) su settimane "pulite": non estive, non gara, non recupero post-gara.
   // Cresce all'indietro dall'ultima settimana pre-specifico fino a 10 settimane idonee (blocco pulito da 10),
   // lasciando almeno 2 settimane di base. build (base+speed) = core-specW resta invariato.
@@ -843,6 +845,8 @@ function genPlan(silent){
       if(summer)lng=Math.min(lng,90);
       let lngKm=kmAt(lng,Ea);
       if(lngKm>vol*0.45){lngKm=vol*0.45;lng=Math.round(lngKm*Ea/60/5)*5}
+      // avvicinamento gara intermedia (~2 sett. prima): lungo verso ~90% della distanza gara
+      {const upR=nextRaceWithin(w,2);if(upR&&!summer){const aKm=Math.min(upR.dist*0.9,vol*0.5);if(aKm>lngKm){lngKm=aKm;lng=Math.round(lngKm*Ea/60/5)*5;}}}
       sess.push({t:'Domenica',n:'Lungo',d:`${lng}' @ ${E}${summer?' — presto al mattino, idratazione':''}`,km:lngKm});
     }else if(phase==='speed'){ // VO2max: blocco a diamante (stile piano_10_settimane)
       const{nr,mi,rec,off}=diaEntry;
@@ -859,6 +863,8 @@ function genPlan(silent){
       if(summer)lng=Math.min(lng,90);
       let lngKm=kmAt(lng,Ea);
       if(lngKm>vol*0.45){lngKm=vol*0.45;lng=Math.round(lngKm*Ea/60/5)*5}
+      // avvicinamento gara intermedia (~2 sett. prima): lungo verso ~90% della distanza gara
+      {const upR=nextRaceWithin(w,2);if(upR&&!summer){const aKm=Math.min(upR.dist*0.9,vol*0.5);if(aKm>lngKm){lngKm=aKm;lng=Math.round(lngKm*Ea/60/5)*5;}}}
       sess.push({t:'Domenica',n:'Lungo',d:`${lng}' @ ${E}`,km:lngKm});
     }else{ // specifico: ritmo gara + endurance specifica
       const wq=w-baseW-speedW;
@@ -869,21 +875,36 @@ function genPlan(silent){
       else
         sess.push({t:'Martedì',n:'Cruise @ soglia',d:`${cn}×${cm}' @ ${T} (T), rec ${recF(crec)} @ ${E}`,km:3.2+kmAt(cn*cm,p.T)+kmAt((cn-1)*crec,Ea)+1.7});
       // nelle settimane col finale @ M nel lungo, il giovedì è base (max 2 sedute dure/settimana)
-      const mfinWeek=(isM||isHM)&&wq%2===1;
+      // maratona: quasi tutti i lunghi specifici hanno una parte a ritmo M → giovedì base (tranne la 1ª settimana)
+      const mfinWeek=isM?(wq>=2):((isM||isHM)&&wq%2===1);
       const qual=mfinWeek?{n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
         :(isM||isHM)?(Math.floor(wq/2)%2?{n:'Ritmo M',d:`15' @ ${E} + 2×15' @ ${M} (M), rec 5' @ ${E} + 10' @ ${E}`,km:kmAt(30,Ea)+kmAt(30,p.M)}
           :{n:'Progressivo lungo',d:`60' continui da ${fmtP(p.E[0])} a ${fmtP(p.M)} (E→M)`,km:kmAt(60,(Ea+p.M)/2)})
         :wq%2===0?{n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
         :{n:'Ritmo gara',d:`15' @ ${E} + ${goal<=5?'6×1000m':'5×2000m'} @ ${GP} (gara), rec 2' @ ${E} + 10' @ ${E}`,km:kmAt(25,Ea)+(goal<=5?6:10)+kmAt((goal<=5?5:4)*2,Ea)};
       sess.push({t:'Giovedì',...qual});
-      let lng=Math.round(Math.min(100+wq*7,isM?160:isHM?110:85)/5)*5;
-      if(summer)lng=Math.min(lng,90);
-      let lngKm=kmAt(lng,Ea);
-      if(lngKm>vol*0.45){lngKm=vol*0.45;lng=Math.round(lngKm*Ea/60/5)*5}
-      const mmin=Math.min(40,15+wq*4);
-      const mfin=(isM||isHM)&&wq%2===1?` — ultimi ${mmin}' @ ${M} (M)`:'';
+      // LUNGO SPECIFICO — progressivo verso il picco. Maratona: ultimo lungo (pre-taper) ≥32 km.
+      const isPeak=wq===specW; // ultimo lungo prima del taper
+      const prog=specW>1?Math.min(1,(wq-1)/(specW-1)):1; // 0 (prima sett. specifica) → 1 (picco)
+      let lng,lngKm;
+      if(isM){
+        const peakKm=Math.max(32,Math.min(35,Math.round(vol*0.45))); // picco 32–35 km
+        const startKm=Math.min(26,Math.max(20,peakKm-8));
+        lngKm=Math.min(startKm+(peakKm-startKm)*prog,vol*0.6); // tetto prudente sul volume
+        if(isPeak)lngKm=Math.max(lngKm,32); // garanzia: ultimo lungo ≥32 km
+        lng=Math.round(lngKm*Ea/60/5)*5;
+      }else{
+        lng=Math.round(Math.min(100+wq*7,isHM?125:85)/5)*5; // mezza: verso ~20-21 km
+        lngKm=kmAt(lng,Ea);
+        if(lngKm>vol*0.5){lngKm=vol*0.5;lng=Math.round(lngKm*Ea/60/5)*5}
+      }
+      if(summer){lng=Math.min(lng,90);lngKm=Math.min(lngKm,kmAt(90,Ea));}
+      // Maratona: quasi tutti i lunghi specifici includono una parte finale a ritmo M (non solo Z2), crescente col blocco.
+      const mmin=Math.min(isM?50:40,(isM?12:15)+wq*(isM?5:4));
+      const hasM=isM?wq>=2:((isM||isHM)&&wq%2===1);
+      const mfin=hasM?` — ultimi ${mmin}' @ ${M} (M)`:'';
       const isSim=!!mfin&&mmin>=30; // blocco a ritmo gara corposo = vera simulazione gara
-      sess.push({t:'Domenica',n:isSim?'Simulazione gara':'Lungo',d:`${lng}' @ ${E}${mfin}`,km:lngKm+(mfin?kmAt(mmin,p.M)-kmAt(mmin,Ea):0)});
+      sess.push({t:'Domenica',n:isSim?(isPeak?'Simulazione gara (picco)':'Simulazione gara'):'Lungo',d:`${lng}' @ ${E}${mfin}`,km:lngKm+(mfin?kmAt(mmin,p.M)-kmAt(mmin,Ea):0)});
     }
     // ESTATE (giu-ago): intenso ma breve. Microciclo tipo Mar interval → Gio Z2 → weekend qualità:
     // due sedute veloci corte, separate da corse lente; niente lungo lento (poco tempo in piedi col caldo).
