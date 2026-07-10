@@ -120,7 +120,10 @@ svg text{fill:var(--dim);font-size:9px}
   </div>
   <div class="card"><h2>Bilancio del periodo</h2><div id="c-recap"></div></div>
   <div class="card"><h2>Ultima corsa vs precedente simile</h2><div id="c-cmp"></div></div>
-  <div class="card"><h2>Analisi sedute (lap dai .FIT)</h2><div id="c-laps"></div></div>
+  <div class="card"><h2>Analisi seduta</h2>
+    <select id="a-sel"></select>
+    <div id="a-out" style="margin-top:10px"></div>
+  </div>
   <div class="card"><h2>VDOT nel tempo (best effort 60g)</h2><div id="c-vdot"></div></div>
   <div class="card"><h2>Volume settimanale (km)</h2><div id="c-vol"></div></div>
   <div class="card"><h2>Passo corse facili (min/km)</h2><div id="c-easy"></div></div>
@@ -139,12 +142,6 @@ svg text{fill:var(--dim);font-size:9px}
   <div class="card"><h2>Record personali</h2><table id="c-pb"></table></div>
 </div>
 
-<div class="tab" id="tab-ana">
-  <div class="card"><h2>Scegli la corsa da analizzare</h2>
-    <select id="a-sel"></select>
-  </div>
-  <div id="a-out"></div>
-</div>
 
 <div class="tab" id="tab-plan">
   <div class="card"><h2>Genera piano</h2>
@@ -224,7 +221,6 @@ svg text{fill:var(--dim);font-size:9px}
 <nav>
   <button class="on" data-t="dash"><div>⌂</div>Oggi</button>
   <button data-t="prog"><div>↗</div>Progressi</button>
-  <button data-t="ana"><div>🔍</div>Analisi</button>
   <button data-t="plan"><div>▦</div>Piano</button>
   <button data-t="mon"><div>◎</div>Monitor</button>
   <button data-t="data"><div>⚙</div>Dati</button>
@@ -543,7 +539,7 @@ function rProg(){
   chart('c-dyn',groupAvg(list.filter(r=>r[mk]!=null&&!r.tm),r=>r[mk]),{ylab:M.f,invertY:M.dir<0,color:'var(--acc2)'});
   document.getElementById('dyn-note').textContent=`${M.n} (${M.u}): ${M.dir>0?'più alto':'più basso'} = meglio, a parità di ritmo.`;
   document.getElementById('c-pb').innerHTML='<tr><th>Distanza</th><th class="r">Tempo</th><th class="r">Passo</th><th class="r">Quando</th></tr>'+pbs();
-  rRecap();rCmp();rLaps();
+  rRecap();rCmp();rAnaSel();rAna();
 }
 
 /* ---------- bilancio del periodo ---------- */
