@@ -698,8 +698,16 @@ function genPlan(silent){
   // periodizzazione: base (endurance) → velocità (VO2max) → specifico (ritmo gara) → taper
   const core=n-taper;
   const specW=Math.min(10,Math.ceil(core*0.4));
-  const speedW=Math.min(10,Math.ceil((core-specW)*0.6));
-  const baseW=core-specW-speedW;
+  let speedW=Math.min(10,Math.ceil((core-specW)*0.6));
+  let baseW=core-specW-speedW;
+  // il blocco a diamante (velocità) parte DOPO l'estate: le settimane estive restano in base
+  // (dove girano i lavori estivi brevi e intensi tipo 5k/10k). L'estate viene assorbita dalla base;
+  // la fase velocità slitta a fine estate, mantenendo invariato build = baseW+speedW = core-specW.
+  {
+    let lastSummer=0;
+    for(let w=1;w<core-specW;w++){const wd=new Date(dateStr+'T12:00:00');wd.setDate(wd.getDate()-(n-w)*7);if([6,7,8].includes(wd.getMonth()+1))lastSummer=w;}
+    if(lastSummer>baseW){baseW=Math.min(lastSummer,core-specW-1);speedW=core-specW-baseW;}
+  }
   const build=baseW+speedW;
   // modalità obiettivo: quanti punti VDOT punto a guadagnare nel blocco
   const mode=document.getElementById('p-mode').value||'mod';
