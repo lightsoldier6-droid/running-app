@@ -736,13 +736,25 @@ function genPlan(silent){
   const tFast=predict(goal,vdTarget),tSlow=predict(goal,Math.max(vdTarget-0.8,vd-1.2));
   const GP=`${fmtP(tFast/goal)}–${fmtP(tSlow/goal)}`;
   const GT=`${fmtD(tFast)}–${fmtD(tSlow)}`;
-  // progressione interval stile "blocco qualità": [ripetute, minuti, rec min]
-  const IV=[[6,3,2.5],[8,3,2.5],[5,5,3],[6,4,3],[10,2,2],[8,5,3],[10,4,3],[10,3,2.5],[15,2,2],[20,1,1]];
+  // progressione interval a "diamante" (stile piano_10_settimane): discesa fino al picco (20×1'),
+  // poi scarico agganciato al picco e risalita speculare con passi più spinti.
+  // off = scarto in secondi sul passo I (VDOT): rep lunghe più lente, corte più veloci; risalita 2-3" più veloce.
+  const DESC=[{mi:5,nr:8,rec:3,off:8},{mi:4,nr:10,rec:3,off:4},{mi:3,nr:10,rec:2.5,off:0},{mi:2,nr:15,rec:2,off:-5},{mi:1,nr:20,rec:1,off:-10}];
+  const ASC=[{mi:2,nr:15,rec:2,off:-8},{mi:3,nr:10,rec:2.5,off:-2},{mi:4,nr:10,rec:3,off:2},{mi:5,nr:8,rec:3,off:6}];
+  const diamond=(sw=>{
+    if(sw<=0)return[];
+    if(sw<=5)return DESC.slice(5-sw);          // poche settimane: solo la discesa fino al picco
+    return[...DESC,{deload:true},...ASC.slice(0,Math.min(4,sw-6))]; // discesa(5)+scarico(1)+risalita(0..4)
+  })(speedW);
   const CR=[[4,8,2],[3,12,3],[5,10,2],[2,20,4]]; // cruise interval @ T: [rip, min, rec]
-  const weeks=[];let iv=0,crx=0;
+  const weeks=[];let crx=0;
   for(let w=1;w<=n;w++){
-    const isTaper=w>core,isDeload=!isTaper&&w%4===0&&w!==core;
-    const phase=isTaper?'taper':w<=baseW?'base':w<=baseW+speedW?'speed':'spec';
+    const isTaper=w>core;
+    const inSpeed=!isTaper&&w>baseW&&w<=baseW+speedW;
+    const diaEntry=inSpeed?diamond[w-baseW-1]:null;               // spec interval del diamante o {deload}
+    // deload: nella fase velocità è agganciato al picco (dal diamante); altrove cadenza ogni 4 sett.
+    const isDeload=!isTaper&&(inSpeed?!!(diaEntry&&diaEntry.deload):(w%4===0&&w!==core));
+    const phase=isTaper?'taper':w<=baseW?'base':inSpeed?'speed':'spec';
     // stagione: la settimana w termina la domenica raceDate-(n-w)*7gg (calcolo su giorni, non ms: ora legale)
     const wd=new Date(dateStr+'T12:00:00');wd.setDate(wd.getDate()-(n-w)*7);
     const mth=wd.getMonth()+1;
@@ -785,9 +797,10 @@ function genPlan(silent){
       let lngKm=kmAt(lng,Ea);
       if(lngKm>vol*0.45){lngKm=vol*0.45;lng=Math.round(lngKm*Ea/60/5)*5}
       sess.push({t:'Domenica',n:'Lungo',d:`${lng}' @ ${E}${summer?' — presto al mattino, idratazione':''}`,km:lngKm});
-    }else if(phase==='speed'){ // VO2max: blocco qualità stile piano 10 settimane
-      const[nr,mi,rec]=IV[iv++%IV.length];
-      sess.push({t:'Martedì',n:'Interval',d:`${nr}×${mi}' @ ${I} (I), rec ${recF(rec)} @ ${E}`,km:3.2+kmAt(nr*mi,p.I)+kmAt((nr-1)*rec,Ea)+1.7});
+    }else if(phase==='speed'){ // VO2max: blocco a diamante (stile piano_10_settimane)
+      const{nr,mi,rec,off}=diaEntry;
+      const ip=p.I+off,ipStr=rngP(ip); // passo I aggiustato per la settimana (±3s tolleranza)
+      sess.push({t:'Martedì',n:'Interval',d:`${nr}×${mi}' @ ${ipStr} (I), rec ${recF(rec)} @ ${E}`,km:3.2+kmAt(nr*mi,ip)+kmAt((nr-1)*rec,Ea)+1.7});
       // interval al martedì = seduta dura: il giovedì alterna qualità e base
       const nf=6+Math.min(4,Math.floor(sp/2)),pm=40+Math.min(15,sp*2),qv=Math.floor(sp/2);
       const qual=sp%2===0?{n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
