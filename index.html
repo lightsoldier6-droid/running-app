@@ -145,9 +145,18 @@ svg text{fill:var(--dim);font-size:9px}
 
 <div class="tab" id="tab-plan">
   <div class="card"><h2>Genera piano</h2>
-    <label>Obiettivo gara</label>
+    <label>Gara finale (obiettivo)</label>
     <select id="p-goal"><option value="5">5 km</option><option value="10">10 km</option><option value="21.0975">Mezza maratona</option><option value="42.195" selected>Maratona</option></select>
-    <label>Data gara</label><input type="date" id="p-date">
+    <label>Data gara finale</label><input type="date" id="p-date">
+    <label>Gare intermedie — opzionali (tune-up)</label>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <select id="p-r1-dist" style="flex:0 0 130px"><option value="">— nessuna —</option><option value="5">5 km</option><option value="10">10 km</option><option value="21.0975">Mezza</option><option value="42.195">Maratona</option></select>
+      <input type="date" id="p-r1-date" style="flex:1">
+    </div>
+    <div style="display:flex;gap:8px">
+      <select id="p-r2-dist" style="flex:0 0 130px"><option value="">— nessuna —</option><option value="5">5 km</option><option value="10">10 km</option><option value="21.0975">Mezza</option><option value="42.195">Maratona</option></select>
+      <input type="date" id="p-r2-date" style="flex:1">
+    </div>
     <label>Corse a settimana</label>
     <select id="p-days"><option>3</option><option selected>4</option><option>5</option></select>
     <label>VDOT di partenza (auto dai tuoi dati, modificabile)</label><input type="number" id="p-vdot" step="0.5">
@@ -698,16 +707,21 @@ function genPlan(silent){
   // periodizzazione: base (endurance) → velocità (VO2max) → specifico (ritmo gara) → taper
   const core=n-taper;
   const specW=Math.min(10,Math.ceil(core*0.4));
-  let speedW=Math.min(10,Math.ceil((core-specW)*0.6));
-  let baseW=core-specW-speedW;
-  // il blocco a diamante (velocità) parte DOPO l'estate: le settimane estive restano in base
-  // (dove girano i lavori estivi brevi e intensi tipo 5k/10k). L'estate viene assorbita dalla base;
-  // la fase velocità slitta a fine estate, mantenendo invariato build = baseW+speedW = core-specW.
-  {
-    let lastSummer=0;
-    for(let w=1;w<core-specW;w++){const wd=new Date(dateStr+'T12:00:00');wd.setDate(wd.getDate()-(n-w)*7);if([6,7,8].includes(wd.getMonth()+1))lastSummer=w;}
-    if(lastSummer>baseW){baseW=Math.min(lastSummer,core-specW-1);speedW=core-specW-baseW;}
-  }
+  // gare intermedie (tune-up): distanza + data, comprese tra oggi e la gara finale, ordinate per data
+  const interRaces=[['p-r1-dist','p-r1-date'],['p-r2-dist','p-r2-date']]
+    .map(([d,t])=>({dist:+((document.getElementById(d)||{}).value)||0,date:((document.getElementById(t)||{}).value)||''}))
+    .filter(r=>r.dist>0&&r.date&&new Date(r.date)>Date.now()&&new Date(r.date)<new Date(dateStr))
+    .sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const isSummerW=w=>{const wd=new Date(dateStr+'T12:00:00');wd.setDate(wd.getDate()-(n-w)*7);return [6,7,8].includes(wd.getMonth()+1);};
+  const raceAt={};interRaces.forEach(r=>{const w=n-Math.round((new Date(dateStr)-new Date(r.date))/(7*864e5));if(w>=2&&w<=core-1)raceAt[w]=r;});
+  // finestra velocità (diamante) su settimane "pulite": non estive, non gara, non recupero post-gara.
+  // Cresce all'indietro dall'ultima settimana pre-specifico fino a 10 settimane idonee (blocco pulito da 10),
+  // lasciando almeno 2 settimane di base. build (base+speed) = core-specW resta invariato.
+  const eligibleW=w=>!isSummerW(w)&&!raceAt[w]&&!raceAt[w-1];
+  const endSpeed=core-specW;
+  let start=endSpeed+1,elig=0;
+  while(start-1>=3&&elig<10){start--;if(eligibleW(start))elig++;}
+  let baseW=Math.max(1,start-1),speedW=endSpeed-baseW;
   const build=baseW+speedW;
   // modalità obiettivo: quanti punti VDOT punto a guadagnare nel blocco
   const mode=document.getElementById('p-mode').value||'mod';
@@ -749,20 +763,25 @@ function genPlan(silent){
   // off = scarto in secondi sul passo I (VDOT): rep lunghe più lente, corte più veloci; risalita 2-3" più veloce.
   const DESC=[{mi:5,nr:8,rec:3,off:8},{mi:4,nr:10,rec:3,off:4},{mi:3,nr:10,rec:2.5,off:0},{mi:2,nr:15,rec:2,off:-5},{mi:1,nr:20,rec:1,off:-10}];
   const ASC=[{mi:2,nr:15,rec:2,off:-8},{mi:3,nr:10,rec:2.5,off:-2},{mi:4,nr:10,rec:3,off:2},{mi:5,nr:8,rec:3,off:6}];
-  const diamond=(sw=>{
-    if(sw<=0)return[];
-    if(sw<=5)return DESC.slice(5-sw);          // poche settimane: solo la discesa fino al picco
-    return[...DESC,{deload:true},...ASC.slice(0,Math.min(4,sw-6))]; // discesa(5)+scarico(1)+risalita(0..4)
-  })(speedW);
+  const buildDiamond=sw=>sw<=0?[]:sw<=5?DESC.slice(5-sw):[...DESC,{deload:true},...ASC.slice(0,Math.min(4,sw-6))];
+  // assegna il diamante SOLO alle settimane idonee della finestra velocità (in ordine cronologico)
+  const diaByWeek={};
+  {const el=[];for(let w=baseW+1;w<=endSpeed;w++)if(eligibleW(w))el.push(w);
+   const dia=buildDiamond(Math.min(10,el.length));
+   el.slice(0,dia.length).forEach((w,i)=>diaByWeek[w]=dia[i]);}
   const CR=[[4,8,2],[3,12,3],[5,10,2],[2,20,4]]; // cruise interval @ T: [rip, min, rec]
   const weeks=[];let crx=0;
   for(let w=1;w<=n;w++){
     const isTaper=w>core;
-    const inSpeed=!isTaper&&w>baseW&&w<=baseW+speedW;
-    const diaEntry=inSpeed?diamond[w-baseW-1]:null;               // spec interval del diamante o {deload}
-    // deload: nella fase velocità è agganciato al picco (dal diamante); altrove cadenza ogni 4 sett.
-    const isDeload=!isTaper&&(inSpeed?!!(diaEntry&&diaEntry.deload):(w%4===0&&w!==core));
-    const phase=isTaper?'taper':w<=baseW?'base':inSpeed?'speed':'spec';
+    // gare intermedie: settimana gara (tune-up), settimana prima (mini-scarico), settimana dopo (recupero)
+    const raceWeek=!isTaper&&raceAt[w]?raceAt[w]:null;
+    const recovery=!isTaper&&!raceWeek&&!!raceAt[w-1];
+    const preRace=!isTaper&&!raceWeek&&!!raceAt[w+1];
+    const diaEntry=(!isTaper&&!raceWeek&&!recovery)?(diaByWeek[w]||null):null; // entry del diamante o {deload}
+    const inSpeedRange=!isTaper&&w>baseW&&w<=endSpeed;
+    // deload: nella fase velocità è agganciato al picco (dal diamante); nella base/specifico cadenza ogni 4 sett.
+    const isDeload=!isTaper&&!raceWeek&&!recovery&&!preRace&&(diaEntry?!!diaEntry.deload:(!inSpeedRange&&w%4===0&&w!==core));
+    const phase=isTaper?'taper':diaEntry?'speed':(inSpeedRange?'base':(w<=baseW?'base':'spec'));
     // ritmi progressivi: il VDOT sale linearmente da attuale (sett.1) a target (fine blocco), poi tenuto nel taper.
     // Questi shadowano p/E/T/I/R/M/Ea del blocco per questa iterazione, così TUTTE le sedute usano i passi della settimana.
     const vdW=vd+(vdTarget-vd)*Math.min(1,w/Math.max(1,core));
@@ -776,10 +795,24 @@ function genPlan(silent){
     let vol=base+(peak-base)*Math.min(1,(w-1)/Math.max(1,build-2));
     if(summer&&!isTaper)vol*=0.85; // estate: meno volume
     if(isDeload)vol*=0.65;if(isTaper)vol*=(w===n?0.45:w===n-1?0.6:0.75);
+    if(raceWeek)vol*=0.55;else if(recovery)vol*=0.7;else if(preRace)vol*=0.85; // tune-up gare intermedie
     const sp=Math.max(1,w-baseW); // settimana dentro il blocco velocità
     const tmin=18+Math.min(12,sp*2);
     const sess=[];
-    if(isDeload){
+    if(raceWeek){ // settimana gara intermedia: scarico corto + gara come seduta chiave
+      const rd=raceWeek.dist,rp=predict(rd,vdW)/rd,rn=rd>=42?'Maratona':rd>=21?'Mezza':rd+'k';
+      sess.push({t:'Martedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)});
+      sess.push({t:'Giovedì',n:'Pre-gara',d:`20' @ ${E} + 4×100m allunghi`,km:kmAt(20,Ea)+0.4});
+      sess.push({t:'GARA',n:`🏁 ${rn}`,d:`${rd>=21?rd.toFixed(1):rd} km @ ${fmtP(rp)}/km (test)`,km:rd});
+    }else if(recovery){ // settimana dopo la gara: recupero
+      sess.push({t:'Martedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)});
+      sess.push({t:'Giovedì',n:'Easy',d:`40' @ ${E} (Z2)`,km:kmAt(40,Ea)});
+      sess.push({t:'Domenica',n:'Lungo ridotto',d:`60' @ ${E}`,km:kmAt(60,Ea)});
+    }else if(preRace){ // settimana prima della gara: mini-scarico, gambe fresche
+      sess.push({t:'Martedì',n:'Richiami',d:`5×2' @ ${I} (I), rec 2' @ ${E}`,km:3.2+kmAt(10,p.I)+kmAt(8,Ea)+1.7});
+      sess.push({t:'Giovedì',n:'Easy',d:`35' @ ${E} + 4 allunghi 80m`,km:kmAt(35,Ea)+0.4});
+      sess.push({t:'Domenica',n:'Lungo corto',d:`70' @ ${E}`,km:kmAt(70,Ea)});
+    }else if(isDeload){
       sess.push({t:'Martedì',n:'Scarico',d:`40' @ ${E} + 6 allunghi 80m`,km:kmAt(40,Ea)+0.5});
       sess.push({t:'Giovedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)});
       sess.push({t:'Domenica',n:'Lungo ridotto',d:`60' @ ${E}`,km:kmAt(60,Ea)});
@@ -854,7 +887,7 @@ function genPlan(silent){
     }
     // ESTATE (giu-ago): intenso ma breve. Microciclo tipo Mar interval → Gio Z2 → weekend qualità:
     // due sedute veloci corte, separate da corse lente; niente lungo lento (poco tempo in piedi col caldo).
-    if(summer&&!isDeload&&!isTaper){
+    if(summer&&!isDeload&&!isTaper&&!raceWeek&&!recovery&&!preRace){
       const TUE=[
         {n:'Interval',d:`6×2' @ ${I} (I), rec 2' @ ${E}`,km:3.2+kmAt(12,p.I)+kmAt(10,Ea)+1.7},
         {n:'Ripetute brevi',d:`10×200m @ ${R} (R), rec 200m lenta`,km:3.2+10*0.2*2+1.7},
@@ -872,14 +905,14 @@ function genPlan(silent){
       sess.push(z2('Giovedì',45));
       if(days>=4)sess.push(z2('Sabato',35));
       sess.push({t:'Domenica',...WKND[(w-1)%WKND.length]});
-    }else{
+    }else if(!raceWeek&&!recovery&&!preRace){
       if(days>=4&&!isDeload)sess.splice(1,0,{t:'Mercoledì',n:'Easy',d:`45' @ ${E} (Z2)`,km:kmAt(45,Ea)});
       if(days>=5&&!isDeload&&!isTaper)sess.push({t:'Sabato',n:'Easy',d:`38' @ ${E} (Z2) + 4 allunghi 80m`,km:kmAt(38,Ea)+0.4});
     }
     sess.forEach(s=>s.km=Math.round(s.km*2)/2);
     weeks.push({w,vol:Math.round(sess.reduce((a,s)=>a+(w===n&&s.n.startsWith('GARA')?0:s.km),0)),phase,summer,isDeload,isTaper,sess});
   }
-  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,weeks,GP,GT,E,I,T,ph:{baseW,speedW,specW,taper}};
+  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,weeks,GP,GT,E,I,T,interRaces,ph:{baseW,speedW,specW,taper}};
   LS('rp_plan',plan);rPlan(plan);rTrack();rToday();
   return plan;
 }
@@ -909,6 +942,7 @@ function rPlan(plan){
     <p style="margin-bottom:2px">Obiettivo: <b class="pace">${plan.GT}</b> (${plan.GP}/km).${plan.mode?` <span class="muted">· Modalità: <b>${plan.mode}</b>${plan.targetSet?' (tempo scelto da te)':''}</span>`:''}<br>
     <span class="muted">È un range, non un numero: dove cadi dentro dipende da meteo, percorso e giornata. Entrambi gli estremi sono un buon risultato.${plan.vdTarget&&plan.vdTarget>plan.vd?` I ritmi delle sedute progrediscono nel blocco: partono dal VDOT ${plan.vd} attuale e salgono fino al VDOT ${plan.vdTarget} previsto in gara, così le settimane finali mostrano il passo che punti a raggiungere. Rigenera dal reale per ricalibrarli su/giù coi tuoi dati.`:''}</span></p>
     ${phaseBar}
+    ${plan.interRaces&&plan.interRaces.length?`<p class="muted" style="margin:6px 0">🏁 Gare intermedie (tune-up): ${plan.interRaces.map(r=>`${r.dist>=42?'Maratona':r.dist>=21?'Mezza':r.dist+'k'} il ${new Date(r.date).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}`).join(' · ')}. Mini-scarico prima, la gara sostituisce la qualità, poi recupero. Il blocco a diamante è collocato fuori dagli scarichi gara.</p>`:''}
     ${plan.weeks.some(w=>w.summer)?'<p class="muted" style="margin:6px 0">☀️ Estate (giu-ago): intenso ma breve — martedì interval, giovedì Z2, weekend qualità. Due sedute veloci corte separate da corse lente, niente lungo lento. Corri presto al mattino.</p>':''}
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn btn2" style="margin:0;flex:1" onclick="copyPlan()">Copia (markdown)</button>
