@@ -159,6 +159,7 @@ svg text{fill:var(--dim);font-size:9px}
     </div>
     <label>Corse a settimana</label>
     <select id="p-days"><option>3</option><option selected>4</option><option>5</option></select>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:normal;cursor:pointer"><input type="checkbox" id="p-mara-extra" style="width:auto;margin:0;flex:0 0 auto"> Maratona: +1 easy a settimana nella fase specifica (aumenta il volume)</label>
     <label>VDOT di partenza (auto dai tuoi dati, modificabile)</label><input type="number" id="p-vdot" step="0.5">
     <label>Volume settimanale di partenza — km (auto)</label><input type="number" id="p-base" step="1">
     <label>Modalità obiettivo</label>
@@ -692,6 +693,7 @@ function genPlan(silent){
   const goal=+document.getElementById('p-goal').value;
   const dateStr=document.getElementById('p-date').value;
   const days=+document.getElementById('p-days').value;
+  const maraExtraEasy=!!(document.getElementById('p-mara-extra')||{}).checked; // maratona: +1 easy nella fase specifica
   const vd=+document.getElementById('p-vdot').value||curVdot();
   const base=+document.getElementById('p-base').value||30;
   if(!dateStr)return alert('Inserisci la data della gara');
@@ -927,13 +929,16 @@ function genPlan(silent){
       if(days>=4)sess.push(z2('Sabato',35));
       sess.push({t:'Domenica',...WKND[(w-1)%WKND.length]});
     }else if(!raceWeek&&!recovery&&!preRace){
-      if(days>=4&&!isDeload)sess.splice(1,0,{t:'Mercoledì',n:'Easy',d:`45' @ ${E} (Z2)`,km:kmAt(45,Ea)});
-      if(days>=5&&!isDeload&&!isTaper)sess.push({t:'Sabato',n:'Easy',d:`38' @ ${E} (Z2) + 4 allunghi 80m`,km:kmAt(38,Ea)+0.4});
+      // maratona: opzione "+1 easy nella fase specifica" → un giorno di corsa in più (sempre easy) per alzare il volume
+      const effDays=(isM&&maraExtraEasy&&phase==='spec'&&!isDeload&&!isTaper)?days+1:days;
+      if(effDays>=4&&!isDeload)sess.splice(1,0,{t:'Mercoledì',n:'Easy',d:`45' @ ${E} (Z2)`,km:kmAt(45,Ea)});
+      if(effDays>=5&&!isDeload&&!isTaper)sess.push({t:'Sabato',n:'Easy',d:`38' @ ${E} (Z2) + 4 allunghi 80m`,km:kmAt(38,Ea)+0.4});
+      if(effDays>=6&&!isDeload&&!isTaper)sess.push({t:'Venerdì',n:'Easy',d:`40' @ ${E} (Z2)`,km:kmAt(40,Ea)});
     }
     sess.forEach(s=>s.km=Math.round(s.km*2)/2);
     weeks.push({w,vol:Math.round(sess.reduce((a,s)=>a+(w===n&&s.n.startsWith('GARA')?0:s.km),0)),phase,summer,isDeload,isTaper,sess});
   }
-  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,weeks,GP,GT,E,I,T,interRaces,ph:{baseW,speedW,specW,taper}};
+  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,maraExtraEasy,weeks,GP,GT,E,I,T,interRaces,ph:{baseW,speedW,specW,taper}};
   LS('rp_plan',plan);rPlan(plan);rTrack();rToday();
   return plan;
 }
@@ -1032,6 +1037,7 @@ function updatePlan(){
   document.getElementById('p-goal').value=old.goal;
   document.getElementById('p-date').value=old.dateStr;
   document.getElementById('p-days').value=old.days;
+  {const cb=document.getElementById('p-mara-extra');if(cb)cb.checked=!!old.maraExtraEasy;}
   document.getElementById('p-mode').value=old.modeVal||'mod';
   document.getElementById('p-target').value=old.target||'';
   document.getElementById('p-vdot').value=vd?vd.toFixed(1):old.vd;
