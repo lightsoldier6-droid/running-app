@@ -755,6 +755,12 @@ function genPlan(silent){
     // deload: nella fase velocità è agganciato al picco (dal diamante); altrove cadenza ogni 4 sett.
     const isDeload=!isTaper&&(inSpeed?!!(diaEntry&&diaEntry.deload):(w%4===0&&w!==core));
     const phase=isTaper?'taper':w<=baseW?'base':inSpeed?'speed':'spec';
+    // ritmi progressivi: il VDOT sale linearmente da attuale (sett.1) a target (fine blocco), poi tenuto nel taper.
+    // Questi shadowano p/E/T/I/R/M/Ea del blocco per questa iterazione, così TUTTE le sedute usano i passi della settimana.
+    const vdW=vd+(vdTarget-vd)*Math.min(1,w/Math.max(1,core));
+    const p=paces(vdW);
+    const Ea=(p.E[0]+p.E[1])/2;
+    const E=`${fmtP(p.E[1])}–${fmtP(p.E[0])}`,T=rngP(p.T),I=rngP(p.I),R=rngP(p.R),M=rngP(p.M);
     // stagione: la settimana w termina la domenica raceDate-(n-w)*7gg (calcolo su giorni, non ms: ora legale)
     const wd=new Date(dateStr+'T12:00:00');wd.setDate(wd.getDate()-(n-w)*7);
     const mth=wd.getMonth()+1;
@@ -893,7 +899,7 @@ function rPlan(plan){
   document.getElementById('p-out').innerHTML=`<div class="card">
     <h2>${gn} · ${plan.dateStr} · VDOT ${plan.vd}${plan.vdTarget&&plan.vdTarget!==plan.vd?` → ${plan.vdTarget}`:''}</h2>
     <p style="margin-bottom:2px">Obiettivo: <b class="pace">${plan.GT}</b> (${plan.GP}/km).${plan.mode?` <span class="muted">· Modalità: <b>${plan.mode}</b>${plan.targetSet?' (tempo scelto da te)':''}</span>`:''}<br>
-    <span class="muted">È un range, non un numero: dove cadi dentro dipende da meteo, percorso e giornata. Entrambi gli estremi sono un buon risultato.${plan.vdTarget&&plan.vdTarget>plan.vd?` Il passo gara riflette il VDOT ${plan.vdTarget} atteso a fine blocco; i ritmi delle sedute restano tarati sul VDOT ${plan.vd} attuale.`:''}</span></p>
+    <span class="muted">È un range, non un numero: dove cadi dentro dipende da meteo, percorso e giornata. Entrambi gli estremi sono un buon risultato.${plan.vdTarget&&plan.vdTarget>plan.vd?` I ritmi delle sedute progrediscono nel blocco: partono dal VDOT ${plan.vd} attuale e salgono fino al VDOT ${plan.vdTarget} previsto in gara, così le settimane finali mostrano il passo che punti a raggiungere. Rigenera dal reale per ricalibrarli su/giù coi tuoi dati.`:''}</span></p>
     ${phaseBar}
     ${plan.weeks.some(w=>w.summer)?'<p class="muted" style="margin:6px 0">☀️ Estate (giu-ago): intenso ma breve — martedì interval, giovedì Z2, weekend qualità. Due sedute veloci corte separate da corse lente, niente lungo lento. Corri presto al mattino.</p>':''}
     <div style="display:flex;gap:8px;margin-top:8px">
