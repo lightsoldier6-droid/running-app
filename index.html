@@ -119,6 +119,7 @@ svg text{fill:var(--dim);font-size:9px}
     </div>
   </div>
   <div class="card"><h2>Bilancio del periodo</h2><div id="c-recap"></div></div>
+  <div class="card"><h2>Miglioramento passi di allenamento</h2><div id="c-paces"></div></div>
   <div class="card"><h2>Ultima corsa vs precedente simile</h2><div id="c-cmp"></div></div>
   <div class="card"><h2>Analisi seduta</h2>
     <select id="a-sel"></select>
@@ -549,7 +550,46 @@ function rProg(){
   chart('c-dyn',groupAvg(list.filter(r=>r[mk]!=null&&!r.tm),r=>r[mk]),{ylab:M.f,invertY:M.dir<0,color:'var(--acc2)'});
   document.getElementById('dyn-note').textContent=`${M.n} (${M.u}): ${M.dir>0?'più alto':'più basso'} = meglio, a parità di ritmo.`;
   document.getElementById('c-pb').innerHTML='<tr><th>Distanza</th><th class="r">Tempo</th><th class="r">Passo</th><th class="r">Quando</th></tr>'+pbs();
-  rRecap();rCmp();rAnaSel();rAna();
+  rRecap();rPaces();rCmp();rAnaSel();rAna();
+}
+
+/* ---------- miglioramento passi di allenamento (E/M/T/I/R) nel periodo ---------- */
+function rPaces(){
+  const el=document.getElementById('c-paces');
+  const list=fRuns().filter(r=>!r.tm);
+  if(list.length<6){el.innerHTML='<p class="muted">Servono più corse nel periodo selezionato per un confronto.</p>';return}
+  const t0=day(list[0].date).getTime(),t1=day(list[list.length-1].date).getTime();
+  const span=(t1-t0)/864e5;
+  if(span<21){el.innerHTML='<p class="muted">Periodo troppo breve per un confronto (minimo ~3 settimane).</p>';return}
+  const win=Math.min(28,span/2)*864e5;
+  const A=list.filter(r=>day(r.date).getTime()<=t0+win);
+  const B=list.filter(r=>day(r.date).getTime()>=t1-win);
+  const vA=bestVdot(A),vB=bestVdot(B);
+  if(!vA||!vB){el.innerHTML='<p class="muted">Dati insufficienti per stimare il VDOT a inizio e fine periodo.</p>';return}
+  const pA=paces(vA),pB=paces(vB);
+  const mid=e=>(e[0]+e[1])/2;
+  const rows=[
+    ['Easy (E)',mid(pA.E),mid(pB.E)],
+    ['Maratona (M)',pA.M,pB.M],
+    ['Soglia (T)',pA.T,pB.T],
+    ['Interval (I)',pA.I,pB.I],
+    ['Reps (R)',pA.R,pB.R]
+  ];
+  const rowsHtml=rows.map(([n,a,b])=>{
+    const d=a-b,sig=Math.abs(d)>=1; // d>0: passo fine periodo più veloce (meno sec/km)
+    return `<tr><td>${n}</td><td class="r muted">${fmtP(a)}</td><td class="r">${fmtP(b)}</td>
+      <td class="r ${!sig?'':d>0?'up':'down'}">${!sig?'≈':(d>0?'▲ -':'▼ +')+Math.abs(d).toFixed(0)+'s'}</td></tr>`;
+  }).join('');
+  const tot=rows.reduce((s,[,a,b])=>s+(a-b),0);
+  let verdict;
+  if(tot>=8)verdict='<b>Passi in netto miglioramento.</b> A parità di zona alleni ritmi sensibilmente più veloci rispetto a inizio periodo.';
+  else if(tot>=2)verdict='<b>Passi in leggero miglioramento.</b> Il progresso c\'è, anche se contenuto.';
+  else if(tot>-2)verdict='<b>Passi stabili.</b> Nessuna variazione significativa nel periodo.';
+  else verdict='<b>Passi in rallentamento.</b> I ritmi di riferimento sono più lenti che a inizio periodo: normale dopo un carico alto, un infortunio o in piena estate.';
+  el.innerHTML=`<p class="muted" style="margin-bottom:6px">Passi stimati da VDOT (metodo Daniels) — inizio vs fine periodo (${list[0].date.slice(0,10)} → ${list[list.length-1].date.slice(0,10)})</p>
+    <table><tr><th>Zona</th><th class="r">Inizio</th><th class="r">Fine</th><th class="r">Δ</th></tr>${rowsHtml}</table>
+    <p style="margin-top:10px">${verdict}</p>
+    <p class="muted" style="margin-top:4px">VDOT: ${vA.toFixed(1)} → ${vB.toFixed(1)}. Variazioni sotto 1s/km = stabili (≈).</p>`;
 }
 
 /* ---------- bilancio del periodo ---------- */
