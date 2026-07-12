@@ -748,7 +748,9 @@ function genPlan(silent){
   const taper=isM&&n>=16?3:n>=12?2:1;
   // periodizzazione: base (endurance) → velocità (VO2max) → specifico (ritmo gara) → taper
   const core=n-taper;
-  const specW=Math.min(10,Math.ceil(core*0.4));
+  // fase specifica: fino a 14 sett. quando c'è spazio (≥12 di qualità + ~2 scarichi interni);
+  // scende in proporzione sui piani corti, lasciando comunque ≥4 sett. a base+velocità.
+  const specW=Math.max(3,Math.min(14,Math.ceil(core*0.4),core-4));
   // gare intermedie (tune-up): distanza + data, comprese tra oggi e la gara finale, ordinate per data
   const interRaces=[['p-r1-dist','p-r1-date'],['p-r2-dist','p-r2-date']]
     .map(([d,t])=>({dist:+((document.getElementById(d)||{}).value)||0,date:((document.getElementById(t)||{}).value)||''}))
@@ -883,13 +885,24 @@ function genPlan(silent){
           :{n:'Fartlek leggero',d:`15' @ ${E} + 6×(1' @ ${R} (R) / 1' @ ${E}) + 15' @ ${E}`,km:kmAt(30,Ea)+kmAt(12,(p.R+Ea)/2)};
         sess.push({t:'Giovedì',...q});
       }
-      let lng=Math.round(Math.min(70+w*3,isM?140:isHM?100:80)/5)*5;
+      // LUNGO base = seduta chiave dell'endurance: cresce col blocco e vale una quota importante del volume.
+      let lng=Math.round(Math.min(70+w*4,isM?150:isHM?115:95)/5)*5;
       if(summer)lng=Math.min(lng,90);
       let lngKm=kmAt(lng,Ea);
-      if(lngKm>vol*0.45){lngKm=vol*0.45;lng=Math.round(lngKm*Ea/60/5)*5}
+      if(lngKm>vol*0.52){lngKm=vol*0.52;lng=Math.round(lngKm*Ea/60/5)*5}
       // avvicinamento gara intermedia (~2 sett. prima): lungo verso ~90% della distanza gara
-      {const upR=nextRaceWithin(w,2);if(upR&&!summer){const aKm=Math.min(upR.dist*0.9,vol*0.5);if(aKm>lngKm){lngKm=aKm;lng=Math.round(lngKm*Ea/60/5)*5;}}}
-      sess.push({t:'Domenica',n:'Lungo',d:`${lng}' @ ${E}${summer?' — presto al mattino, idratazione':''}`,km:lngKm});
+      {const upR=nextRaceWithin(w,2);if(upR&&!summer){const aKm=Math.min(upR.dist*0.9,vol*0.55);if(aKm>lngKm){lngKm=aKm;lng=Math.round(lngKm*Ea/60/5)*5;}}}
+      // ogni ~3ª settimana (non estate, lungo ≥70') il lungo NON è piatto: finale a ritmo gara/soglia
+      // per abituarsi a girare veloci sulle gambe stanche, senza toccare il resto del blocco base.
+      const bStruct=!summer&&lng>=70&&w>=6&&w%3===0;
+      if(bStruct){
+        const fp=(isM||isHM)?M:T,fl=(isM||isHM)?'M':'T',fsp=(isM||isHM)?p.M:p.T;
+        const fin=Math.max(15,Math.min(30,Math.round(lng*0.3/5)*5)); // ultima parte a ritmo gara
+        lngKm=lngKm+kmAt(fin,fsp)-kmAt(fin,Ea);
+        sess.push({t:'Domenica',n:'Lungo con finale',d:`${lng-fin}' @ ${E} + ${fin}' @ ${fp} (${fl})`,km:lngKm});
+      }else{
+        sess.push({t:'Domenica',n:'Lungo',d:`${lng}' @ ${E}${summer?' — presto al mattino, idratazione':''}`,km:lngKm});
+      }
     }else if(phase==='speed'){ // VO2max: blocco a diamante (stile piano_10_settimane)
       const{nr,mi,rec,off}=diaEntry;
       const ip=p.I+off,ipStr=rngP(ip); // passo I aggiustato per la settimana (±3s tolleranza)
