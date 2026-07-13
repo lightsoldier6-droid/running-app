@@ -804,6 +804,27 @@ function genPlan(silent){
   const tFast=predict(goal,vdTarget),tSlow=predict(goal,Math.max(vdTarget-0.8,vd-1.2));
   const GP=`${fmtP(tFast/goal)}–${fmtP(tSlow/goal)}`;
   const GT=`${fmtD(tFast)}–${fmtD(tSlow)}`;
+  // ── Base-readiness: il volume attuale regge la gara/data scelte? ──────────────
+  // Base minima consigliata per distanza + rampa implicita fino al picco (≤10%/sett prudente).
+  let readiness=null;
+  {
+    const floorByGoal=goal>=42?25:goal>=21?18:goal>=10?12:8;   // km/sett di partenza minimi
+    const g=(build>0&&base>0)?Math.pow(peak/base,1/build)-1:0;  // crescita settimanale implicita
+    const lowBase=base<floorByGoal, steep=g>0.10;
+    if(lowBase||steep){
+      const safeBase=Math.round(peak/Math.pow(1.08,build));                          // base che terrebbe ≤8%/sett
+      const wkNeed=base>0?Math.ceil(Math.log(peak/base)/Math.log(1.08)):build;
+      const extraW=Math.max(0,wkNeed-build);
+      const parts=[];
+      if(lowBase)parts.push(`Il tuo volume attuale (~${base} km/sett) è sotto la base consigliata per la ${gNm} (~${floorByGoal} km/sett).`);
+      if(steep)parts.push(`Per arrivare a ~${Math.round(peak)} km/sett di picco in ${build} settimane la salita sarebbe ~${Math.round(g*100)}%/sett (prudente: ≤10%).`);
+      const advice=extraW>0
+        ? `Meglio costruire prima la base: ~${extraW} settimana/e in più di corsa facile verso ~${safeBase} km/sett, oppure sposta la gara più in là.`
+        : `Parti da ~${safeBase} km/sett e sali gradualmente.`;
+      readiness={low:lowBase,steep,floor:floorByGoal,base,peak:Math.round(peak),grow:Math.round(g*100),safeBase,extraW,advice,text:parts.join(' ')};
+      if(!silent&&!confirm(`⚠️ Base un po' leggera per questo obiettivo\n\n${parts.join('\n\n')}\n\n${advice}\n\nGenero comunque il piano? Salirà nei limiti di sicurezza, ma le prime settimane saranno più impegnative.`))return;
+    }
+  }
   // progressione interval a "diamante" (stile piano_10_settimane): discesa fino al picco (20×1'),
   // poi scarico agganciato al picco e risalita speculare con passi più spinti.
   // off = scarto in secondi sul passo I (VDOT): rep lunghe più lente, corte più veloci; risalita 2-3" più veloce.
@@ -938,25 +959,31 @@ function genPlan(silent){
         :wq%2===0?{n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
         :{n:'Ritmo gara',d:`15' @ ${E} + ${goal<=5?'6×1000m':'5×2000m'} @ ${GP} (gara), rec 2' @ ${E} + 10' @ ${E}`,km:kmAt(25,Ea)+(goal<=5?6:10)+kmAt((goal<=5?5:4)*2,Ea)};
       sess.push({t:'Giovedì',...qual});
-      // LUNGO SPECIFICO — progressivo verso il picco. Maratona: ultimo lungo (pre-taper) ≥32 km.
+      // LUNGO SPECIFICO — progressione graduale in DISTANZA verso il picco.
       const isPeak=wq===specW; // ultimo lungo prima del taper
-      const prog=specW>1?Math.min(1,(wq-1)/(specW-1)):1; // 0 (prima sett. specifica) → 1 (picco)
+      // progressione sui SOLI lunghi veri della fase specifica (esclude scarico/gara/pre-gara/recupero),
+      // così la rampa è regolare anche se le settimane speciali interrompono la sequenza.
+      const specLongWks=[];for(let k=1;k<=specW;k++){const ww=baseW+speedW+k;if(!raceAt[ww]&&!raceAt[ww-1]&&!raceAt[ww+1]&&!(ww%4===0&&ww!==core))specLongWks.push(k);}
+      const li=specLongWks.indexOf(wq),nLong=specLongWks.length;
+      const prog=nLong>1&&li>=0?li/(nLong-1):(isPeak?1:0); // 0 (1° lungo specifico) → 1 (picco)
+      // parte finale a ritmo M (cresce col blocco): calcolata prima per dedurre la quota Z2
+      const mmin=Math.min(isM?50:40,(isM?12:15)+wq*(isM?5:4));
+      const hasM=isM?wq>=2:((isM||isHM)&&wq%2===1);
       let lng,lngKm;
       if(isM){
-        const peakKm=Math.max(32,Math.min(35,Math.round(vol*0.45))); // picco 32–35 km
-        const startKm=Math.min(26,Math.max(20,peakKm-8));
-        lngKm=Math.min(startKm+(peakKm-startKm)*prog,vol*0.6); // tetto prudente sul volume
-        if(isPeak)lngKm=Math.max(lngKm,32); // garanzia: ultimo lungo ≥32 km
+        // km TOTALI del lungo: rampa lineare da ~22 (prima sett. specifica) a 34 (picco), ultimo garantito al picco
+        const startTot=22,peakTot=34;
+        let total=isPeak?peakTot:startTot+(peakTot-startTot)*prog;
+        const mExtra=hasM?kmAt(mmin,p.M)-kmAt(mmin,Ea):0; // km "gratis" del finale @ M (più veloce dell'easy)
+        lngKm=Math.max(kmAt(50,Ea),total-mExtra);          // quota easy/Z2 (min 50')
         lng=Math.round(lngKm*Ea/60/5)*5;
+        lngKm=kmAt(lng,Ea);                                 // riallinea ai minuti arrotondati
       }else{
         lng=Math.round(Math.min(100+wq*7,isHM?125:85)/5)*5; // mezza: verso ~20-21 km
         lngKm=kmAt(lng,Ea);
         if(lngKm>vol*0.5){lngKm=vol*0.5;lng=Math.round(lngKm*Ea/60/5)*5}
       }
       if(summer){lng=Math.min(lng,90);lngKm=Math.min(lngKm,kmAt(90,Ea));}
-      // Maratona: quasi tutti i lunghi specifici includono una parte finale a ritmo M (non solo Z2), crescente col blocco.
-      const mmin=Math.min(isM?50:40,(isM?12:15)+wq*(isM?5:4));
-      const hasM=isM?wq>=2:((isM||isHM)&&wq%2===1);
       const mfin=hasM?` — ultimi ${mmin}' @ ${M} (M)`:'';
       const isSim=!!mfin&&mmin>=30; // blocco a ritmo gara corposo = vera simulazione gara
       sess.push({t:'Domenica',n:isSim?(isPeak?'Simulazione gara (picco)':'Simulazione gara'):'Lungo',d:`${lng}' @ ${E}${mfin}`,km:lngKm+(mfin?kmAt(mmin,p.M)-kmAt(mmin,Ea):0)});
@@ -987,11 +1014,15 @@ function genPlan(silent){
       if(effDays>=4&&!isDeload)sess.splice(1,0,{t:'Mercoledì',n:'Easy',d:`45' @ ${E} (Z2)`,km:kmAt(45,Ea)});
       if(effDays>=5&&!isDeload&&!isTaper)sess.push({t:'Sabato',n:'Easy',d:`38' @ ${E} (Z2) + 4 allunghi 80m`,km:kmAt(38,Ea)+0.4});
       if(effDays>=6&&!isDeload&&!isTaper)sess.push({t:'Venerdì',n:'Easy',d:`40' @ ${E} (Z2)`,km:kmAt(40,Ea)});
+    }else if((recovery||preRace)&&isM&&maraExtraEasy&&phase==='spec'){
+      // "+1 easy" attivo: mantieni 4 corse anche nelle settimane pre-gara/recupero della fase specifica
+      // (la settimana della gara e gli scarichi restano a 3)
+      sess.splice(1,0,{t:'Mercoledì',n:'Easy',d:`40' @ ${E} (Z2)`,km:kmAt(40,Ea)});
     }
     sess.forEach(s=>s.km=Math.round(s.km*2)/2);
     weeks.push({w,vol:Math.round(sess.reduce((a,s)=>a+(w===n&&s.n.startsWith('GARA')?0:s.km),0)),phase,summer,isDeload,isTaper,sess});
   }
-  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,maraExtraEasy,weeks,GP,GT,E,I,T,interRaces,ph:{baseW,speedW,specW,taper}};
+  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,maraExtraEasy,weeks,GP,GT,E,I,T,interRaces,readiness,ph:{baseW,speedW,specW,taper}};
   LS('rp_plan',plan);rPlan(plan);rTrack();rToday();
   return plan;
 }
@@ -1021,6 +1052,7 @@ function rPlan(plan){
     <p style="margin-bottom:2px">Obiettivo: <b class="pace">${plan.GT}</b> (${plan.GP}/km).${plan.mode?` <span class="muted">· Modalità: <b>${plan.mode}</b>${plan.targetSet?' (tempo scelto da te)':''}</span>`:''}<br>
     <span class="muted">È un range, non un numero: dove cadi dentro dipende da meteo, percorso e giornata. Entrambi gli estremi sono un buon risultato.${plan.vdTarget&&plan.vdTarget>plan.vd?` I ritmi delle sedute progrediscono nel blocco: partono dal VDOT ${plan.vd} attuale e salgono fino al VDOT ${plan.vdTarget} previsto in gara, così le settimane finali mostrano il passo che punti a raggiungere. Rigenera dal reale per ricalibrarli su/giù coi tuoi dati.`:''}</span></p>
     ${phaseBar}
+    ${plan.readiness?`<p class="muted" style="margin:6px 0;padding:8px 10px;border-left:3px solid var(--warn,#e0a800);background:rgba(224,168,0,.08);border-radius:6px">⚠️ <b>Base leggera</b> — ${plan.readiness.text} ${plan.readiness.advice} Il piano parte comunque nei limiti di sicurezza, ma le prime settimane saranno più impegnative.</p>`:''}
     ${plan.interRaces&&plan.interRaces.length?`<p class="muted" style="margin:6px 0">🏁 Gare intermedie (tune-up): ${plan.interRaces.map(r=>`${r.dist>=42?'Maratona':r.dist>=21?'Mezza':r.dist+'k'} il ${new Date(r.date).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}`).join(' · ')}. Mini-scarico prima, la gara sostituisce la qualità, poi recupero. Il blocco a diamante è collocato fuori dagli scarichi gara.</p>`:''}
     ${plan.weeks.some(w=>w.summer)?'<p class="muted" style="margin:6px 0">☀️ Estate (giu-ago): intenso ma breve — martedì interval, giovedì Z2, weekend qualità. Due sedute veloci corte separate da corse lente, niente lungo lento. Corri presto al mattino.</p>':''}
     <div style="display:flex;gap:8px;margin-top:8px">
