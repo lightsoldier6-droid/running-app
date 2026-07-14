@@ -373,6 +373,24 @@ function parseHMS(s){const a=String(s).trim().split(':');if(!a.length||a.some(x=
 function bestVdot(list){let b=null;for(const r of list){if(r.km<3||r.tm)continue;const v=vdotOf(r.km,r.sec);if(!b||v>b)b=v}return b}
 const curVdot=()=>bestVdot(runs.filter(r=>daysAgo(r)<=90))||bestVdot(runs);
 function paces(vd){return{E:[vAt(.62,vd),vAt(.70,vd)],M:vAt(.82,vd),T:vAt(.88,vd),I:vAt(.975,vd),R:vAt(1.07,vd)}}
+// target di una seduta a ripetute preso dalla seduta PIANIFICATA (tag I/R/T/M e range di passo),
+// non indovinato dalla distanza della ripetuta (un 6×2' Interval fa frazioni ~490m ma non è ripetute R).
+function plannedFor(dateISO){
+  const ds=(dateISO||'').slice(0,10);
+  const src=(typeof monitor!=='undefined'&&monitor&&monitor.sessions)||[];
+  return src.find(s=>(s.date||'').slice(0,10)===ds)||null;
+}
+function workTarget(sess){
+  if(!sess||!sess.work)return null;
+  const w=sess.work;
+  // preferisci il range col tag di zona (è il lavoro, non il riscaldamento/recupero)
+  let m=w.match(/(\d:\d\d)\s*[–-]\s*(\d:\d\d)\s*\((I|R|T|M)\)/);
+  let zone=m?m[3]:((w.match(/\((I|R|T|M)\)/)||[])[1]||null);
+  if(!m)m=w.match(/(\d:\d\d)\s*[–-]\s*(\d:\d\d)/)||w.match(/@\s*(\d:\d\d)/);
+  if(!m)return null;
+  const a=toSec(m[1]),b=m[2]?toSec(m[2]):a;
+  return {lo:Math.min(a,b),hi:Math.max(a,b),mid:(a+b)/2,zone};
+}
 
 /* ---------- tabs ---------- */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
@@ -696,12 +714,13 @@ function rLaps(){
       const spread=Math.max(...secs)-Math.min(...secs);
       const dist=reps[0][0];
       sum=`${reps.length}×${dist>=950?(dist/1000)+' km':dist+' m'} · medio <b class="pace">${fmtP(avg)}</b>/km · scarto ${spread.toFixed(1)}s`;
-      const vd=curVdot(),tgt=vd?vAt(dist<600?1.07:0.975,vd):null;
+      const wt=workTarget(plannedFor(run.date));
+      const vd=curVdot(),tgt=wt?wt.mid:(vd?vAt(dist<600?1.07:0.975,vd):null);
       const j1=spread<=3?'Ritmo molto costante':spread<=6?'Ritmo costante':'Ritmo irregolare — meglio partire più conservativo e chiudere in crescendo';
       let j2='.';
-      if(tgt){const d=avg-tgt;
-        j2=d<=-2?' e più veloce del target: gamba brillante, seduta eccellente.'
-          :d<=3?' e in linea col target: seduta ben eseguita.'
+      if(tgt){const d=avg-tgt,inR=wt?(avg>=wt.lo-3&&avg<=wt.hi+3):(d>=-2&&d<=3);
+        j2=inR?' e in linea col target'+(wt&&wt.zone?' ('+wt.zone+')':'')+': seduta ben eseguita.'
+          :avg<(wt?wt.lo:tgt)?' e più veloce del target: gamba brillante, seduta eccellente.'
           :', ma sopra il target: probabile fatica accumulata — nessun dramma in settimana di carico.'}
       verdict=j1+j2;
     }else{
@@ -1652,11 +1671,13 @@ function rAna(){
     const avg=pcs.reduce((a,b)=>a+b)/pcs.length,best=Math.min(...pcs),bi=pcs.indexOf(best)+1;
     const spread=Math.max(...secs)-Math.min(...secs);
     ex=`Hai corso ${acts.length}×${acts[0][0]}m a ${fmtP(avg)}/km di media, con la migliore (${fmtP(best)}) alla ${bi}ª ripetuta. Lo scarto tra la frazione più veloce e la più lenta è di ${spread.toFixed(1)} secondi: ${spread<=3?'un esecuzione da metronomo, sapevi esattamente che ritmo tenere':spread<=6?'buona regolarità, con margine per limare ancora':'troppa varianza — meglio partire più conservativo e chiudere in progressione'}.`;
-    const tgt=cvd?vAt(acts[0][0]<600?1.07:0.975,cvd):null;
-    if(tgt){const d=avg-tgt;
-      ex+=d<=-2?` Rispetto al target dal tuo VDOT (${fmtP(tgt)}/km) sei stato più veloce di ${Math.abs(d).toFixed(0)}s/km: gamba brillante.`
-        :d<=3?` Sei in linea col target dal tuo VDOT (${fmtP(tgt)}/km): seduta eseguita come da programma.`
-        :` Sei ${d.toFixed(0)}s/km sopra il target (${fmtP(tgt)}/km): non un dramma, ma registra la fatica del periodo.`}
+    const wt=workTarget(plannedFor(r.date));
+    const tgt=wt?wt.mid:(cvd?vAt(acts[0][0]<600?1.07:0.975,cvd):null);
+    if(tgt){const d=avg-tgt,inR=wt?(avg>=wt.lo-3&&avg<=wt.hi+3):(d>=-2&&d<=3);
+      const tt=wt?`${fmtP(wt.lo)}–${fmtP(wt.hi)}/km${wt.zone?' ('+wt.zone+')':''}`:`${fmtP(tgt)}/km dal tuo VDOT`;
+      ex+=inR?` Sei in linea col target previsto (${tt}): seduta eseguita come da programma.`
+        :avg<(wt?wt.lo:tgt)?` Rispetto al target previsto (${tt}) sei stato più veloce di ${Math.abs(d).toFixed(0)}s/km: gamba brillante.`
+        :` Sei ${d.toFixed(0)}s/km sopra il target previsto (${tt}): non un dramma, ma registra la fatica del periodo.`}
   }else if(acts.length>=2){
     const half=Math.max(1,Math.floor(acts.length/2));
     const pAvg=a=>a.reduce((x,l)=>x+l[1],0)/a.reduce((x,l)=>x+l[0]/1000,0);
