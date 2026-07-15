@@ -1676,9 +1676,9 @@ function rAna(){
     if(tgt){const inR=wt?(avg>=wt.lo-3&&avg<=wt.hi+3):((avg-tgt)>=-2&&(avg-tgt)<=3);
       const d=wt?(avg<wt.lo?avg-wt.lo:avg>wt.hi?avg-wt.hi:0):(avg-tgt);
       const tt=wt?`${fmtP(wt.lo)}–${fmtP(wt.hi)}/km${wt.zone?' ('+wt.zone+')':''}`:`${fmtP(tgt)}/km dal tuo VDOT`;
-      ex+=inR?` Sei in linea col target previsto (${tt}): seduta eseguita come da programma.`
-        :avg<(wt?wt.lo:tgt)?` Rispetto al target previsto (${tt}) sei stato più veloce di ${Math.abs(d).toFixed(0)}s/km: gamba brillante.`
-        :` Sei ${d.toFixed(0)}s/km sopra il target previsto (${tt}): non un dramma, ma registra la fatica del periodo.`}
+      ex+=inR?` La tua media è in linea col target previsto (${tt}): seduta eseguita come da programma.`
+        :avg<(wt?wt.lo:tgt)?` La tua media è stata più veloce di ${Math.abs(d).toFixed(0)}s/km rispetto al target previsto (${tt}): gamba brillante.`
+        :` La tua media è stata ${d.toFixed(0)}s/km sopra il target previsto (${tt}): non un dramma, ma registra la fatica del periodo.`}
   }else if(acts.length>=2){
     const half=Math.max(1,Math.floor(acts.length/2));
     const pAvg=a=>a.reduce((x,l)=>x+l[1],0)/a.reduce((x,l)=>x+l[0]/1000,0);
