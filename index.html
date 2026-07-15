@@ -337,7 +337,7 @@ function pushCloud(){
 }
 
 /* ---------- utils ---------- */
-const fmtP=s=>!s||!isFinite(s)?'–':`${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,'0')}`;
+const fmtP=s=>{if(!s||!isFinite(s))return'–';const t=Math.round(s);return`${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`};
 const fmtD=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`};
 const day=d=>new Date(d.replace(' ','T'));
 const daysAgo=r=>(Date.now()-day(r.date))/864e5;
@@ -1667,10 +1667,10 @@ function rAna(){
   let ex='';
   const sameDist=acts.length>=3&&acts.every(l=>Math.abs(l[0]-acts[0][0])<100)&&c!=='race';
   if(sameDist){
-    const pcs=acts.map(l=>l[1]/(l[0]/1000)),secs=acts.map(l=>l[1]);
+    const pcs=acts.map(l=>l[1]/(l[0]/1000));
     const avg=pcs.reduce((a,b)=>a+b)/pcs.length,best=Math.min(...pcs),bi=pcs.indexOf(best)+1;
-    const spread=Math.max(...secs)-Math.min(...secs);
-    ex=`Hai corso ${acts.length}×${acts[0][0]}m a ${fmtP(avg)}/km di media, con la migliore (${fmtP(best)}) alla ${bi}ª ripetuta. Lo scarto tra la frazione più veloce e la più lenta è di ${spread.toFixed(1)} secondi: ${spread<=3?'un esecuzione da metronomo, sapevi esattamente che ritmo tenere':spread<=6?'buona regolarità, con margine per limare ancora':'troppa varianza — meglio partire più conservativo e chiudere in progressione'}.`;
+    const spread=Math.max(...pcs)-Math.min(...pcs);
+    ex=`Hai corso ${acts.length}×${acts[0][0]}m a ${fmtP(avg)}/km di media, con la migliore (${fmtP(best)}) alla ${bi}ª ripetuta. Lo scarto tra la frazione più veloce e la più lenta è di ${spread.toFixed(1)} secondi/km: ${spread<=3?'un esecuzione da metronomo, sapevi esattamente che ritmo tenere':spread<=6?'buona regolarità, con margine per limare ancora':'troppa varianza — meglio partire più conservativo e chiudere in progressione'}.`;
     const wt=workTarget(plannedFor(r.date));
     const tgt=wt?wt.mid:(cvd?vAt(acts[0][0]<600?1.07:0.975,cvd):null);
     if(tgt){const d=avg-tgt,inR=wt?(avg>=wt.lo-3&&avg<=wt.hi+3):(d>=-2&&d<=3);
