@@ -1673,7 +1673,8 @@ function rAna(){
     ex=`Hai corso ${acts.length}×${acts[0][0]}m a ${fmtP(avg)}/km di media, con la migliore (${fmtP(best)}) alla ${bi}ª ripetuta. Lo scarto tra la frazione più veloce e la più lenta è di ${spread.toFixed(1)} secondi/km: ${spread<=3?'un esecuzione da metronomo, sapevi esattamente che ritmo tenere':spread<=6?'buona regolarità, con margine per limare ancora':'troppa varianza — meglio partire più conservativo e chiudere in progressione'}.`;
     const wt=workTarget(plannedFor(r.date));
     const tgt=wt?wt.mid:(cvd?vAt(acts[0][0]<600?1.07:0.975,cvd):null);
-    if(tgt){const d=avg-tgt,inR=wt?(avg>=wt.lo-3&&avg<=wt.hi+3):(d>=-2&&d<=3);
+    if(tgt){const inR=wt?(avg>=wt.lo-3&&avg<=wt.hi+3):((avg-tgt)>=-2&&(avg-tgt)<=3);
+      const d=wt?(avg<wt.lo?avg-wt.lo:avg>wt.hi?avg-wt.hi:0):(avg-tgt);
       const tt=wt?`${fmtP(wt.lo)}–${fmtP(wt.hi)}/km${wt.zone?' ('+wt.zone+')':''}`:`${fmtP(tgt)}/km dal tuo VDOT`;
       ex+=inR?` Sei in linea col target previsto (${tt}): seduta eseguita come da programma.`
         :avg<(wt?wt.lo:tgt)?` Rispetto al target previsto (${tt}) sei stato più veloce di ${Math.abs(d).toFixed(0)}s/km: gamba brillante.`
