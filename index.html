@@ -187,6 +187,8 @@ svg text{fill:var(--dim);font-size:9px}
     <p class="muted" id="mon-info"></p>
     <label style="margin-top:12px">Carica il piano .ics (export dal tab Piano)</label>
     <input type="file" id="mon-ics" accept=".ics">
+    <button class="btn btn2" id="mon-fromplan" style="margin-top:10px">↺ Aggiorna dal piano corrente</button>
+    <p class="muted" style="margin-top:4px">Crea lo snapshot da monitorare direttamente dal tab Piano — incluse le settimane che hai reso scarico o messo a gara a mano. Senza esportare e ricaricare l’.ics.</p>
     <label style="margin-top:12px">Scegli una corsa già in archivio (importate dal tab Dati)</label>
     <div style="display:flex;gap:8px">
       <select id="mon-runsel" style="flex:1"></select>
@@ -1088,15 +1090,22 @@ function applyWkEdits(pl){
       sess.forEach(s=>s.km=r2(s.km));
       return {...w,isDeload:true,manual:'deload',sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
     }
-    // gara al volo (5 / 10 / mezza): mini-scarico infrasettimanale + gara nel weekend
-    const dist=ov==='r5'?5:ov==='r10'?10:21.0975;
+    // gara al volo: 'r*' = settimana dedicata (mini-scarico + gara); 'a*' = gara la domenica, resto invariato
+    const add=ov[0]==='a',num=ov.slice(1);
+    const dist=num==='5'?5:num==='10'?10:21.0975;
     const rn=dist>=21?'Mezza':dist+'k',rp=predict(dist,vdW)/dist;
-    sess=[
-      {t:'Martedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)},
-      {t:'Giovedì',n:'Pre-gara',d:`20' @ ${E} + 4×100m allunghi`,km:kmAt(20,Ea)+0.4},
-      {t:'Domenica',n:`🏁 Gara ${rn}`,race:true,d:`${dist>=21?dist.toFixed(1):dist} km @ ${fmtP(rp)}/km`,km:dist}];
+    const raceSess={t:'Domenica',n:`🏁 Gara ${rn}`,race:true,d:`${dist>=21?dist.toFixed(1):dist} km @ ${fmtP(rp)}/km`,km:dist};
+    if(add){ // tieni le sedute della settimana, sostituisci la domenica con la gara (seconda seduta di qualità)
+      sess=w.sess.map(s=>s.t==='Domenica'?raceSess:{...s});
+      if(!w.sess.some(s=>s.t==='Domenica'))sess.push(raceSess);
+    }else{ // settimana dedicata alla gara: mini-scarico + gara
+      sess=[
+        {t:'Martedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)},
+        {t:'Giovedì',n:'Pre-gara',d:`20' @ ${E} + 4×100m allunghi`,km:kmAt(20,Ea)+0.4},
+        raceSess];
+    }
     sess.forEach(s=>s.km=r2(s.km));
-    return {...w,isDeload:false,manual:ov,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+    return {...w,isDeload:add?w.isDeload:false,manual:ov,addRace:add,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
   });
   return clone;
 }
@@ -1141,16 +1150,16 @@ function rPlan(plan){
       const vpct=Math.min(100,Math.round((w.vol||0)/peakVol*100));
       const sunW=addD(refSun,-(nAll-w.w)*7);
       const wkKey=iso(sunW);
+      const sO=(v,l)=>`<option value="${v}"${w.manual===v||(!w.manual&&v==='')?' selected':''}>${l}</option>`;
       const editSel=(!w.hist&&w.w!==nAll)?`<select class="wksel" onchange="setWkEdit('${wkKey}',this.value)">
-          <option value=""${!w.manual?' selected':''}>Auto</option>
-          <option value="deload"${w.manual==='deload'?' selected':''}>Rendi scarico</option>
-          <option value="r5"${w.manual==='r5'?' selected':''}>Gara 5k</option>
-          <option value="r10"${w.manual==='r10'?' selected':''}>Gara 10k</option>
-          <option value="r21"${w.manual==='r21'?' selected':''}>Gara mezza</option>
+          ${sO('','Auto')}
+          ${sO('deload','Rendi scarico')}
+          <optgroup label="Gara la domenica (resto invariato)">${sO('a5','+ Gara 5k')}${sO('a10','+ Gara 10k')}${sO('a21','+ Gara mezza')}</optgroup>
+          <optgroup label="Settimana dedicata (scarico + gara)">${sO('r5','Gara 5k')}${sO('r10','Gara 10k')}${sO('r21','Gara mezza')}</optgroup>
         </select>`:'';
       return `<div class="wk ph-${w.phase||'base'}${w.isDeload?' deload':''}${isCur?' cur':''}${w.manual?' manual':''}"${w.hist?' style="opacity:.55"':''}>
         <div class="wkhead"><div class="wktitle">Settimana ${w.w}${isCur?' <span class="nowb">in corso</span>':''}</div><div class="wkvol">~${w.vol} km</div></div>
-        <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.manual&&w.manual!=='deload'?'<span class="phb race">🏁 gara</span>':''}${w.manual?'<span class="phb manual">✎ a mano</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
+        <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.manual&&w.manual!=='deload'?`<span class="phb race">🏁 gara${w.addRace?' (dom)':''}</span>`:''}${w.manual?'<span class="phb manual">✎ a mano</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
         ${editSel}
         <div class="vbar"><i style="width:${vpct}%;background:${phCol}"></i></div>
         ${w.sess.map(s=>{const isRaceFinal=s.n.startsWith('GARA'),isr=isRaceFinal||s.race;
@@ -1351,6 +1360,17 @@ document.getElementById('mon-ics').addEventListener('change',e=>{
   };rd.readAsText(f);
   e.target.value='';
 });
+document.getElementById('mon-fromplan').addEventListener('click',()=>{
+  const pl=LS('rp_plan');
+  if(!pl)return alert('Genera prima un piano nel tab Piano.');
+  const sessions=planToSessions(pl); // applica già scarichi/gare messi a mano
+  if(!sessions.length)return alert('Il piano non contiene sedute future da monitorare.');
+  const prevRuns=(monitor&&monitor.runs)||[]; // conserva le corse selezionate manualmente
+  monitor={name:'Piano corrente',importedAt:new Date().toISOString(),sessions,vdot0:curVdot()||null,runs:prevRuns};
+  LS('rp_monitor',monitor);rMonitor();
+  const races=sessions.filter(s=>s.cls==='race');
+  alert(`Monitor aggiornato dal piano: ${sessions.length} sedute in ${new Set(sessions.map(s=>s.week)).size} settimane${races.length?` · ${races.length} gara/e`:''}.`);
+});
 document.getElementById('mon-clear').addEventListener('click',()=>{
   if(!monitor)return;
   if(!confirm('Rimuovere il piano monitorato? Le corse restano in archivio.'))return;
@@ -1382,7 +1402,7 @@ function planToSessions(pl){
     w.sess.forEach(s=>{
       const isr=s.n.startsWith('GARA'); // solo la gara finale usa la data gara; le gare al volo restano nel loro giorno
       const d=isr?race:addD(sun,OFF[s.t]??0);
-      out.push({date:isoL(d),week:null,name:s.n,cls:planCls(s.n),km:s.km,phase:w.phase,work:s.d,paces:(s.d.match(/\d:\d\d/g)||[]),summer:!!w.summer,deload:!!w.isDeload});
+      out.push({date:isoL(d),week:w.w,name:s.n,cls:planCls(s.n),km:s.km,phase:w.phase,work:s.d,paces:(s.d.match(/\d:\d\d/g)||[]),summer:!!w.summer,deload:!!w.isDeload});
     });
   });
   return out;
