@@ -1651,6 +1651,12 @@ function rAna(){
   const zone=hrZone(r.hr),zmax=hrZone(r.hrmax);
   const vd=vdotOf(r.km,r.sec),cvd=curVdot();
   const lp0=lapsDB[key];const acts=lp0&&lp0.laps?lp0.laps.filter(l=>l[4]==='act'&&l[0]>0):[];
+  // split prima/seconda parte per DISTANZA (non per numero di lap): con lap eterogenei
+  // (es. 10×1km + allunghi da 100m) dividere a metà per conteggio falsa i passi.
+  const halfIdx=a=>{const tot=a.reduce((s,l)=>s+l[0],0),mid=tot/2;let cum=0,i=0;
+    for(;i<a.length-1;i++){if(cum+a[i][0]>=mid)break;cum+=a[i][0];}
+    const before=mid-cum,after=a[i][0]-before;const s=before>=after?i+1:i;
+    return Math.min(Math.max(s,1),a.length-1);};
   const PARA=[];
   // 1. contesto
   const DN=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
@@ -1680,9 +1686,9 @@ function rAna(){
         :avg<(wt?wt.lo:tgt)?` La tua media è stata più veloce di ${Math.abs(d).toFixed(0)}s/km rispetto al target previsto (${tt}): gamba brillante.`
         :` La tua media è stata ${d.toFixed(0)}s/km sopra il target previsto (${tt}): non un dramma, ma registra la fatica del periodo.`}
   }else if(acts.length>=2){
-    const half=Math.max(1,Math.floor(acts.length/2));
+    const si=halfIdx(acts);
     const pAvg=a=>a.reduce((x,l)=>x+l[1],0)/a.reduce((x,l)=>x+l[0]/1000,0);
-    const t1=pAvg(acts.slice(0,half)),t2=pAvg(acts.slice(-half)),d=t2-t1;
+    const t1=pAvg(acts.slice(0,si)),t2=pAvg(acts.slice(si)),d=t2-t1;
     const pcs=acts.map(l=>l[1]/(l[0]/1000)),fi=pcs.indexOf(Math.min(...pcs))+1;
     ex=`Prima parte a ${fmtP(t1)}/km, seconda a ${fmtP(t2)}/km: ${d<=-2?'negative split netto — gestione da manuale, partito con margine e chiuso in crescendo':d<=1?'ritmo uniforme, buona gestione dello sforzo':d<=6?'leggero positive split, partenza un filo generosa ma tenuta accettabile':'positive split marcato: partito troppo forte, e la seconda metà lo ha pagato'}. La frazione più veloce è stata la ${fi}ª (${fmtP(Math.min(...pcs))}/km).`;
   }else if(cvd){
@@ -1703,8 +1709,8 @@ function rAna(){
     else if(c==='easy'||c==='long')hrp+=` Per una ${CLSN[c].toLowerCase()} è troppo: il facile deve restare in Z1-Z2, altrimenti rubi energie alle sedute che contano.`;
     else hrp+=(zmax==='Z4'||zmax==='Z5')?' La media è abbassata dai recuperi, ma i picchi nelle frazioni veloci sono nella zona giusta.':' FC mai davvero alta: o la seduta era corsa sotto ritmo, o i recuperi erano troppo generosi.';
     if(acts.length>=4){
-      const half=Math.floor(acts.length/2);
-      const hA=acts.slice(0,half).map(l=>l[2]).filter(Boolean),hB=acts.slice(-half).map(l=>l[2]).filter(Boolean);
+      const si=halfIdx(acts);
+      const hA=acts.slice(0,si).map(l=>l[2]).filter(Boolean),hB=acts.slice(si).map(l=>l[2]).filter(Boolean);
       if(hA.length&&hB.length){const m=a=>a.reduce((x,y)=>x+y)/a.length;const dr=(m(hB)-m(hA))/m(hA)*100;
         hrp+=` La deriva cardiaca tra prima e seconda parte è ${dr>=0?'+':''}${dr.toFixed(1)}%: ${dr<3?'tenuta aerobica ottima':dr<6?'nella norma per questo tipo di sforzo':'alta — caldo, disidratazione o sforzo oltre la condizione attuale'}.`}
     }
