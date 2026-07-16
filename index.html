@@ -59,6 +59,9 @@ svg text{fill:var(--dim);font-size:9px}
 .phb.base{background:#e3f5e9;color:#1a8a3f}.phb.speed{background:#fde8e6;color:#c0392b}
 .phb.spec{background:#e4f0fd;color:#0a6ed1}.phb.taper{background:#fdf0dc;color:#b26a00}
 .phb.deload{background:#eceef1;color:#6b7280}.phb.summer{background:#fff8e1;color:#a86b00}
+.phb.race{background:#e3f5e9;color:#1a7a3a}.phb.manual{background:#ede7fb;color:#6a3fc0}
+.wksel{width:auto;font-size:11px;padding:3px 6px;margin:6px 0 0;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--fg,inherit)}
+.wk.manual{box-shadow:inset 3px 0 0 #7c4dff}
 .vbar{height:5px;background:var(--line);border-radius:3px;margin:9px 0 6px;overflow:hidden}
 .vbar i{display:block;height:100%;border-radius:3px}
 .sess{display:flex;gap:9px;padding:8px 2px;border-bottom:1px solid var(--line);align-items:flex-start}
@@ -246,7 +249,7 @@ svg text{fill:var(--dim);font-size:9px}
 const LS=(k,v)=>{
   if(v===undefined) return JSON.parse(localStorage.getItem(k)||'null');
   localStorage.setItem(k,JSON.stringify(v));
-  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics') pushCloud();
+  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit') pushCloud();
   return v;
 };
 let edits=LS('rp_edits')||{}; // rinomine ed eliminazioni manuali, sopravvivono ai rebuild
@@ -319,6 +322,7 @@ function startCloudSync(uid){
     if(payload.monitor!==undefined)localStorage.setItem('rp_monitor',JSON.stringify(payload.monitor));
     if(payload.plan!==undefined)localStorage.setItem('rp_plan',JSON.stringify(payload.plan));
     if(payload.ics!==undefined)localStorage.setItem('rp_ics',JSON.stringify(payload.ics));
+    if(payload.wkedit!==undefined)localStorage.setItem('rp_wkedit',JSON.stringify(payload.wkedit));
     location.reload();
   },err=>console.warn('cloud sync',err));
 }
@@ -329,7 +333,7 @@ function pushCloud(){
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{
     fbDb.collection('users').doc(fbAuth.currentUser.uid).set({
-      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics')}),
+      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics'),wkedit:LS('rp_wkedit')}),
       writer:cloudSessionId,
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true}).catch(e=>console.warn('cloud push',e));
@@ -1045,8 +1049,60 @@ function genPlan(silent){
   LS('rp_plan',plan);rPlan(plan);rTrack();rToday();
   return plan;
 }
+/* ---------- modifiche manuali alle settimane (scarico / gara al volo) ---------- */
+// Sopravvivono ai rebuild: chiave = domenica ISO della settimana (stabile finché la data gara non cambia).
+function wkEdits(){return LS('rp_wkedit')||{}}
+function wkSunISO(pl,wk){
+  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
+  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const race=new Date(pl.dateStr+'T12:00:00');
+  const refSun=addD(race,(7-race.getDay())%7);
+  return iso(addD(refSun,-(pl.weeks.length-wk.w)*7));
+}
+function setWkEdit(key,val){
+  const ed=wkEdits();
+  if(!val)delete ed[key];else ed[key]=val;
+  LS('rp_wkedit',ed);
+  const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
+}
+// applica gli override a una copia del piano puro: usata da rPlan, rTrack, rToday, planToSessions
+function applyWkEdits(pl){
+  if(!pl||!pl.weeks)return pl;
+  const ed=wkEdits();if(!Object.keys(ed).length)return pl;
+  const ph=pl.ph||{},core=Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.specW||0));
+  const kmAt=(min,sp)=>min*60/sp,r2=k=>Math.round(k*2)/2;
+  const clone=JSON.parse(JSON.stringify(pl)),nAll=clone.weeks.length;
+  clone.weeks=clone.weeks.map(w=>{
+    if(w.hist||w.w===nAll)return w; // niente override su settimane passate o sulla gara finale
+    const ov=ed[wkSunISO(clone,w)];
+    if(!ov)return w;
+    const vdW=pl.vd+((pl.vdTarget||pl.vd)-pl.vd)*Math.min(1,w.w/core);
+    const p=paces(vdW),Ea=(p.E[0]+p.E[1])/2;
+    const E=`${fmtP(p.E[1])}–${fmtP(p.E[0])}`;
+    let sess;
+    if(ov==='deload'){
+      sess=[
+        {t:'Martedì',n:'Scarico',d:`40' @ ${E} + 6 allunghi 80m`,km:kmAt(40,Ea)+0.5},
+        {t:'Giovedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)},
+        {t:'Domenica',n:'Lungo ridotto',d:`60' @ ${E}`,km:kmAt(60,Ea)}];
+      sess.forEach(s=>s.km=r2(s.km));
+      return {...w,isDeload:true,manual:'deload',sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+    }
+    // gara al volo (5 / 10 / mezza): mini-scarico infrasettimanale + gara nel weekend
+    const dist=ov==='r5'?5:ov==='r10'?10:21.0975;
+    const rn=dist>=21?'Mezza':dist+'k',rp=predict(dist,vdW)/dist;
+    sess=[
+      {t:'Martedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)},
+      {t:'Giovedì',n:'Pre-gara',d:`20' @ ${E} + 4×100m allunghi`,km:kmAt(20,Ea)+0.4},
+      {t:'Domenica',n:`🏁 Gara ${rn}`,race:true,d:`${dist>=21?dist.toFixed(1):dist} km @ ${fmtP(rp)}/km`,km:dist}];
+    sess.forEach(s=>s.km=r2(s.km));
+    return {...w,isDeload:false,manual:ov,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+  });
+  return clone;
+}
 function rPlan(plan){
   if(!plan)return;
+  plan=applyWkEdits(plan);
   const gn={5:'5 km',10:'10 km','21.0975':'Mezza maratona','42.195':'Maratona'}[plan.goal]||plan.goal+' km';
   const PH={base:'Base',speed:'Velocità',spec:'Specifico',taper:'Taper'};
   const PHC={base:'var(--acc)',speed:'var(--red)',spec:'var(--acc2)',taper:'var(--warn)'};
@@ -1084,13 +1140,22 @@ function rPlan(plan){
       const phCol=w.isDeload?'var(--dim)':(PHC[w.phase]||'var(--acc)');
       const vpct=Math.min(100,Math.round((w.vol||0)/peakVol*100));
       const sunW=addD(refSun,-(nAll-w.w)*7);
-      return `<div class="wk ph-${w.phase||'base'}${w.isDeload?' deload':''}${isCur?' cur':''}"${w.hist?' style="opacity:.55"':''}>
+      const wkKey=iso(sunW);
+      const editSel=(!w.hist&&w.w!==nAll)?`<select class="wksel" onchange="setWkEdit('${wkKey}',this.value)">
+          <option value=""${!w.manual?' selected':''}>Auto</option>
+          <option value="deload"${w.manual==='deload'?' selected':''}>Rendi scarico</option>
+          <option value="r5"${w.manual==='r5'?' selected':''}>Gara 5k</option>
+          <option value="r10"${w.manual==='r10'?' selected':''}>Gara 10k</option>
+          <option value="r21"${w.manual==='r21'?' selected':''}>Gara mezza</option>
+        </select>`:'';
+      return `<div class="wk ph-${w.phase||'base'}${w.isDeload?' deload':''}${isCur?' cur':''}${w.manual?' manual':''}"${w.hist?' style="opacity:.55"':''}>
         <div class="wkhead"><div class="wktitle">Settimana ${w.w}${isCur?' <span class="nowb">in corso</span>':''}</div><div class="wkvol">~${w.vol} km</div></div>
-        <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
+        <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.manual&&w.manual!=='deload'?'<span class="phb race">🏁 gara</span>':''}${w.manual?'<span class="phb manual">✎ a mano</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
+        ${editSel}
         <div class="vbar"><i style="width:${vpct}%;background:${phCol}"></i></div>
-        ${w.sess.map(s=>{const isr=s.n.startsWith('GARA');
-          const sd=isr?race:addD(sunW,OFF[s.t]??0);
-          return `<div class="sess${isr?' race':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isr?'🏁 ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">≈${s.km} km</div></div></div>`;
+        ${w.sess.map(s=>{const isRaceFinal=s.n.startsWith('GARA'),isr=isRaceFinal||s.race;
+          const sd=isRaceFinal?race:addD(sunW,OFF[s.t]??0);
+          return `<div class="sess${isr?' race':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">≈${s.km} km</div></div></div>`;
         }).join('')}
       </div>`;
     }).join('')+`</div>`;
@@ -1098,7 +1163,7 @@ function rPlan(plan){
 /* ---------- progressione vs piano ---------- */
 function rTrack(){
   const el=document.getElementById('p-track');
-  const pl=LS('rp_plan');
+  const pl=applyWkEdits(LS('rp_plan'));
   if(!pl){el.innerHTML='<p class="muted">Genera un piano: da qui traccio settimana per settimana come lo stai seguendo.</p>';return}
   const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1305,6 +1370,7 @@ function monRemoveRun(k){
 }
 // converte un piano rp_plan (settimane future) in sedute stile .ics
 function planToSessions(pl){
+  pl=applyWkEdits(pl);
   const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
   const isoL=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const OFF={'Lunedì':-6,'Martedì':-5,'Mercoledì':-4,'Giovedì':-3,'Venerdì':-2,'Sabato':-1,'Domenica':0};
@@ -1314,7 +1380,7 @@ function planToSessions(pl){
   pl.weeks.forEach(w=>{if(w.hist)return;
     const sun=addD(refSun,-(n-w.w)*7);
     w.sess.forEach(s=>{
-      const isr=s.n.startsWith('GARA');
+      const isr=s.n.startsWith('GARA'); // solo la gara finale usa la data gara; le gare al volo restano nel loro giorno
       const d=isr?race:addD(sun,OFF[s.t]??0);
       out.push({date:isoL(d),week:null,name:s.n,cls:planCls(s.n),km:s.km,phase:w.phase,work:s.d,paces:(s.d.match(/\d:\d\d/g)||[]),summer:!!w.summer,deload:!!w.isDeload});
     });
