@@ -1798,6 +1798,24 @@ function rAna(){
         :` Efficienza in linea col tuo standard (${myMb.toFixed(2)} m/battito).`;
   }
   if(hrp)PARA.push(hrp);
+  // 3b. beneficio fisiologico prevalente: zona più vicina al passo del LAVORO (lap attivi, recuperi esclusi)
+  if(cvd){
+    const pz=paces(cvd);
+    const wp=acts.length>=2?acts.reduce((s,l)=>s+l[1],0)/acts.reduce((s,l)=>s+l[0]/1000,0):pace(r);
+    const ZB=[
+      ['R',pz.R,'velocità ed economia di corsa','reattività neuromuscolare e tecnica: rende più economico ogni altro ritmo'],
+      ['I',pz.I,'VO2max','la massima potenza aerobica: alza il tetto del motore'],
+      ['T',pz.T,'soglia anaerobica','sposta in su il ritmo che riesci a reggere a lungo — la leva più efficiente dai 10k in su'],
+      ['M',pz.M,'endurance specifica','economia di corsa e gestione dei carboidrati al ritmo gara'],
+      ['E',(pz.E[0]+pz.E[1])/2,'base aerobica','capillari, mitocondri e metabolismo dei grassi: il fondamento che regge tutto il resto']];
+    let bz=ZB[0],bd=1e9;ZB.forEach(z=>{const d=Math.abs(wp-z[1]);if(d<bd){bd=d;bz=z}});
+    let ben=c==='race'
+      ?`Su cosa lavora: una gara stimola tutto l'insieme, ma a questo ritmo il carico principale è su <b>${bz[2]}</b> (zona ${bz[0]}) — ${bz[3]}.`
+      :`Su cosa lavora: principalmente <b>${bz[2]}</b> (passo del lavoro ${fmtP(wp)}/km ≈ zona ${bz[0]}) — ${bz[3]}.`;
+    if(c==='long'&&r.sec>=90*60)ben+=` Oltre i 90' si aggiunge il beneficio chiave del lungo: resistenza strutturale e capacità di usare i grassi.`;
+    if(c==='int'&&acts.length>=2&&acts[0][0]<600&&bz[0]!=='R')ben+=' Le frazioni brevi aggiungono anche un lavoro di velocità e tecnica.';
+    PARA.push(ben);
+  }
   // 4. contesto storico
   let hist='';
   if(sim.length>=3){
