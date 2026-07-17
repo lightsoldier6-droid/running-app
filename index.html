@@ -348,6 +348,8 @@ const fmtD=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60
 const day=d=>new Date(d.replace(' ','T'));
 const daysAgo=r=>(Date.now()-day(r.date))/864e5;
 const pace=r=>r.sec/r.km;
+const isoLoc=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; // data locale (no shift UTC)
+const todayISO=()=>isoLoc(new Date());
 
 /* ---------- classificazione ---------- */
 function cls(r){
@@ -430,16 +432,16 @@ let prRange={from:null,to:null};
 const inRange=r=>{const d=r.date.slice(0,10);return(!prRange.from||d>=prRange.from)&&(!prRange.to||d<=prRange.to)};
 const fRuns=()=>runs.filter(inRange);
 function rangeSpan(list){if(!list.length)return 0;return(day(list[list.length-1].date)-day(list[0].date))/864e5}
-function weekKey(d){const dt=day(d);const mon=new Date(dt);mon.setDate(dt.getDate()-((dt.getDay()+6)%7));return mon.toISOString().slice(0,10)}
+function weekKey(d){const dt=day(d);const mon=new Date(dt);mon.setDate(dt.getDate()-((dt.getDay()+6)%7));return isoLoc(mon)}
 const MESI=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
 const labDay=k=>{const p=k.split('-');return +p[2]+' '+MESI[+p[1]-1]}; // '2026-07-06' -> '6 lug'
 const labMonth=k=>{const p=k.split('-');return MESI[+p[1]-1]+' '+p[0].slice(2)}; // '2026-07' -> 'lug 26'
 function weeklyKm(list){list=list||runs;const m={};list.forEach(r=>{const k=weekKey(r.date);m[k]=(m[k]||0)+r.km});return Object.entries(m).sort()}
-function groupAvg(list,val){ // media per settimana o mese a seconda dell'ampiezza
+function groupAvg(list,val,wt){ // media per settimana o mese; wt opzionale = peso (media ponderata, es. km)
   const wk=rangeSpan(list)<=150;
   const m={};
-  list.forEach(r=>{const v=val(r);if(v==null)return;const k=wk?weekKey(r.date):r.date.slice(0,7);(m[k]=m[k]||[]).push(v)});
-  return Object.entries(m).sort().map(([k,v])=>({x:wk?labDay(k):labMonth(k),y:v.reduce((a,b)=>a+b)/v.length}));
+  list.forEach(r=>{const v=val(r);if(v==null||!isFinite(v))return;const w=wt?wt(r):1;if(!(w>0))return;const k=wk?weekKey(r.date):r.date.slice(0,7);(m[k]=m[k]||[]).push([v,w])});
+  return Object.entries(m).sort().map(([k,v])=>({x:wk?labDay(k):labMonth(k),y:v.reduce((a,p)=>a+p[0]*p[1],0)/v.reduce((a,p)=>a+p[1],0)}));
 }
 function monthlyVdot(list){
   list=list||runs;if(!list.length)return[];
@@ -495,7 +497,7 @@ function rToday(){
   if(monitor&&monitor.sessions&&monitor.sessions.length)sessions=monitor.sessions;
   else{const pl=LS('rp_plan');if(pl)sessions=planToSessions(pl)}
   if(!sessions||!sessions.length){el.innerHTML='<p class="muted">Nessun piano attivo. Genera un piano nel tab Piano o carica un .ics nel Monitor: qui vedrai la seduta di oggi coi ritmi.</p>';return}
-  const todayS=new Date().toISOString().slice(0,10);
+  const todayS=todayISO();
   const DN=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
   const todayList=sessions.filter(s=>s.date===todayS);
   let target=todayList[0],label='Oggi';
@@ -568,8 +570,8 @@ function rProg(){
   chart('c-vdot',monthlyVdot(list),{ylab:v=>v.toFixed(0)});
   const wk=weeklyKm(list).slice(-40).map(([k,v])=>({x:labDay(k),y:+v.toFixed(1)}));
   chart('c-vol',wk,{bar:true,color:'var(--acc2)'});
-  chart('c-easy',groupAvg(list.filter(r=>cls(r)==='easy'&&!r.tm),r=>pace(r)/60),{ylab:v=>fmtP(v*60),invertY:true,color:'var(--warn)'});
-  chart('c-eff',groupAvg(list.filter(r=>cls(r)==='easy'&&r.hr&&!r.tm),r=>r.km*1000/(r.hr*r.sec/60)),{ylab:v=>v.toFixed(1)});
+  chart('c-easy',groupAvg(list.filter(r=>cls(r)==='easy'&&!r.tm),r=>pace(r)/60,r=>r.km),{ylab:v=>fmtP(v*60),invertY:true,color:'var(--warn)'}); // ponderata sui km = sec totali/km totali
+  chart('c-eff',groupAvg(list.filter(r=>cls(r)==='easy'&&r.hr&&!r.tm),r=>r.km*1000/(r.hr*r.sec/60),r=>r.hr*r.sec/60),{ylab:v=>v.toFixed(1)}); // ponderata sui battiti = metri totali/battiti totali
   const mk=document.getElementById('pr-metric').value||'cad';const M=DYN[mk];
   chart('c-dyn',groupAvg(list.filter(r=>r[mk]!=null&&!r.tm),r=>r[mk]),{ylab:M.f,invertY:M.dir<0,color:'var(--acc2)'});
   document.getElementById('dyn-note').textContent=`${M.n} (${M.u}): ${M.dir>0?'più alto':'più basso'} = meglio, a parità di ritmo.`;
@@ -628,13 +630,15 @@ function rRecap(){
   const A=list.filter(r=>day(r.date).getTime()<=t0+win);
   const B=list.filter(r=>day(r.date).getTime()>=t1-win);
   const avg=(a,f)=>{const v=a.map(f).filter(x=>x!=null&&isFinite(x));return v.length?v.reduce((x,y)=>x+y)/v.length:null};
+  const wavg=(a,num,den)=>{let n=0,d=0;a.forEach(r=>{const x=num(r),y=den(r);if(x!=null&&y!=null&&isFinite(x)&&y>0){n+=x;d+=y}});return d?n/d:null}; // media ponderata
   const easyA=A.filter(r=>cls(r)==='easy'),easyB=B.filter(r=>cls(r)==='easy');
-  const eff=a=>avg(a.filter(r=>r.hr),r=>r.km*1000/(r.hr*r.sec/60));
+  const wpace=a=>wavg(a,r=>r.sec,r=>r.km); // sec totali / km totali
+  const eff=a=>wavg(a.filter(r=>r.hr),r=>r.km*1000,r=>r.hr*r.sec/60); // metri totali / battiti totali
   const wkKm=a=>{if(a.length<2)return null;const d=(day(a[a.length-1].date)-day(a[0].date))/864e5+1;return a.reduce((s,r)=>s+r.km,0)/Math.max(1,d/7)};
   const vA=wkKm(A);
   const M=[ // [nome, A, B, formato, direzione buona, soglia significatività]
     ['VDOT',bestVdot(A),bestVdot(B),v=>v.toFixed(1),1,0.3],
-    ['Passo easy',avg(easyA,pace),avg(easyB,pace),v=>fmtP(v)+'/km',-1,3],
+    ['Passo easy',wpace(easyA),wpace(easyB),v=>fmtP(v)+'/km',-1,3],
     ['Efficienza (m/battito)',eff(easyA),eff(easyB),v=>v.toFixed(2),1,0.03],
     ['Volume settimanale',vA,wkKm(B),v=>v.toFixed(0)+' km',1,vA?Math.max(2,vA*0.05):2],
     ['Cadenza',avg(A,r=>r.cad),avg(B,r=>r.cad),v=>v.toFixed(0)+' spm',1,1],
@@ -696,60 +700,6 @@ function rCmp(){
     <p class="muted" style="margin-bottom:8px">Criterio: ${crit}</p>
     <table><tr><th></th><th class="r">Prima</th><th class="r">Ultima</th><th class="r">Δ</th></tr>${rows}</table>`;
 }
-
-/* ---------- analisi lap: ultime 2 sedute, sintesi + giudizio ---------- */
-function rLaps(){
-  const keys=Object.keys(lapsDB).sort().reverse().slice(0,2);
-  const out=keys.map(k=>{
-    const run=runs.find(r=>r.date===k);
-    if(!run)return''; // corsa eliminata
-    const acts=(lapsDB[k].laps||[]).filter(l=>l[4]==='act'&&l[0]>0);
-    if(!acts.length)return'';
-    // ripetute = gruppo di ≥3 lap attivi di distanza simile (≤2km), se non è una gara
-    let reps=null;
-    if(!run||cls(run)!=='race'){
-      const groups={};
-      acts.forEach(l=>{if(l[0]<=2000){const g=Math.round(l[0]/100);(groups[g]=groups[g]||[]).push(l)}});
-      const best=Object.values(groups).sort((a,b)=>b.length-a.length)[0];
-      if(best&&best.length>=3)reps=best;
-    }
-    let sum,verdict;
-    if(reps){
-      const secs=reps.map(l=>l[1]),pcs=reps.map(l=>l[1]/(l[0]/1000));
-      const avg=pcs.reduce((a,b)=>a+b)/pcs.length;
-      const spread=Math.max(...secs)-Math.min(...secs);
-      const dist=reps[0][0];
-      sum=`${reps.length}×${dist>=950?(dist/1000)+' km':dist+' m'} · medio <b class="pace">${fmtP(avg)}</b>/km · scarto ${spread.toFixed(1)}s`;
-      const wt=workTarget(plannedFor(run.date));
-      const vd=curVdot(),tgt=wt?wt.mid:(vd?vAt(dist<600?1.07:0.975,vd):null);
-      const j1=spread<=3?'Ritmo molto costante':spread<=6?'Ritmo costante':'Ritmo irregolare — meglio partire più conservativo e chiudere in crescendo';
-      let j2='.';
-      if(tgt){const d=avg-tgt,inR=wt?(avg>=wt.lo-3&&avg<=wt.hi+3):(d>=-2&&d<=3);
-        j2=inR?' e in linea col target'+(wt&&wt.zone?' ('+wt.zone+')':'')+': seduta ben eseguita.'
-          :avg<(wt?wt.lo:tgt)?' e più veloce del target: gamba brillante, seduta eccellente.'
-          :', ma sopra il target: probabile fatica accumulata — nessun dramma in settimana di carico.'}
-      verdict=j1+j2;
-    }else{
-      const use=acts.filter(l=>l[0]>=200);
-      if(use.length<2)return'';
-      const half=Math.max(1,Math.floor(use.length/2));
-      const pAvg=a=>a.reduce((x,l)=>x+l[1],0)/a.reduce((x,l)=>x+l[0]/1000,0);
-      const t1=pAvg(use.slice(0,half)),t2=pAvg(use.slice(-half));
-      const d=t2-t1;
-      sum=`${use.length} split · ${fmtP(t1)} → ${fmtP(t2)}`;
-      if(run&&cls(run)==='race'){const v=vdotOf(run.km,run.sec);sum+=` · VDOT <b class="pace">${v.toFixed(1)}</b>`}
-      verdict=d<=-2?'Negative split netto: gestione da manuale — partito con margine, chiuso in crescendo.'
-        :d<=1?'Ritmo sostanzialmente uniforme: buona gestione dello sforzo.'
-        :d<=6?'Leggero positive split: partenza un filo generosa, ma tenuta più che accettabile.'
-        :'Positive split marcato: partenza troppo veloce — la prossima volta trattieni il primo terzo.';
-    }
-    return `<div class="wk"><h3>${run?run.title:k} <small>· ${k.slice(0,10)}</small></h3>
-      <p class="muted" style="margin:2px 0 4px">${sum}</p>
-      <p style="margin:0">${verdict}</p></div>`;
-  }).filter(Boolean).join('');
-  document.getElementById('c-laps').innerHTML=out||'<p class="muted">Nessuna seduta con lap: importa i .FIT dal tab Dati.</p>';
-}
-
 
 /* ---------- piano ---------- */
 const rngP=(s,t=3)=>`${fmtP(s-t)}–${fmtP(s+t)}`; // tolleranza ±3s come nel piano 10 settimane
@@ -1442,7 +1392,7 @@ function monRecalibrate(){
   document.getElementById('p-target').value=(prev&&+prev.goal===goal&&prev.target)?prev.target:'';
   const np=genPlan(true);if(!np)return;
   // monitor: passato conservato dall'.ics + futuro rigenerato
-  const todayS=new Date().toISOString().slice(0,10);
+  const todayS=todayISO();
   const past=monitor.sessions.filter(s=>s.date<todayS);
   const merged=[...past,...planToSessions(np)].sort((a,b)=>a.date<b.date?-1:1);
   const wkKeys=[...new Set(merged.map(s=>weekKey(s.date)))].sort();
@@ -1472,7 +1422,7 @@ function rMonitor(){
   }
   const S=monitor.sessions;
   info.textContent=`${monitor.name} · ${S.length} sedute · caricato il ${monitor.importedAt.slice(0,10)}. Le corse arrivano dall’archivio (import .FIT/CSV).`;
-  const todayS=new Date().toISOString().slice(0,10);
+  const todayS=todayISO();
   const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
   const isoOf=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   // corse selezionate manualmente: se presenti, monitoro solo quelle; altrimenti aggancio tutto l'archivio
@@ -1734,6 +1684,9 @@ function rAna(){
   const sim=runs.filter(x=>x.date!==r.date&&cls(x)===c&&!x.tm===!r.tm);
   const avgS=f=>{const v=sim.map(f).filter(x=>x!=null&&isFinite(x));return v.length?v.reduce((a,b)=>a+b)/v.length:null};
   const mb=x=>x.hr?x.km*1000/(x.hr*x.sec/60):null;
+  // medie ponderate di categoria: passo = sec totali/km totali, m/battito = metri totali/battiti totali
+  const wPaceSim=(()=>{let s=0,k=0;sim.forEach(x=>{s+=x.sec;k+=x.km});return k?s/k:null})();
+  const wMbSim=(()=>{let m=0,b=0;sim.forEach(x=>{if(x.hr){m+=x.km*1000;b+=x.hr*x.sec/60}});return b?m/b:null})();
   const zone=hrZone(r.hr),zmax=hrZone(r.hrmax);
   const vd=vdotOf(r.km,r.sec),cvd=curVdot();
   const lp0=lapsDB[key];const acts=lp0&&lp0.laps?lp0.laps.filter(l=>l[4]==='act'&&l[0]>0):[];
@@ -1800,7 +1753,7 @@ function rAna(){
       if(hA.length&&hB.length){const m=a=>a.reduce((x,y)=>x+y)/a.length;const dr=(m(hB)-m(hA))/m(hA)*100;
         hrp+=` La deriva cardiaca tra prima e seconda parte è ${dr>=0?'+':''}${dr.toFixed(1)}%: ${dr<3?'tenuta aerobica ottima':dr<6?'nella norma per questo tipo di sforzo':'alta — caldo, disidratazione o sforzo oltre la condizione attuale'}.`}
     }
-    const myMb=mb(r),refMb=(()=>{const v=runs.filter(x=>cls(x)==='easy'&&x.hr&&!x.tm).map(mb);return v.length?v.reduce((a,b)=>a+b)/v.length:null})();
+    const myMb=mb(r),refMb=(()=>{let m=0,b=0;runs.filter(x=>cls(x)==='easy'&&x.hr&&!x.tm).forEach(x=>{m+=x.km*1000;b+=x.hr*x.sec/60});return b?m/b:null})();
     if(myMb&&refMb&&(c==='easy'||c==='long'))
       hrp+=myMb>refMb*1.03?` Efficienza ${myMb.toFixed(2)} m/battito contro una tua media di ${refMb.toFixed(2)}: il motore sta crescendo.`
         :myMb<refMb*0.97?` Efficienza ${myMb.toFixed(2)} m/battito, sotto la tua media (${refMb.toFixed(2)}): giornata pesante, caldo o percorso ostico.`
@@ -1811,7 +1764,7 @@ function rAna(){
   let hist='';
   if(sim.length>=3){
     const faster=sim.filter(x=>pace(x)<pace(r)).length;
-    const dAvg=pace(r)-avgS(pace);
+    const dAvg=pace(r)-wPaceSim;
     hist=faster===0?`È la più veloce delle tue ${sim.length+1} corse ${CLSN[c].toLowerCase()} in archivio.`:`Su ${sim.length} corse simili in archivio, ${faster} sono state più veloci.`;
     hist+=` Rispetto alla tua media di categoria sei ${Math.abs(dAvg)<1?'esattamente in linea':`${Math.abs(dAvg).toFixed(0)}s/km più ${dAvg<0?'veloce':'lento'}`}.`;
     const prevSim=[...sim].reverse().find(x=>x.date<r.date);
@@ -1889,9 +1842,9 @@ function rAna(){
   if(sim.length){
     html+=`<div class="card"><h2>Vs le tue ${sim.length} corse ${CLSN[c].toLowerCase()}</h2>
       <table><tr><th></th><th class="r">Questa</th><th class="r">Media</th><th class="r">Δ</th></tr>
-      ${drow('Passo',pace(r),avgS(pace),v=>fmtP(v)+'/km',-1,v=>v.toFixed(0)+'s')}
+      ${drow('Passo',pace(r),wPaceSim,v=>fmtP(v)+'/km',-1,v=>v.toFixed(0)+'s')}
       ${drow('FC media',r.hr,avgS(x=>x.hr),v=>Math.round(v)+' bpm',-1,v=>v.toFixed(0))}
-      ${drow('m/battito',mb(r),avgS(mb),v=>v.toFixed(2),1,v=>v.toFixed(2))}
+      ${drow('m/battito',mb(r),wMbSim,v=>v.toFixed(2),1,v=>v.toFixed(2))}
       ${drow('Cadenza',r.cad,avgS(x=>x.cad),v=>Math.round(v)+' spm',1,v=>v.toFixed(0))}
       ${drow('Lung. passo',r.stl,avgS(x=>x.stl),v=>v.toFixed(2)+' m',1,v=>v.toFixed(2))}
       ${drow('Contatto suolo',r.gct,avgS(x=>x.gct),v=>Math.round(v)+' ms',-1,v=>v.toFixed(0))}
@@ -2021,7 +1974,7 @@ document.querySelectorAll('#pr-pills .pill').forEach(pl=>pl.onclick=()=>{
   const m=+pl.dataset.m;
   if(!m){prRange={from:null,to:null};document.getElementById('pr-from').value='';document.getElementById('pr-to').value=''}
   else{const to=new Date(),from=new Date();from.setMonth(from.getMonth()-m);
-    prRange={from:from.toISOString().slice(0,10),to:to.toISOString().slice(0,10)};
+    prRange={from:isoLoc(from),to:isoLoc(to)};
     document.getElementById('pr-from').value=prRange.from;document.getElementById('pr-to').value=prRange.to}
   rProg();
 });
