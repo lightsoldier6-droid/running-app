@@ -13,7 +13,9 @@
 :root{--bg:#f2f3f5;--card:#ffffff;--line:#e5e7eb;--txt:#1c1c1e;--dim:#8a8a8e;--acc:#1f9d43;--acc2:#0a84ff;--warn:#c76b00;--red:#e5342a}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:var(--bg);color:var(--txt);font-family:-apple-system,system-ui,sans-serif;padding-bottom:calc(70px + env(safe-area-inset-bottom))}
-header{padding:calc(14px + env(safe-area-inset-top)) 16px 10px;display:flex;justify-content:space-between;align-items:baseline}
+header{padding:calc(14px + env(safe-area-inset-top)) 16px 10px;display:flex;justify-content:space-between;align-items:center}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.thmbtn{background:var(--card);border:1px solid var(--line);border-radius:50%;width:32px;height:32px;font-size:15px;line-height:1;padding:0;cursor:pointer}
 header h1{font-size:20px}header h1 span{color:var(--acc)}
 header small{color:var(--dim)}
 main{padding:0 12px}
@@ -112,6 +114,28 @@ td,th,.stat b,.wkvol,.smeta,.daychip{font-variant-numeric:tabular-nums}
   #mon-sess{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px}
   #mon-sess .wk{margin-bottom:0}
 }
+/* dark mode */
+body.dark{--bg:#101114;--card:#1b1c1f;--line:#2c2e33;--txt:#f2f2f4;--dim:#9a9aa2;--acc:#30c060;--acc2:#4da3ff;--warn:#e0a34d;--red:#ff6b60}
+body.dark nav{background:rgba(24,25,28,.9)}
+body.dark .card{box-shadow:0 1px 3px rgba(0,0,0,.4)}
+body.dark .badge{background:#26272b;color:#9fa2aa}
+body.dark .badge.int{background:#3b2220;color:#ff958c}
+body.dark .badge.qual{background:#3a2c15;color:#ffbe66}
+body.dark .badge.long{background:#17293f;color:#82bdff}
+body.dark .badge.easy{background:#16311f;color:#6cd992}
+body.dark .phb.base{background:#16311f;color:#6cd992}
+body.dark .phb.speed{background:#3b2220;color:#ff958c}
+body.dark .phb.spec{background:#17293f;color:#82bdff}
+body.dark .phb.taper{background:#3a2c15;color:#ffbe66}
+body.dark .phb.deload{background:#26272b;color:#9fa2aa}
+body.dark .phb.summer{background:#33290f;color:#e3b455}
+body.dark .phb.race{background:#16311f;color:#5fcd87}
+body.dark .phb.manual{background:#251b3d;color:#c0a4ff}
+body.dark .benefit{background:#16311f;border-color:#27573a}
+body.dark .benefit .bl{color:#6cd992}
+body.dark .sess.race{background:#16311f}
+body.dark .sess.race .daychip{background:#1b1c1f;border-color:#27573a}
+body,.card,input,select,nav{transition:background .2s,border-color .2s,color .2s}
 @media(min-width:1400px){
   .tab.on{grid-template-columns:repeat(3,minmax(0,1fr))}
   /* Progressi resta a 2 colonne: grafici grandi e leggibili, niente box minuscoli */
@@ -134,7 +158,7 @@ td,th,.stat b,.wkvol,.smeta,.daychip{font-variant-numeric:tabular-nums}
     <p id="auth-err" style="color:var(--red);font-size:12px;margin-top:8px"></p>
   </div>
 </div>
-<header><h1>Run<span>Plan</span></h1><small id="hdr"></small></header>
+<header><h1>Run<span>Plan</span></h1><div class="hdr-r"><small id="hdr"></small><button id="thm" class="thmbtn" aria-label="Tema chiaro/scuro" title="Tema chiaro/scuro">🌙</button></div></header>
 <main>
 
 <div class="tab on" id="tab-dash">
@@ -286,6 +310,18 @@ td,th,.stat b,.wkvol,.smeta,.daychip{font-variant-numeric:tabular-nums}
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="data.js"></script>
 <script>
+/* ---------- tema chiaro/scuro ---------- */
+function applyTheme(t){
+  document.body.classList.toggle('dark',t==='dark');
+  document.querySelector('meta[name="theme-color"]').setAttribute('content',t==='dark'?'#101114':'#f2f3f5');
+  document.getElementById('thm').textContent=t==='dark'?'☀️':'🌙';
+}
+document.getElementById('thm').onclick=()=>{
+  const t=document.body.classList.contains('dark')?'light':'dark';
+  localStorage.setItem('rp_theme',t);applyTheme(t);
+};
+applyTheme(localStorage.getItem('rp_theme')||'light');
+
 /* ---------- storage ---------- */
 const LS=(k,v)=>{
   if(v===undefined) return JSON.parse(localStorage.getItem(k)||'null');
