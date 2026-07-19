@@ -82,12 +82,29 @@ svg text{fill:var(--dim);font-size:9px}
 .muted{color:var(--dim);font-size:12px}
 .pill{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:12px;padding:3px 10px;margin:2px 4px 2px 0;color:var(--dim)}
 .pill.on{border-color:var(--acc);color:var(--acc)}
+.benefit{background:#e3f5e9;border:1px solid #bfe6cc;border-radius:12px;padding:11px 13px;margin-bottom:12px}
+.benefit .bl{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#1a8a3f;margin-bottom:2px}
+.benefit b{font-size:16px}
+.benefit small{color:var(--dim);font-size:12px}
+.benefit p{font-size:13px;margin-top:5px;line-height:1.45}
 td,th,.stat b,.wkvol,.smeta,.daychip{font-variant-numeric:tabular-nums}
 /* desktop: card in griglia (box) per ridurre lo scroll */
 @media(min-width:900px){
   main{max-width:1480px;margin:0 auto}
   .tab.on{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
   .card{margin-bottom:0}
+  /* Oggi: seduta del giorno in evidenza, ultime corse a tutta larghezza */
+  .card:has(#d-today){grid-column:1/-1;order:1}
+  .card:has(#d-vdot){order:2}
+  .card:has(#d-load){order:3}
+  .card:has(#d-pred){order:4}
+  .card:has(#d-paces){order:5}
+  .card:has(#d-recent){grid-column:1/-1;order:6}
+  /* Progressi: analisi seduta come fascia orizzontale a tutta larghezza */
+  .card:has(#a-out){grid-column:1/-1}
+  #a-out{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start}
+  #a-out .card{margin-bottom:0}
+  #a-out .card:first-child{grid-column:1/-1}
   #p-out{grid-column:1/-1;display:flex;flex-direction:column;gap:12px}
   #p-out .card:last-child{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px;align-content:start}
   #p-out .card:last-child .wk{margin-bottom:0}
@@ -97,6 +114,11 @@ td,th,.stat b,.wkvol,.smeta,.daychip{font-variant-numeric:tabular-nums}
 }
 @media(min-width:1400px){
   .tab.on{grid-template-columns:repeat(3,minmax(0,1fr))}
+  /* Progressi resta a 2 colonne: grafici grandi e leggibili, niente box minuscoli */
+  #tab-prog.on{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card:has(#d-today){grid-column:span 2}
+  #a-out{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #a-out .card:first-child{grid-column:span 2}
 }
 </style>
 </head>
@@ -1799,6 +1821,8 @@ function rAna(){
   }
   if(hrp)PARA.push(hrp);
   // 3b. beneficio fisiologico prevalente: zona più vicina al passo del LAVORO (lap attivi, recuperi esclusi)
+  // → mostrato come callout in evidenza in cima alla lettura, anche per le gare
+  let benefit=null;
   if(cvd){
     const pz=paces(cvd);
     const wp=acts.length>=2?acts.reduce((s,l)=>s+l[1],0)/acts.reduce((s,l)=>s+l[0]/1000,0):pace(r);
@@ -1809,12 +1833,13 @@ function rAna(){
       ['M',pz.M,'endurance specifica','economia di corsa e gestione dei carboidrati al ritmo gara'],
       ['E',(pz.E[0]+pz.E[1])/2,'base aerobica','capillari, mitocondri e metabolismo dei grassi: il fondamento che regge tutto il resto']];
     let bz=ZB[0],bd=1e9;ZB.forEach(z=>{const d=Math.abs(wp-z[1]);if(d<bd){bd=d;bz=z}});
-    let ben=c==='race'
-      ?`Su cosa lavora: una gara stimola tutto l'insieme, ma a questo ritmo il carico principale è su <b>${bz[2]}</b> (zona ${bz[0]}) — ${bz[3]}.`
-      :`Su cosa lavora: principalmente <b>${bz[2]}</b> (passo del lavoro ${fmtP(wp)}/km ≈ zona ${bz[0]}) — ${bz[3]}.`;
-    if(c==='long'&&r.sec>=90*60)ben+=` Oltre i 90' si aggiunge il beneficio chiave del lungo: resistenza strutturale e capacità di usare i grassi.`;
-    if(c==='int'&&acts.length>=2&&acts[0][0]<600&&bz[0]!=='R')ben+=' Le frazioni brevi aggiungono anche un lavoro di velocità e tecnica.';
-    PARA.push(ben);
+    let desc=c==='race'
+      ?`Una gara stimola tutto l'insieme, ma a questo ritmo il carico principale è qui: ${bz[3]}.`
+      :`${bz[3].charAt(0).toUpperCase()+bz[3].slice(1)}.`;
+    if(c==='race'&&cvd)desc+=` In più, la gara è il test più affidabile della forma: aggiorna la stima del VDOT.`;
+    if(c==='long'&&r.sec>=90*60)desc+=` Oltre i 90' si aggiunge il beneficio chiave del lungo: resistenza strutturale e capacità di usare i grassi.`;
+    if(c==='int'&&acts.length>=2&&acts[0][0]<600&&bz[0]!=='R')desc+=' Le frazioni brevi aggiungono anche un lavoro di velocità e tecnica.';
+    benefit={zone:bz[0],name:bz[2],desc,wp};
   }
   // 4. contesto storico
   let hist='';
@@ -1876,8 +1901,9 @@ function rAna(){
   }
   if(plano)PARA.push(plano);
   if(take)PARA.push(take);
-  // ---- assemblaggio: lettura in cima, poi i dati
-  let html=`<div class="card"><h2>Lettura della corsa</h2>${PARA.map(x=>`<p style="margin-bottom:10px">${x}</p>`).join('')}</div>`;
+  // ---- assemblaggio: beneficio principale in evidenza, poi lettura, poi i dati
+  const benHtml=benefit?`<div class="benefit"><span class="bl">Beneficio principale</span><b>${benefit.name}</b> <small>· zona ${benefit.zone} · lavoro @ ${fmtP(benefit.wp)}/km</small><p>${benefit.desc}</p></div>`:'';
+  let html=`<div class="card"><h2>Lettura della corsa</h2>${benHtml}${PARA.map(x=>`<p style="margin-bottom:10px">${x}</p>`).join('')}</div>`;
   html+=`<div class="card"><h2>${r.title} · ${r.date.slice(0,10)}</h2>
     <p style="margin-bottom:10px"><span class="badge ${c}">${CLSN[c]}</span>${stp?` <span class="badge">${stp}</span>`:''}${r.tm?' <span class="badge">tapis</span>':''}</p>
     <div class="grid3">
