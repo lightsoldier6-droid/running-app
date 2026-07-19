@@ -98,6 +98,11 @@ svg text{fill:var(--dim);font-size:9px}
 .lapc .lm{display:block;font-size:11.5px;margin-top:3px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .lapc .lm+.lm{color:var(--dim)}
 .lapc.best{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
+.lapc{cursor:pointer;transition:box-shadow .12s,background .12s}
+.lapc.sel{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc);background:#e9f7ee}
+body.dark .lapc.sel{background:#16311f}
+.lapdet{margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;animation:tabin .15s ease}
+.lapdet .grid3{gap:12px}
 .lbar{height:4px;background:var(--line);border-radius:2px;margin:5px 0 2px;overflow:hidden}
 .lbar i{display:block;height:100%;background:var(--acc);border-radius:2px}
 td,th,.stat b,.wkvol,.smeta,.daychip{font-variant-numeric:tabular-nums}
@@ -1805,6 +1810,29 @@ function parseGarmin(text){
 
 /* ---------- analisi approfondita di una corsa ---------- */
 function hrZone(h){if(!h)return null;const f=(h-st.hrrest)/(st.hrmax-st.hrrest);return f<0.6?'Z1':f<0.7?'Z2':f<0.8?'Z3':f<0.9?'Z4':'Z5'}
+let anaActs=null; // lap della corsa analizzata (per il dettaglio cliccabile)
+function lapSel(i){
+  if(!anaActs)return;
+  const d=document.getElementById('lap-detail');
+  const chips=document.querySelectorAll('.lapcard .laprow .lapc');
+  if(anaActs.sel===i){anaActs.sel=null;chips.forEach(el=>el.classList.remove('sel'));if(d)d.innerHTML='';return}
+  anaActs.sel=i;chips.forEach((el,j)=>el.classList.toggle('sel',j===i));
+  if(!d)return;
+  const {acts,pcs,best,avgW}=anaActs,l=acts[i],pc=pcs[i];
+  const rank=pcs.slice().sort((a,b)=>a-b).indexOf(pc)+1;
+  const dAvg=pc-avgW,dBest=pc-best;
+  const zone=hrZone(l[2]),pctMax=l[3]&&st.hrmax?Math.round(l[3]/st.hrmax*100):null;
+  const stl=l[5]?(1000/pc)/(l[5]/60):null;
+  const distL=l[0]>=950?(l[0]/1000).toFixed(l[0]%1000?2:0)+' km':l[0]+' m';
+  d.innerHTML=`<div class="lapdet">
+    <div class="grid3">
+      <div class="stat"><b>${fmtP(pc)}</b><span>passo /km · lap ${i+1}</span><i class="${dAvg<=0.5?'up':'down'}">${Math.abs(dAvg)<0.5?'in linea con la media lavoro':(dAvg>0?'+':'−')+Math.abs(dAvg).toFixed(1)+'s vs media lavoro'}</i></div>
+      <div class="stat"><b>${(3600/pc).toFixed(1)}</b><span>km/h</span><i>${distL} in ${fmtD(l[1])}</i></div>
+      <div class="stat"><b>${rank}ª/${acts.length}</b><span>più veloce della seduta</span><i>${dBest<0.5?'è il lap migliore':'+'+dBest.toFixed(1)+'s dal migliore'}</i></div>
+      <div class="stat"><b>${l[2]??'–'}${l[3]?'→'+l[3]:''}</b><span>FC media→max${zone?' ('+zone+')':''}</span><i>${pctMax?pctMax+'% della FC max':''}</i></div>
+      ${l[5]?`<div class="stat"><b>${l[5]}</b><span>passi/min</span><i>${stl?stl.toFixed(2)+' m per passo':''}</i></div>`:''}
+    </div></div>`;
+}
 function rAnaSel(){
   const sel=document.getElementById('a-sel');
   const cur=sel.value;
@@ -2009,20 +2037,22 @@ function rAna(){
       ${drow('Oscillazione',r.vo,avgS(x=>x.vo),v=>v.toFixed(1)+' cm',-1,v=>v.toFixed(1))}
       </table></div>`;
   }
-  // ---- lap: striscia orizzontale di chip, con barra velocità e stat extra
+  // ---- lap: striscia orizzontale di chip cliccabili, con barra velocità e dettaglio sotto
+  anaActs=null;
   if(acts.length>=2){
     const pcs=acts.map(l=>l[1]/(l[0]/1000));
     const best=Math.min(...pcs),worst=Math.max(...pcs),bi=pcs.indexOf(best)+1;
     const avgW=acts.reduce((s,l)=>s+l[1],0)/acts.reduce((s,l)=>s+l[0]/1000,0);
+    anaActs={acts,pcs,best,worst,avgW,sel:null};
     const distL=l=>l[0]>=950?(l[0]/1000).toFixed(l[0]%1000?2:0)+' km':l[0]+' m';
     const chips=acts.map((l,i)=>{const pc=pcs[i];
       const w=worst>best?Math.round(15+85*(worst-pc)/(worst-best)):100;
-      return`<div class="lapc${pc===best?' best':''}"><span class="ln">Lap ${i+1}</span><b>${fmtP(pc)}</b><span class="lu">/km</span><div class="lbar"><i style="width:${w}%"></i></div><span class="lm">${distL(l)} · ${fmtD(l[1])}</span>${l[2]?`<span class="lm">FC ${l[2]}→${l[3]??'–'}</span>`:''}${l[5]?`<span class="lm">${l[5]} spm</span>`:''}</div>`}).join('');
+      return`<div class="lapc${pc===best?' best':''}" onclick="lapSel(${i})"><span class="ln">Lap ${i+1}</span><b>${fmtP(pc)}</b><span class="lu">/km</span><div class="lbar"><i style="width:${w}%"></i></div><span class="lm">${distL(l)} · ${fmtD(l[1])}</span>${l[2]?`<span class="lm">FC ${l[2]}→${l[3]??'–'}</span>`:''}${l[5]?`<span class="lm">${l[5]} spm</span>`:''}</div>`}).join('');
     const hrsL=acts.map(l=>l[2]).filter(Boolean),spms=acts.map(l=>l[5]).filter(Boolean);
     const sum=[`media lavoro <b class="pace">${fmtP(avgW)}/km</b>`,`migliore ${fmtP(best)} (lap ${bi})`,`scarto ${(worst-best).toFixed(0)}s/km`];
     if(hrsL.length)sum.push(`FC media lap ${Math.round(hrsL.reduce((a,b)=>a+b)/hrsL.length)} bpm`);
     if(spms.length)sum.push(`cadenza media ${Math.round(spms.reduce((a,b)=>a+b)/spms.length)} spm`);
-    html+=`<div class="card lapcard"><h2>Lap</h2><div class="laprow">${chips}</div><p class="muted" style="margin-top:8px">${sum.join(' · ')}</p></div>`;
+    html+=`<div class="card lapcard"><h2>Lap <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· tocca un lap per i dettagli</span></h2><div class="laprow">${chips}</div><div id="lap-detail"></div><p class="muted" style="margin-top:8px">${sum.join(' · ')}</p></div>`;
   }
   el.innerHTML=html;
 }
