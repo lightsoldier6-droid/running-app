@@ -1,4 +1,4 @@
-const C = 'runplan-v52';
+const C = 'runplan-v53';
 const FILES = ['.', 'index.html', 'data.js', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png'];
 // install: bypassa la cache HTTP del browser (cache:'reload') così in cache finisce sempre la versione fresca
 self.addEventListener('install', e => e.waitUntil(caches.open(C).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting())));

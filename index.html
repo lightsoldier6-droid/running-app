@@ -1818,20 +1818,34 @@ function lapSel(i){
   if(anaActs.sel===i){anaActs.sel=null;chips.forEach(el=>el.classList.remove('sel'));if(d)d.innerHTML='';return}
   anaActs.sel=i;chips.forEach((el,j)=>el.classList.toggle('sel',j===i));
   if(!d)return;
-  const {acts,pcs,best,avgW}=anaActs,l=acts[i],pc=pcs[i];
-  const rank=pcs.slice().sort((a,b)=>a-b).indexOf(pc)+1;
+  const {acts,pcs,best,avgW,vI}=anaActs,l=acts[i],pc=pcs[i];
+  const isShort=l[0]<200;
   const dAvg=pc-avgW,dBest=pc-best;
   const zone=hrZone(l[2]),pctMax=l[3]&&st.hrmax?Math.round(l[3]/st.hrmax*100):null;
   const stl=l[5]?(1000/pc)/(l[5]/60):null;
   const distL=l[0]>=950?(l[0]/1000).toFixed(l[0]%1000?2:0)+' km':l[0]+' m';
-  d.innerHTML=`<div class="lapdet">
-    <div class="grid3">
-      <div class="stat"><b>${fmtP(pc)}</b><span>passo /km · lap ${i+1}</span><i class="${dAvg<=0.5?'up':'down'}">${Math.abs(dAvg)<0.5?'in linea con la media lavoro':(dAvg>0?'+':'−')+Math.abs(dAvg).toFixed(1)+'s vs media lavoro'}</i></div>
-      <div class="stat"><b>${(3600/pc).toFixed(1)}</b><span>km/h</span><i>${distL} in ${fmtD(l[1])}</i></div>
-      <div class="stat"><b>${rank}ª/${acts.length}</b><span>più veloce della seduta</span><i>${dBest<0.5?'è il lap migliore':'+'+dBest.toFixed(1)+'s dal migliore'}</i></div>
-      <div class="stat"><b>${l[2]??'–'}${l[3]?'→'+l[3]:''}</b><span>FC media→max${zone?' ('+zone+')':''}</span><i>${pctMax?pctMax+'% della FC max':''}</i></div>
-      ${l[5]?`<div class="stat"><b>${l[5]}</b><span>passi/min</span><i>${stl?stl.toFixed(2)+' m per passo':''}</i></div>`:''}
-    </div></div>`;
+  // 1) passo vs media lavoro
+  const tiles=[`<div class="stat"><b>${fmtP(pc)}<small style="font-size:12px;color:var(--dim)">/km</small></b><span>${distL} in ${fmtD(l[1])}</span><i class="${dAvg<=0.5?'up':'down'}">${Math.abs(dAvg)<0.5?'in linea con la media lavoro':(dAvg<0?'−':'+')+Math.abs(dAvg).toFixed(0)+'s/km vs media lavoro ('+fmtP(avgW)+')'}</i></div>`];
+  // 2) a cosa corrisponde questo passo nelle TUE zone (Daniels)
+  const cvdL=curVdot();
+  if(cvdL){const p=paces(cvdL);
+    const Z=[['R','ritmo ripetute brevi',p.R],['I','ritmo VO2max',p.I],['T','ritmo soglia',p.T],['M','ritmo maratona',p.M],['E','ritmo fondo facile',(p.E[0]+p.E[1])/2]];
+    let bz=Z[0],bd=1e9;Z.forEach(z=>{const dd=Math.abs(pc-z[2]);if(dd<bd){bd=dd;bz=z}});
+    tiles.push(`<div class="stat"><b>${bz[0]}</b><span>zona di passo</span><i>≈ il tuo ${bz[1]} (${fmtP(bz[2])}/km)</i></div>`);}
+  // 3) posizione tra i lap interi
+  if(!isShort&&vI.length>=2){const vp=vI.map(x=>pcs[x]),rank=vp.slice().sort((a,b)=>a-b).indexOf(pc)+1;
+    tiles.push(`<div class="stat"><b>${rank}°<small style="font-size:12px;color:var(--dim)">/${vI.length}</small></b><span>tra i lap interi</span><i>${dBest<0.5?'il più veloce della seduta':'+'+dBest.toFixed(0)+'s/km dal più veloce ('+fmtP(best)+')'}</i></div>`);}
+  // 4) cuore
+  if(l[2])tiles.push(`<div class="stat"><b>${l[2]}${l[3]?'→'+l[3]:''}</b><span>FC media→max${zone?' · '+zone:''}</span><i>${pctMax?'picco al '+pctMax+'% della tua FC max':''}</i></div>`);
+  // 5) costo cardiaco del lap (efficienza)
+  if(l[2]){const mbLap=l[0]/(l[2]*l[1]/60);
+    const withHr=acts.filter(x=>x[2]&&x[0]>=200);
+    const mbAvg=withHr.length?withHr.reduce((s,x)=>s+x[0],0)/withHr.reduce((s,x)=>s+x[2]*x[1]/60,0):null;
+    const dMb=mbAvg?mbLap-mbAvg:null;
+    tiles.push(`<div class="stat"><b>${mbLap.toFixed(2)}</b><span>metri per battito</span><i class="${dMb==null?'':dMb>=0?'up':'down'}">${dMb==null?'più alto = meno sforzo':(dMb>=0?'+':'')+dMb.toFixed(2)+' vs media seduta: '+(dMb>=0.02?'più efficiente':dMb<=-0.02?'costato di più (deriva o ritmo)':'in linea')}</i></div>`);}
+  // 6) cadenza
+  if(l[5])tiles.push(`<div class="stat"><b>${l[5]}</b><span>passi al minuto</span><i>${stl?'falcata media '+stl.toFixed(2)+' m':''}</i></div>`);
+  d.innerHTML=`<div class="lapdet">${isShort?'<p class="muted" style="margin-bottom:8px">Lap breve (sprint/scarto finale): i confronti con gli altri lap sono poco significativi.</p>':''}<div class="grid3">${tiles.join('')}</div></div>`;
 }
 function rAnaSel(){
   const sel=document.getElementById('a-sel');
@@ -2041,13 +2055,16 @@ function rAna(){
   anaActs=null;
   if(acts.length>=2){
     const pcs=acts.map(l=>l[1]/(l[0]/1000));
-    const best=Math.min(...pcs),worst=Math.max(...pcs),bi=pcs.indexOf(best)+1;
+    // classifica e "migliore" solo sui lap interi (≥200m): il micro-lap finale da sprint falsa i confronti
+    const vI=acts.map((l,i)=>l[0]>=200?i:-1).filter(i=>i>=0);
+    const vP=vI.length?vI.map(i=>pcs[i]):pcs;
+    const best=Math.min(...vP),worst=Math.max(...vP),bi=pcs.indexOf(best)+1;
     const avgW=acts.reduce((s,l)=>s+l[1],0)/acts.reduce((s,l)=>s+l[0]/1000,0);
-    anaActs={acts,pcs,best,worst,avgW,sel:null};
+    anaActs={acts,pcs,best,worst,avgW,vI,sel:null};
     const distL=l=>l[0]>=950?(l[0]/1000).toFixed(l[0]%1000?2:0)+' km':l[0]+' m';
     const chips=acts.map((l,i)=>{const pc=pcs[i];
-      const w=worst>best?Math.round(15+85*(worst-pc)/(worst-best)):100;
-      return`<div class="lapc${pc===best?' best':''}" onclick="lapSel(${i})"><span class="ln">Lap ${i+1}</span><b>${fmtP(pc)}</b><span class="lu">/km</span><div class="lbar"><i style="width:${w}%"></i></div><span class="lm">${distL(l)} · ${fmtD(l[1])}</span>${l[2]?`<span class="lm">FC ${l[2]}→${l[3]??'–'}</span>`:''}${l[5]?`<span class="lm">${l[5]} spm</span>`:''}</div>`}).join('');
+      const w=worst>best?Math.min(100,Math.max(10,Math.round(15+85*(worst-pc)/(worst-best)))):100;
+      return`<div class="lapc${pc===best&&l[0]>=200?' best':''}" onclick="lapSel(${i})"><span class="ln">Lap ${i+1}</span><b>${fmtP(pc)}</b><span class="lu">/km</span><div class="lbar"><i style="width:${w}%"></i></div><span class="lm">${distL(l)} · ${fmtD(l[1])}</span>${l[2]?`<span class="lm">FC ${l[2]}→${l[3]??'–'}</span>`:''}${l[5]?`<span class="lm">${l[5]} spm</span>`:''}</div>`}).join('');
     const hrsL=acts.map(l=>l[2]).filter(Boolean),spms=acts.map(l=>l[5]).filter(Boolean);
     const sum=[`media lavoro <b class="pace">${fmtP(avgW)}/km</b>`,`migliore ${fmtP(best)} (lap ${bi})`,`scarto ${(worst-best).toFixed(0)}s/km`];
     if(hrsL.length)sum.push(`FC media lap ${Math.round(hrsL.reduce((a,b)=>a+b)/hrsL.length)} bpm`);
