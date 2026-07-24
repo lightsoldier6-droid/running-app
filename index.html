@@ -310,9 +310,14 @@ body,.card,input,select,nav{transition:background .2s,border-color .2s,color .2s
     <button class="btn" id="mon-recal" style="margin-top:12px">Rigenera il piano dal reale (.ics + .fit)</button>
     <p class="muted" style="margin-top:6px">Prendo gara e data dall’.ics che segui e il tuo VDOT + volume reali dai .fit, e rigenero le settimane da oggi alla gara. Le passate restano. Scarico anche il nuovo .ics per il calendario.</p>
   </div>
-  <div class="card"><h2>Andamento aderenza settimanale (%)</h2><div id="mon-trend"></div><p class="muted" id="mon-trend-note" style="margin-top:6px"></p></div>
-  <div class="card"><h2>Scostamento cumulato dal piano (km)</h2><div id="mon-cum"></div><p class="muted" style="margin-top:6px">Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.</p></div>
-  <div class="card"><h2>Settimana per settimana</h2><div id="mon-weeks"></div></div>
+  <div class="card"><h2>Andamento vs piano</h2>
+    <div style="font-weight:600;font-size:13px;color:var(--dim);margin:2px 0 6px">Andamento aderenza settimanale (%)</div>
+    <div id="mon-trend"></div><p class="muted" id="mon-trend-note" style="margin-top:6px"></p>
+    <div style="font-weight:600;font-size:13px;color:var(--dim);border-top:1px solid var(--line);margin:18px 0 6px;padding-top:16px">Scostamento cumulato dal piano (km)</div>
+    <div id="mon-cum"></div><p class="muted" style="margin-top:6px">Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.</p>
+    <div style="font-weight:600;font-size:13px;color:var(--dim);border-top:1px solid var(--line);margin:18px 0 6px;padding-top:16px">Settimana per settimana</div>
+    <div id="mon-weeks"></div>
+  </div>
   <div class="card"><h2>Seduta per seduta</h2><div id="mon-sess"></div></div>
 </div>
 
@@ -1293,8 +1298,7 @@ function rTrack(){
       <td class="r">${rr.length}/${w.sess.length}</td>
       <td class="r">${qDone}/${qPlan}${lPlan?`<br><span class="muted">lungo ${lDone?'✓':'—'}</span>`:''}</td></tr>`);
   });
-  const rbtn=`<button class="btn" onclick="updatePlan()">Ricalibra il piano dai dati reali</button>
-    <p class="muted" style="margin-top:6px">Rigenera le settimane future con il VDOT attuale e il volume che stai davvero reggendo. Le settimane passate restano in archivio per il confronto.</p>`;
+  const rbtn=`<p class="muted" style="margin-top:8px">Per ricalibrare il piano sui dati reali (VDOT e volume attuali) vai al <b>Monitor</b> → <b>Rigenera il piano dal reale (.ics + .fit)</b>: aggiorna le settimane future e riesporta il calendario in un colpo solo.</p>`;
   if(!rows.length){el.innerHTML=`<p class="muted">Il piano parte lunedì ${iso(addD(refSun,-(n-1)*7-6)).slice(5)}: qui vedrai km fatti vs pianificati, sedute di qualità e lunghi completati, settimana per settimana.</p>`+rbtn;return}
   const head=tot?`<p style="margin-bottom:8px">Aderenza: <b class="pace">${Math.round(sumA/Math.max(1,sumP)*100)}%</b> dei km pianificati · <b>${okW}/${tot}</b> settimane complete a target</p>`:'';
   el.innerHTML=head+`<table><tr><th>Sett.</th><th class="r">Volume</th><th class="r">Corse</th><th class="r">Qualità</th></tr>${rows.slice(-10).join('')}</table>`
@@ -1725,7 +1729,7 @@ function rMonitor(){
       :'<span class="up"><b>Prosegui così: il piano è ancora ben calibrato.</b></span>';
     const body=reasons.length?`<ul style="margin:8px 0 0 18px;padding:0">${reasons.map(r=>`<li style="margin-bottom:5px">${r}</li>`).join('')}</ul>`
       :'<p class="muted" style="margin-top:6px">Aderenza in linea e forma stabile: nessun segnale che imponga un ritocco.</p>';
-    const how=level>0?`<p class="muted" style="margin-top:10px">Come fare: tab <b>Piano</b> → <b>Ricalibra il piano dai dati reali</b> (rigenera con VDOT e volume attuali), poi <b>Esporta .ics</b> e ricaricalo qui per monitorare il piano aggiornato.</p>`:'';
+    const how=level>0?`<p class="muted" style="margin-top:10px">Come fare: usa il pulsante <b>Rigenera il piano dal reale (.ics + .fit)</b> qui sotto — rigenera con VDOT e volume attuali, aggiorna il Monitor e riscarica il .ics per il calendario.</p>`:'';
     adv.innerHTML=`<p>${head}</p>${body}${how}`;
   }
   rToday();
