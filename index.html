@@ -370,7 +370,7 @@ details.pinfo .pinfo-body p{margin:7px 0}
       <div class="pinfo-body">
         <p>Le zone qui sopra escono dal metodo <b>Karvonen</b>, calcolato da FC max e FC riposo: se questi due valori non sono aggiornati, le zone sbagliano.</p>
         <p><b>FC riposo</b> — cambia con la forma. Misurala al mattino appena sveglio (o leggi il dato notturno dell'orologio) e aggiornala ogni <b>4-6 settimane</b>: se scende, stai migliorando e le zone vanno ricalcolate.</p>
-        <p><b>FC max</b> — è più stabile e cala di circa 1 bpm l'anno con l'età. Rifai un test se hai ripreso dopo una <b>pausa lunga</b> (&gt;1 mese), se è cambiato il tuo livello o la stagione, o comunque <b>ogni 6-12 mesi</b>. Il test è impegnativo: dopo 15' di riscaldamento, 2-3 salite da 2-3' quasi a fondo (o l'ultimo minuto tutto fuori di una progressione dura) e prendi il picco reale.</p>
+        <p><b>FC max</b> — è più stabile e cala di circa 1 bpm l'anno con l'età. Rifai un test se hai ripreso dopo una <b>pausa lunga</b> (&gt;1 mese), se è cambiato il tuo livello o la stagione, o comunque <b>ogni 6-12 mesi</b>. Il test è impegnativo: dopo 15' di riscaldamento, 3 blocchi da 3' in piano a intensità crescente (l'ultimo quasi a fondo) chiusi con 400-600 m tutto fuori, e prendi il picco reale — trovi il protocollo completo qui sotto.</p>
         <p><b>Segnale pratico:</b> se in Z2 fatichi a restare "facile", o le zone non corrispondono a come ti senti, è ora di rimisurare. L'app ti avvisa in cima al box quando una corsa recente supera la FC max salvata.</p>
       </div>
     </details>
@@ -1823,8 +1823,8 @@ function renderFcTest(){
   }
   el.innerHTML=`<details class="pinfo"><summary>Rifai il test della FC max</summary><div class="pinfo-body">
     ${pick}
-    <p style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><b>Oppure fai un test apposta.</b> 15' di riscaldamento progressivo, poi <b>3 salite moderate da 2-3'</b>: la 1ª controllata, la 2ª forte, la 3ª tutta fuori fino a non poterne più, con 2-3' in discesa a recuperare tra una e l'altra. In alternativa, chiudi una progressione lunga con <b>1' finale al massimo</b>. La FC più alta che vedi nell'ultimo tratto è la tua FC max: torna qui e impostala.</p>
-    <p class="muted" style="margin-top:6px">Meglio con la fascia cardio: i sensori da polso sottostimano i picchi. Non farlo se sei affaticato, malato o non scaldato bene.</p>
+    <p style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><b>Oppure fai un test apposta, in piano (niente salite).</b> Dopo 15' di riscaldamento progressivo: <b>3 blocchi da 3'</b> a intensità crescente — il 1° controllato, il 2° forte, il 3° quasi a fondo — con 2-3' di corsa lenta tra uno e l'altro; poi chiudi con <b>400-600 m tutto fuori</b>, accelerando fino allo sprint finale. La FC più alta dell'ultimo minuto è la tua FC max: torna qui e impostala. Una pista o un tratto piatto e libero sono l'ideale.</p>
+    <p class="muted" style="margin-top:6px">In pratica anche una gara o una seduta di ripetute dure ti portano a ridosso della FC max: spesso basta il valore più alto già registrato qui sopra, senza test dedicato. Meglio con la fascia cardio: i sensori da polso sottostimano i picchi. Non farlo se sei affaticato, malato o non scaldato bene.</p>
   </div></details>`;
 }
 function renderStAlert(){
