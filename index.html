@@ -200,7 +200,7 @@ details.pinfo .pinfo-body p{margin:7px 0}
 .acctpop[hidden]{display:none}
 .fccand{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
 .fccand b{font-variant-numeric:tabular-nums}
-@media(min-width:900px){#tab-data .card:has(#st-hrmax){grid-column:1/-1}}
+@media(min-width:900px){#tab-data .card:has(#dt-file){order:1}#tab-data .card:has(#st-hrmax){order:2}#tab-data .card:has(#dt-manage){order:3;grid-column:1/-1}#dt-manage{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0 24px}}
 </style>
 </head>
 <body>
