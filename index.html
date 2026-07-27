@@ -138,18 +138,18 @@ td,th,.stat b,.wkvol,.smeta,.daychip{font-variant-numeric:tabular-nums}
   /* Monitor: aderenza in evidenza a tutta larghezza, meno vuoti */
   #tab-mon .card{order:10}
   .card:has(#mon-head){grid-column:1/-1;order:1}
-  .card:has(#mon-info){order:2;grid-row:span 2}
-  .card:has(#mon-advice){order:3}
-  .card:has(#mon-trend){order:4}
-  .card:has(#mon-cum){order:5}
-  .card:has(#mon-weeks){order:6}
+  .card:has(#mon-advice){order:2}
+  .card:has(#mon-trend){order:3}
+  .card:has(#mon-cum){order:4}
+  .card:has(#mon-weeks){order:5}
   #mon-head{display:flex;align-items:center;gap:20px}
   #mon-head>div:first-child{flex:1;justify-content:space-evenly}
   #mon-head>p{flex:0 0 320px;margin-top:0!important}
   #p-out{grid-column:1/-1;display:flex;flex-direction:column;gap:12px}
   #p-out .card:last-child{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px;align-content:start}
   #p-out .card:last-child .wk{margin-bottom:0}
-  .card:has(#mon-sess){grid-column:1/-1}
+  .card:has(#mon-sess){grid-column:1/-1;order:6}
+  .card:has(#mon-info){grid-column:1/-1;order:7}
   #mon-sess{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px}
   #mon-sess .wk{margin-bottom:0}
 }
@@ -196,6 +196,11 @@ details.pinfo>summary::before{content:'▸ ';font-size:11px}
 details.pinfo[open]>summary::before{content:'▾ '}
 details.pinfo .pinfo-body{font-size:12.5px;color:var(--dim);line-height:1.5}
 details.pinfo .pinfo-body p{margin:7px 0}
+.acctpop{position:fixed;top:56px;right:12px;z-index:120;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:14px;width:250px;font-size:13px}
+.acctpop[hidden]{display:none}
+.fccand{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.fccand b{font-variant-numeric:tabular-nums}
+@media(min-width:900px){#tab-data .card:has(#st-hrmax){grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -210,7 +215,12 @@ details.pinfo .pinfo-body p{margin:7px 0}
     <p id="auth-err" style="color:var(--red);font-size:12px;margin-top:8px"></p>
   </div>
 </div>
-<header><h1>Run<span>Plan</span></h1><div class="hdr-r"><small id="hdr"></small><button id="thm" class="thmbtn" aria-label="Tema chiaro/scuro" title="Tema chiaro/scuro">🌙</button></div></header>
+<header><h1>Run<span>Plan</span></h1><div class="hdr-r"><small id="hdr"></small><button id="acct" class="thmbtn" aria-label="Account e sincronizzazione" title="Account / sincronizzazione"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></button><button id="thm" class="thmbtn" aria-label="Tema chiaro/scuro" title="Tema chiaro/scuro">🌙</button></div></header>
+<div id="acct-pop" class="acctpop" hidden>
+  <div style="font-weight:600;margin-bottom:6px">Sincronizzazione</div>
+  <div id="cloud-status" class="muted">Verifica in corso…</div>
+  <button class="btn btn2" id="cloud-logout" style="display:none;margin-top:10px;width:100%" onclick="fbAuth.signOut()">Esci</button>
+</div>
 <main>
 
 <div class="tab on" id="tab-dash">
@@ -320,12 +330,13 @@ details.pinfo .pinfo-body p{margin:7px 0}
     <button class="btn" id="mon-recal" style="margin-top:12px">Rigenera il piano dal reale (.ics + .fit)</button>
     <p class="muted" style="margin-top:6px">Prendo gara e data dall’.ics che segui e il tuo VDOT + volume reali dai .fit, e rigenero le settimane da oggi alla gara. Le passate restano. Scarico anche il nuovo .ics per il calendario.</p>
   </div>
-  <div class="card"><h2>Andamento vs piano</h2>
-    <div style="font-weight:600;font-size:13px;color:var(--dim);margin:2px 0 6px">Andamento aderenza settimanale (%)</div>
+  <div class="card"><h2>Andamento aderenza settimanale</h2>
     <div id="mon-trend"></div><p class="muted" id="mon-trend-note" style="margin-top:6px"></p>
-    <div style="font-weight:600;font-size:13px;color:var(--dim);border-top:1px solid var(--line);margin:18px 0 6px;padding-top:16px">Scostamento cumulato dal piano (km)</div>
+  </div>
+  <div class="card"><h2>Scostamento cumulato dal piano</h2>
     <div id="mon-cum"></div><p class="muted" style="margin-top:6px">Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.</p>
-    <div style="font-weight:600;font-size:13px;color:var(--dim);border-top:1px solid var(--line);margin:18px 0 6px;padding-top:16px">Settimana per settimana</div>
+  </div>
+  <div class="card"><h2>Settimana per settimana</h2>
     <div id="mon-weeks"></div>
   </div>
   <div class="card"><h2>Seduta per seduta</h2><div id="mon-sess"></div></div>
@@ -353,6 +364,7 @@ details.pinfo .pinfo-body p{margin:7px 0}
     <button class="btn" onclick="saveSettings()" style="margin-top:12px">Salva</button>
     <table id="st-zones" style="margin-top:14px"></table>
     <p class="muted" id="st-lastupd" style="margin-top:8px"></p>
+    <div id="st-fctest"></div>
     <details class="pinfo">
       <summary>Quando rifare il test per ricalcolare le FC</summary>
       <div class="pinfo-body">
@@ -362,10 +374,6 @@ details.pinfo .pinfo-body p{margin:7px 0}
         <p><b>Segnale pratico:</b> se in Z2 fatichi a restare "facile", o le zone non corrispondono a come ti senti, è ora di rimisurare. L'app ti avvisa in cima al box quando una corsa recente supera la FC max salvata.</p>
       </div>
     </details>
-  </div>
-  <div class="card"><h2>Sincronizzazione cloud</h2>
-    <div id="cloud-status" class="muted">Verifica in corso…</div>
-    <button class="btn btn2" id="cloud-logout" style="display:none" onclick="fbAuth.signOut()">Esci</button>
   </div>
 </div>
 
@@ -393,6 +401,8 @@ document.getElementById('thm').onclick=()=>{
   const t=document.body.classList.contains('dark')?'light':'dark';
   localStorage.setItem('rp_theme',t);applyTheme(t);
 };
+document.getElementById('acct').onclick=e=>{e.stopPropagation();const p=document.getElementById('acct-pop');p.hidden=!p.hidden;};
+document.addEventListener('click',e=>{const p=document.getElementById('acct-pop');if(p&&!p.hidden&&!p.contains(e.target)&&!e.target.closest('#acct'))p.hidden=true;});
 applyTheme(localStorage.getItem('rp_theme')||'light');
 
 /* ---------- storage ---------- */
@@ -1794,8 +1804,29 @@ function rData(){
   document.getElementById('st-zones').innerHTML='<tr><th>Zona FC (Karvonen)</th><th class="r">bpm</th></tr>'+
     z.map(([n,a,b])=>`<tr><td>${n}</td><td class="r">${k(a)}–${k(b)}</td></tr>`).join('');
   renderStAlert();
+  renderFcTest();
 }
 function applyHrmax(v){document.getElementById('st-hrmax').value=v;saveSettings();}
+function renderFcTest(){
+  const el=document.getElementById('st-fctest');if(!el)return;
+  const hardRe=/gara|ripetut|fartlek|progress|soglia|sprint|salit|collin|[0-9]\s*[x×]\s*[0-9]/i;
+  const cand=runs.filter(r=>r.hrmax&&r.hrmax<=210&&r.hrmax>=150)
+    .sort((a,b)=>(b.hrmax-a.hrmax)||(new Date(b.date)-new Date(a.date))).slice(0,3);
+  let pick;
+  if(cand.length){
+    const rows=cand.map(r=>{const isHard=hardRe.test(r.title||'');
+      return `<div class="fccand"><div><b>${r.hrmax} bpm</b> <span class="muted">· ${r.date.slice(0,10)} · ${r.title}${isHard?' · sforzo intenso':''}</span></div><button class="btn btn2" style="width:auto;margin:0;padding:5px 10px;font-size:12px" onclick="applyHrmax(${r.hrmax})">Usa</button></div>`;
+    }).join('');
+    pick=`<p style="margin:6px 0 2px;font-size:12.5px"><b>Dai tuoi dati</b> — gli sforzi con la FC più alta registrata. Usa il valore solo se è reale e non un picco anomalo del sensore:</p>${rows}`;
+  }else{
+    pick=`<p class="muted" style="margin:6px 0">Nessuno sforzo con FC abbastanza alta nell'archivio: conviene fare il test qui sotto.</p>`;
+  }
+  el.innerHTML=`<details class="pinfo"><summary>Rifai il test della FC max</summary><div class="pinfo-body">
+    ${pick}
+    <p style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><b>Oppure fai un test apposta.</b> 15' di riscaldamento progressivo, poi <b>3 salite moderate da 2-3'</b>: la 1ª controllata, la 2ª forte, la 3ª tutta fuori fino a non poterne più, con 2-3' in discesa a recuperare tra una e l'altra. In alternativa, chiudi una progressione lunga con <b>1' finale al massimo</b>. La FC più alta che vedi nell'ultimo tratto è la tua FC max: torna qui e impostala.</p>
+    <p class="muted" style="margin-top:6px">Meglio con la fascia cardio: i sensori da polso sottostimano i picchi. Non farlo se sei affaticato, malato o non scaldato bene.</p>
+  </div></details>`;
+}
 function renderStAlert(){
   const el=document.getElementById('st-alert');if(!el)return;
   const msgs=[];
