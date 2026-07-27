@@ -186,6 +186,16 @@ body,.card,input,select,nav{transition:background .2s,border-color .2s,color .2s
   .card:has(#d-pred){grid-column:3}
   .card:has(#d-paces){grid-column:1/-1}
 }
+.stwarn{margin:0 0 10px;padding:9px 11px;border-left:3px solid var(--warn,#e0a800);background:rgba(224,168,0,.10);border-radius:8px;font-size:12.5px;line-height:1.45;color:var(--txt)}
+.stwarn.soft{border-left-color:var(--dim);background:var(--bg)}
+.stwarn b{color:var(--txt)}
+details.pinfo{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+details.pinfo>summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--acc2,#2563eb);list-style:none;padding:4px 0}
+details.pinfo>summary::-webkit-details-marker{display:none}
+details.pinfo>summary::before{content:'▸ ';font-size:11px}
+details.pinfo[open]>summary::before{content:'▾ '}
+details.pinfo .pinfo-body{font-size:12.5px;color:var(--dim);line-height:1.5}
+details.pinfo .pinfo-body p{margin:7px 0}
 </style>
 </head>
 <body>
@@ -322,10 +332,6 @@ body,.card,input,select,nav{transition:background .2s,border-color .2s,color .2s
 </div>
 
 <div class="tab" id="tab-data">
-  <div class="card"><h2>Sincronizzazione cloud</h2>
-    <div id="cloud-status" class="muted">Verifica in corso…</div>
-    <button class="btn btn2" id="cloud-logout" style="display:none" onclick="fbAuth.signOut()">Esci</button>
-  </div>
   <div class="card"><h2>Dati</h2>
     <p class="muted" id="dt-info"></p>
     <label style="margin-top:12px">Importa nuovo export Garmin (CSV Attività)</label>
@@ -339,10 +345,27 @@ body,.card,input,select,nav{transition:background .2s,border-color .2s,color .2s
     <div id="dt-manage"></div>
   </div>
   <div class="card"><h2>Parametri</h2>
-    <label>FC max</label><input type="number" id="st-hrmax">
-    <label>FC riposo</label><input type="number" id="st-hrrest">
-    <button class="btn" onclick="saveSettings()">Salva</button>
-    <table id="st-zones" style="margin-top:12px"></table>
+    <div id="st-alert"></div>
+    <div class="grid2">
+      <div><label>FC max</label><input type="number" id="st-hrmax"></div>
+      <div><label>FC riposo</label><input type="number" id="st-hrrest"></div>
+    </div>
+    <button class="btn" onclick="saveSettings()" style="margin-top:12px">Salva</button>
+    <table id="st-zones" style="margin-top:14px"></table>
+    <p class="muted" id="st-lastupd" style="margin-top:8px"></p>
+    <details class="pinfo">
+      <summary>Quando rifare il test per ricalcolare le FC</summary>
+      <div class="pinfo-body">
+        <p>Le zone qui sopra escono dal metodo <b>Karvonen</b>, calcolato da FC max e FC riposo: se questi due valori non sono aggiornati, le zone sbagliano.</p>
+        <p><b>FC riposo</b> — cambia con la forma. Misurala al mattino appena sveglio (o leggi il dato notturno dell'orologio) e aggiornala ogni <b>4-6 settimane</b>: se scende, stai migliorando e le zone vanno ricalcolate.</p>
+        <p><b>FC max</b> — è più stabile e cala di circa 1 bpm l'anno con l'età. Rifai un test se hai ripreso dopo una <b>pausa lunga</b> (&gt;1 mese), se è cambiato il tuo livello o la stagione, o comunque <b>ogni 6-12 mesi</b>. Il test è impegnativo: dopo 15' di riscaldamento, 2-3 salite da 2-3' quasi a fondo (o l'ultimo minuto tutto fuori di una progressione dura) e prendi il picco reale.</p>
+        <p><b>Segnale pratico:</b> se in Z2 fatichi a restare "facile", o le zone non corrispondono a come ti senti, è ora di rimisurare. L'app ti avvisa in cima al box quando una corsa recente supera la FC max salvata.</p>
+      </div>
+    </details>
+  </div>
+  <div class="card"><h2>Sincronizzazione cloud</h2>
+    <div id="cloud-status" class="muted">Verifica in corso…</div>
+    <button class="btn btn2" id="cloud-logout" style="display:none" onclick="fbAuth.signOut()">Esci</button>
   </div>
 </div>
 
@@ -1770,8 +1793,31 @@ function rData(){
   const k=f=>Math.round(st.hrrest+f*(st.hrmax-st.hrrest));
   document.getElementById('st-zones').innerHTML='<tr><th>Zona FC (Karvonen)</th><th class="r">bpm</th></tr>'+
     z.map(([n,a,b])=>`<tr><td>${n}</td><td class="r">${k(a)}–${k(b)}</td></tr>`).join('');
+  renderStAlert();
 }
-function saveSettings(){st={hrmax:+document.getElementById('st-hrmax').value||188,hrrest:+document.getElementById('st-hrrest').value||53};LS('rp_st',st);rData();alert('Salvato')}
+function applyHrmax(v){document.getElementById('st-hrmax').value=v;saveSettings();}
+function renderStAlert(){
+  const el=document.getElementById('st-alert');if(!el)return;
+  const msgs=[];
+  const newest=runs.length?new Date(runs[runs.length-1].date):null;
+  if(newest){
+    const cutoff=new Date(newest);cutoff.setDate(cutoff.getDate()-120);
+    let peak=0,peakDate=null;
+    runs.forEach(r=>{const d=new Date(r.date);if(d>=cutoff&&r.hrmax&&r.hrmax<=220&&r.hrmax>peak){peak=r.hrmax;peakDate=r.date.slice(0,10);}});
+    if(peak>st.hrmax)msgs.push(`<div class="stwarn"><b>FC max da aggiornare.</b> Il ${peakDate} una corsa ha toccato <b>${peak} bpm</b>, sopra la FC max salvata (${st.hrmax}): le zone sono probabilmente troppo basse. Se è un valore reale (non un errore del sensore), aggiornala.<br><button class="btn btn2" style="width:auto;margin:8px 0 0;padding:6px 10px;font-size:12px" onclick="applyHrmax(${peak})">Imposta FC max a ${peak}</button></div>`);
+  }
+  const today=new Date();
+  if(st.updated){
+    const days=Math.round((today-new Date(st.updated))/864e5);
+    if(days>=183)msgs.push(`<div class="stwarn soft">Sono passati ~${Math.round(days/30)} mesi dall'ultimo aggiornamento dei parametri (${st.updated}). Vale la pena rimisurare la FC riposo e valutare un nuovo test di FC max.</div>`);
+  }else{
+    msgs.push(`<div class="stwarn soft">Non hai mai aggiornato i parametri a mano: i valori sono quelli iniziali. Controllali coi tuoi dati e salva.</div>`);
+  }
+  el.innerHTML=msgs.join('');
+  const lu=document.getElementById('st-lastupd');
+  if(lu)lu.textContent=st.updated?`Ultimo aggiornamento parametri: ${st.updated}.`:'Parametri mai aggiornati manualmente.';
+}
+function saveSettings(){st={hrmax:+document.getElementById('st-hrmax').value||188,hrrest:+document.getElementById('st-hrrest').value||53,updated:new Date().toISOString().slice(0,10)};LS('rp_st',st);rData();alert('Salvato')}
 function resetData(){if(confirm('Tornare ai dati iniziali? Import manuali, rinomine ed eliminazioni verranno persi.')){edits={};LS('rp_edits',edits);runs=SEED_RUNS.slice().sort((a,b)=>a.date<b.date?-1:1);LS('rp_runs',[]);refresh()}}
 function rManage(){
   document.getElementById('dt-manage').innerHTML=runs.slice(-12).reverse().map(r=>{const k=r.date+'|'+r.km;
