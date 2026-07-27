@@ -200,7 +200,8 @@ details.pinfo .pinfo-body p{margin:7px 0}
 .acctpop[hidden]{display:none}
 .fccand{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
 .fccand b{font-variant-numeric:tabular-nums}
-@media(min-width:900px){#tab-data .card:has(#dt-file){order:1}#tab-data .card:has(#st-hrmax){order:2}#tab-data .card:has(#dt-manage){order:3;grid-column:1/-1}#dt-manage{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0 24px}}
+@media(min-width:900px){#tab-data .card:has(#dt-file){order:1;grid-column:1/-1}#tab-data .card:has(#st-hrmax){order:2;grid-column:1/-1}#tab-data .card:has(#dt-manage){order:3;grid-column:1/-1}#dt-manage{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0 24px}.datagrid{grid-template-columns:1fr 1fr auto}}
+.paramrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 14px;margin-top:6px}.pfield{flex:0 0 120px}.pfield label{margin:0 0 4px}.pbtn{width:auto;margin:0;padding:10px 24px;align-self:flex-end}.zoner{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.znote{flex:1 0 100%;font-size:11px;color:var(--dim);margin-bottom:2px}.zchip{flex:1 1 88px;min-width:82px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}.zchip b{display:block;font-size:11px;color:var(--dim);font-weight:600}.zchip span{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}.datagrid{display:grid;gap:12px 16px}.dreset{display:flex;align-items:flex-end}
 </style>
 </head>
 <body>
@@ -345,11 +346,11 @@ details.pinfo .pinfo-body p{margin:7px 0}
 <div class="tab" id="tab-data">
   <div class="card"><h2>Dati</h2>
     <p class="muted" id="dt-info"></p>
-    <label style="margin-top:12px">Importa nuovo export Garmin (CSV Attività)</label>
-    <input type="file" id="dt-file" accept=".csv">
-    <label style="margin-top:12px">Importa file .FIT (lap delle ripetute + nuove corse)</label>
-    <input type="file" id="dt-fit" accept=".fit" multiple>
-    <button class="btn btn2" onclick="resetData()" style="margin-top:14px">Ripristina dati iniziali</button>
+    <div class="datagrid">
+      <div><label style="margin-top:12px">Importa export Garmin (CSV Attività)</label><input type="file" id="dt-file" accept=".csv"></div>
+      <div><label style="margin-top:12px">Importa file .FIT (lap ripetute + nuove corse)</label><input type="file" id="dt-fit" accept=".fit" multiple></div>
+      <div class="dreset"><button class="btn btn2" onclick="resetData()" style="margin:0;width:100%">Ripristina dati iniziali</button></div>
+    </div>
   </div>
   <div class="card"><h2>Gestisci corse (ultime 12)</h2>
     <p class="muted" style="margin-bottom:8px">Rinomina per correggere la categoria (parole chiave: gara, soglia, medio, progressivo, fartlek, 8x200, lungo) — niente da ricaricare.</p>
@@ -357,12 +358,12 @@ details.pinfo .pinfo-body p{margin:7px 0}
   </div>
   <div class="card"><h2>Parametri</h2>
     <div id="st-alert"></div>
-    <div class="grid2">
-      <div><label>FC max</label><input type="number" id="st-hrmax"></div>
-      <div><label>FC riposo</label><input type="number" id="st-hrrest"></div>
+    <div class="paramrow">
+      <div class="pfield"><label>FC max</label><input type="number" id="st-hrmax"></div>
+      <div class="pfield"><label>FC riposo</label><input type="number" id="st-hrrest"></div>
+      <button class="btn pbtn" onclick="saveSettings()">Salva</button>
     </div>
-    <button class="btn" onclick="saveSettings()" style="margin-top:12px">Salva</button>
-    <table id="st-zones" style="margin-top:14px"></table>
+    <div id="st-zones" class="zoner"></div>
     <p class="muted" id="st-lastupd" style="margin-top:8px"></p>
     <div id="st-fctest"></div>
     <details class="pinfo">
@@ -1801,8 +1802,8 @@ function rData(){
   document.getElementById('st-hrmax').value=st.hrmax;document.getElementById('st-hrrest').value=st.hrrest;
   const z=[['Z1',.5,.6],['Z2',.6,.7],['Z3',.7,.8],['Z4',.8,.9],['Z5',.9,1]];
   const k=f=>Math.round(st.hrrest+f*(st.hrmax-st.hrrest));
-  document.getElementById('st-zones').innerHTML='<tr><th>Zona FC (Karvonen)</th><th class="r">bpm</th></tr>'+
-    z.map(([n,a,b])=>`<tr><td>${n}</td><td class="r">${k(a)}–${k(b)}</td></tr>`).join('');
+  document.getElementById('st-zones').innerHTML='<div class="znote">Zone FC (Karvonen)</div>'+
+    z.map(([n,a,b])=>`<div class="zchip"><b>${n}</b><span>${k(a)}–${k(b)}</span></div>`).join('');
   renderStAlert();
   renderFcTest();
 }
