@@ -202,6 +202,7 @@ details.pinfo .pinfo-body p{margin:7px 0}
 .fccand b{font-variant-numeric:tabular-nums}
 @media(min-width:900px){#tab-data .card:has(#dt-file){order:1;grid-column:1/-1}#tab-data .card:has(#st-hrmax){order:2;grid-column:1/-1}#tab-data .card:has(#dt-manage){order:3;grid-column:1/-1}#dt-manage{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0 24px}.datagrid{grid-template-columns:1fr 1fr auto}}
 .paramrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 14px;margin-top:6px}.pfield{flex:0 0 120px}.pfield label{margin:0 0 4px}.pbtn{width:auto;margin:0;padding:10px 24px;align-self:flex-end}.zoner{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.znote{flex:1 0 100%;font-size:11px;color:var(--dim);margin-bottom:2px}.zchip{flex:1 1 88px;min-width:82px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}.zchip b{display:block;font-size:11px;color:var(--dim);font-weight:600}.zchip span{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}.datagrid{display:grid;gap:12px 16px}.dreset{display:flex;align-items:flex-end}
+.clg{white-space:nowrap}.clg i{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;margin:0 3px 0 8px}
 </style>
 </head>
 <body>
@@ -335,7 +336,7 @@ details.pinfo .pinfo-body p{margin:7px 0}
     <div id="mon-trend"></div><p class="muted" id="mon-trend-note" style="margin-top:6px"></p>
   </div>
   <div class="card"><h2>Scostamento cumulato dal piano</h2>
-    <div id="mon-cum"></div><p class="muted" style="margin-top:6px">Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.</p>
+    <div id="mon-cum"></div><p class="muted" id="mon-cum-note" style="margin-top:6px">Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.</p>
   </div>
   <div class="card"><h2>Settimana per settimana</h2>
     <div id="mon-weeks"></div>
@@ -579,11 +580,11 @@ function chart(el,pts,{ylab=v=>v.toFixed(0),color='var(--acc)',bar=false,invertY
   for(let g=0;g<4;g++){const v=y0+(y1-y0)*g/3,y=Y(v);
     s+=`<line x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}" stroke="var(--line)"/><text x="2" y="${y+3}">${ylab(v)}</text>`}
   if(bar){const bw=Math.max(2,(W-P.l-P.r)/pts.length-2);
-    pts.forEach((p,i)=>s+=`<rect x="${X(i)-bw/2}" y="${Y(p.y)}" width="${bw}" height="${Math.max(0,H-P.b-Y(p.y))}" fill="${color}" rx="1.5"/>`)}
+    pts.forEach((p,i)=>s+=`<rect x="${X(i)-bw/2}" y="${Y(p.y)}" width="${bw}" height="${Math.max(0,H-P.b-Y(p.y))}" fill="${p.c||color}" rx="1.5"/>`)}
   else{const line=pts.map((p,i)=>`${X(i).toFixed(1)},${Y(p.y).toFixed(1)}`).join('L');
     s+=`<path d="M${X(0).toFixed(1)},${H-P.b}L${line}L${X(pts.length-1).toFixed(1)},${H-P.b}Z" fill="${color}" fill-opacity="0.10"/>`;
     s+=`<path d="M${line}" fill="none" stroke="${color}" stroke-width="2"/>`;
-    pts.forEach((p,i)=>s+=`<circle cx="${X(i)}" cy="${Y(p.y)}" r="2.4" fill="${color}"/>`)}
+    pts.forEach((p,i)=>s+=`<circle cx="${X(i)}" cy="${Y(p.y)}" r="2.8" fill="${p.c||color}"/>`)}
   const step=Math.ceil(pts.length/7);
   pts.forEach((p,i)=>{if(i%step===0||i===pts.length-1&&i%step>step/2)s+=`<text x="${X(i)}" y="${H-6}" text-anchor="middle">${p.x}</text>`});
   // tooltip: tocco/hover → valore del punto più vicino
@@ -1710,11 +1711,14 @@ function rMonitor(){
       ${curW?`<p class="muted" style="margin-top:8px">Settimana ${curW.num||''} in corso: ${curW.actualKm.toFixed(0)}/${curW.plannedKm.toFixed(0)} km finora (${curW.pct}%). Include la settimana corrente, ancora da completare.</p>`:''}`
     :`<p class="muted">Il piano parte lunedì ${weeks[0].monISO.slice(5)}: qui comparirà l’aderenza appena inizia.</p>`;
   // grafici trend + scostamento cumulato (solo settimane concluse: la corrente è parziale)
-  const trend=completed.map(w=>({x:'S'+(w.num||''),y:Math.min(150,w.pct)}));
+  const wcol=w=>w.okTarget?'var(--acc)':w.pct>=60?'var(--warn)':'var(--red)';
+  const MONLEG='<span class="clg"><i style="background:var(--acc)"></i>a target<i style="background:var(--warn)"></i>\u226560%<i style="background:var(--red)"></i>sotto</span>';
+  const trend=completed.map(w=>({x:'S'+(w.num||''),y:Math.min(150,w.pct),c:wcol(w)}));
   chart('mon-trend',trend,{bar:true,ylab:v=>v.toFixed(0)+'%',color:'var(--acc2)'});
-  document.getElementById('mon-trend-note').textContent=trend.length?'Ogni barra: km svolti / km pianificati della settimana conclusa. 100% = in linea col piano.':'';
-  let cum=0;const cumPts=completed.map(w=>{cum+=w.actualKm-w.plannedKm;return{x:'S'+(w.num||''),y:+cum.toFixed(0)}});
-  chart('mon-cum',cumPts,{ylab:v=>v.toFixed(0),color:'var(--acc)'});
+  document.getElementById('mon-trend-note').innerHTML=trend.length?'Ogni barra: km svolti / km pianificati della settimana conclusa. 100% = in linea col piano. '+MONLEG:'';
+  let cum=0;const cumPts=completed.map(w=>{cum+=w.actualKm-w.plannedKm;return{x:'S'+(w.num||''),y:+cum.toFixed(0),c:wcol(w)}});
+  chart('mon-cum',cumPts,{ylab:v=>v.toFixed(0),color:'var(--dim)'});
+  {const n=document.getElementById('mon-cum-note');if(n)n.innerHTML=cumPts.length?'I punti sono colorati come le barre, in base al target della settimana. Sopra lo zero = km in più; sotto = km in meno. '+MONLEG:'Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.';}
   // tabella settimana per settimana
   const wrows=weeks.filter(w=>w.started).map(w=>{
     const icon=w.inProg?'⏳':w.okTarget?'✅':w.pct>=60?'🟡':'🔴';
