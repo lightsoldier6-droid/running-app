@@ -1659,19 +1659,28 @@ function rMonitor(){
     const sess=wmap[k].slice().sort((a,b)=>day(a.date)-day(b.date));
     const monISO=weekKey(sess[0].date),sunISO=isoOf(addD(day(monISO),6));
     const weekRuns=pool.filter(r=>{const d=r.date.slice(0,10);return d>=monISO&&d<=sunISO});
-    // abbinamento greedy: ogni seduta pianificata alla corsa migliore della settimana
+    // abbinamento globale: valuto TUTTE le coppie (seduta, corsa) della settimana e assegno
+    // in ordine di punteggio decrescente. La vicinanza di data pesa più del tipo di seduta,
+    // così una corsa fatta di domenica non finisce nello slot del giovedì solo perché
+    // il giovedì viene prima nell'ordine di scansione.
     const matches={};
+    const pairs=[];
     sess.forEach((s,si)=>{
-      let best=null,bestScore=0;
+      const sFut=s.date>todayS;
       weekRuns.forEach(r=>{
         if(usedRuns.has(r.date))return;
+        const rd=r.date.slice(0,10);
+        if(sFut&&rd!==s.date)return; // una seduta futura non può essere "svolta" da una corsa passata
         const rc=cls(r);
         const sameCls=rc===s.cls||(s.cls==='easy'&&rc==='long')||(s.cls==='long'&&rc==='easy');
-        const sameDay=r.date.slice(0,10)===s.date;
-        const score=(sameCls?2:1)+(sameDay?1:0); // >=1 sempre: entro la settimana vale come svolta
-        if(score>bestScore){bestScore=score;best=r}
+        const dd=Math.min(6,Math.abs(Math.round((day(rd)-day(s.date))/864e5)));
+        pairs.push({si,r,score:(6-dd)*10+(sameCls?4:0)+1}); // >=1 sempre: entro la settimana vale come svolta
       });
-      if(best){matches[si]=best;usedRuns.add(best.date)}
+    });
+    pairs.sort((a,b)=>b.score-a.score);
+    pairs.forEach(p=>{
+      if(matches[p.si]||usedRuns.has(p.r.date))return;
+      matches[p.si]=p.r;usedRuns.add(p.r.date);
     });
     const matchedDates=new Set(Object.values(matches).map(r=>r.date));
     const extra=weekRuns.filter(r=>!matchedDates.has(r.date));
