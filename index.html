@@ -1106,15 +1106,28 @@ function genPlan(silent){
       sess.push({t:'Domenica',n:'Lungo',d:`${lng}' @ ${E}`,km:lngKm});
     }else{ // specifico: ritmo gara + endurance specifica
       const wq=w-baseW-speedW;
+      // --- quali settimane hanno il LUNGO QUALIFICATO (con lavoro a ritmo gara) ---
+      // Serve prima del giovedì: in quelle settimane la seduta di metà settimana scende a base.
+      const isPeak=wq===specW; // ultimo lungo prima del taper
+      // progressione sui SOLI lunghi veri della fase specifica (esclude scarico/gara/pre-gara/recupero),
+      // così la rampa è regolare anche se le settimane speciali interrompono la sequenza.
+      const specLongWks=[];for(let k=1;k<=specW;k++){const ww=baseW+speedW+k;if(!raceAt[ww]&&!raceAt[ww-1]&&!raceAt[ww+1]&&!(ww%4===0&&ww!==core))specLongWks.push(k);}
+      const li=specLongWks.indexOf(wq),nLong=specLongWks.length;
+      const prog=nLong>1&&li>=0?li/(nLong-1):(isPeak?1:0); // 0 (1° lungo specifico) → 1 (picco)
+      // maratona: quasi tutti i lunghi specifici hanno lavoro a ritmo gara (tranne il 1°).
+      // mezza: a lunghi alterni (fra quelli VERI, non per parità di settimana, che salta gli scarichi)
+      // + il picco sempre qualificato, così l'ultima seduta dura è la più specifica.
+      const isQ=k=>{const i=specLongWks.indexOf(k);return i<0?false:isM?k>=2:isHM&&(k===specW||(i>=1&&i%2===1))};
+      const hasM=isQ(wq);
+      const qOrd=specLongWks.filter(k=>k<wq&&isQ(k)).length; // quanti lunghi qualificati già fatti
       const[cn,cm,crec]=CR[crx++%CR.length];
       // alterna cruise a soglia e criss-cross (Z3/Z4): entrambi lavorano la soglia, il criss-cross aggiunge cambi di ritmo gara
       if(crx%2===0)
         sess.push({t:'Martedì',n:'Criss-cross',d:`${cn}×${cm}' alternando ${Math.round(cm/2)}' @ ${M} (M) / ${Math.round(cm/2)}' @ ${T} (T), rec ${recF(crec)} @ ${E}`,km:3.2+kmAt(cn*cm,(p.M+p.T)/2)+kmAt((cn-1)*crec,Ea)+1.7});
       else
         sess.push({t:'Martedì',n:'Cruise @ soglia',d:`${cn}×${cm}' @ ${T} (T), rec ${recF(crec)} @ ${E}`,km:3.2+kmAt(cn*cm,p.T)+kmAt((cn-1)*crec,Ea)+1.7});
-      // nelle settimane col finale @ M nel lungo, il giovedì è base (max 2 sedute dure/settimana)
-      // maratona: quasi tutti i lunghi specifici hanno una parte a ritmo M → giovedì base (tranne la 1ª settimana)
-      const mfinWeek=isM?(wq>=2):((isM||isHM)&&wq%2===1);
+      // nelle settimane col lungo qualificato il giovedì è base (max 2 sedute dure/settimana)
+      const mfinWeek=hasM;
       const qual=mfinWeek?{n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
         :(isM||isHM)?(Math.floor(wq/2)%2?{n:'Ritmo M',d:`15' @ ${E} + 2×15' @ ${M} (M), rec 5' @ ${E} + 10' @ ${E}`,km:kmAt(30,Ea)+kmAt(30,p.M)}
           :{n:'Progressivo lungo',d:`60' continui da ${fmtP(p.E[0])} a ${fmtP(p.M)} (E→M)`,km:kmAt(60,(Ea+p.M)/2)})
@@ -1122,21 +1135,23 @@ function genPlan(silent){
         :{n:'Ritmo gara',d:`15' @ ${E} + ${goal<=5?'6×1000m':'5×2000m'} @ ${GP} (gara), rec 2' @ ${E} + 10' @ ${E}`,km:kmAt(25,Ea)+(goal<=5?6:10)+kmAt((goal<=5?5:4)*2,Ea)};
       sess.push({t:'Giovedì',...qual});
       // LUNGO SPECIFICO — progressione graduale in DISTANZA verso il picco.
-      const isPeak=wq===specW; // ultimo lungo prima del taper
-      // progressione sui SOLI lunghi veri della fase specifica (esclude scarico/gara/pre-gara/recupero),
-      // così la rampa è regolare anche se le settimane speciali interrompono la sequenza.
-      const specLongWks=[];for(let k=1;k<=specW;k++){const ww=baseW+speedW+k;if(!raceAt[ww]&&!raceAt[ww-1]&&!raceAt[ww+1]&&!(ww%4===0&&ww!==core))specLongWks.push(k);}
-      const li=specLongWks.indexOf(wq),nLong=specLongWks.length;
-      const prog=nLong>1&&li>=0?li/(nLong-1):(isPeak?1:0); // 0 (1° lungo specifico) → 1 (picco)
-      // parte finale a ritmo M (cresce col blocco): calcolata prima per dedurre la quota Z2
+      // parte a ritmo gara nel lungo (cresce col blocco): calcolata prima per dedurre la quota Z2.
+      // Il ritmo di riferimento è quello DELLA GARA OBIETTIVO: M per la maratona, ritmo mezza per la mezza
+      // (per un mezzista il ritmo maratona è ~10-15 s/km troppo lento per essere specifico).
+      const qNum=isM?p.M:tFast/goal,qStr=isM?M:GP,qLab=isM?'M':'gara';
       const mmin=Math.min(isM?50:40,(isM?12:15)+wq*(isM?5:4));
-      const hasM=isM?wq>=2:((isM||isHM)&&wq%2===1);
+      // FORMA del lungo qualificato: si alterna fra blocchi intervallati (E/gara/E/gara: stesso volume
+      // a ritmo gara ma più sostenibile, e ogni ripartenza dopo l'easy è lo stimolo specifico) e blocco
+      // unico finale. Il picco resta sempre a blocco unico: è la simulazione gara più fedele.
+      const alt=hasM&&!isPeak&&mmin>=24&&qOrd%2===0;
+      const nb=alt?(mmin>=36?3:2):1,bm=alt?Math.round(mmin/nb):mmin,fl=nb===3?8:10;
+      const qmin=nb*bm; // minuti effettivi a ritmo gara (arrotondati sui blocchi)
       let lng,lngKm;
       if(isM){
         // km TOTALI del lungo: rampa lineare da ~22 (prima sett. specifica) a 34 (picco), ultimo garantito al picco
         const startTot=22,peakTot=34;
         let total=isPeak?peakTot:startTot+(peakTot-startTot)*prog;
-        const mExtra=hasM?kmAt(mmin,p.M)-kmAt(mmin,Ea):0; // km "gratis" del finale @ M (più veloce dell'easy)
+        const mExtra=hasM?kmAt(qmin,qNum)-kmAt(qmin,Ea):0; // km "gratis" della parte @ ritmo gara (più veloce dell'easy)
         lngKm=Math.max(kmAt(50,Ea),total-mExtra);          // quota easy/Z2 (min 50')
         lng=Math.round(lngKm*Ea/60/5)*5;
         lngKm=kmAt(lng,Ea);                                 // riallinea ai minuti arrotondati
@@ -1146,9 +1161,12 @@ function genPlan(silent){
         if(lngKm>vol*0.5){lngKm=vol*0.5;lng=Math.round(lngKm*Ea/60/5)*5}
       }
       if(summer){lng=Math.min(lng,90);lngKm=Math.min(lngKm,kmAt(90,Ea));}
-      const mfin=hasM?` — ultimi ${mmin}' @ ${M} (M)`:'';
-      const isSim=!!mfin&&mmin>=30; // blocco a ritmo gara corposo = vera simulazione gara
-      sess.push({t:'Domenica',n:isSim?(isPeak?'Simulazione gara (picco)':'Simulazione gara'):'Lungo',d:`${lng}' @ ${E}${mfin}`,km:lngKm+(mfin?kmAt(mmin,p.M)-kmAt(mmin,Ea):0)});
+      // durata totale invariata: i minuti a ritmo gara sono ricavati dentro i `lng` minuti del lungo
+      const mfin=!hasM?'':alt
+        ?` — nella seconda metà ${nb}×${bm}' @ ${qStr} (${qLab}) alternati a ${fl}' @ ${E}, poi chiudi @ ${E}`
+        :` — ultimi ${qmin}' @ ${qStr} (${qLab})`;
+      const isSim=hasM&&!alt&&qmin>=30; // blocco unico corposo = vera simulazione gara
+      sess.push({t:'Domenica',n:isSim?(isPeak?'Simulazione gara (picco)':'Simulazione gara'):alt?'Lungo alternato':'Lungo',d:`${lng}' @ ${E}${mfin}`,km:lngKm+(hasM?kmAt(qmin,qNum)-kmAt(qmin,Ea):0)});
     }
     // ESTATE (giu-ago): intenso ma breve. Microciclo tipo Mar interval → Gio Z2 → weekend qualità:
     // due sedute veloci corte, separate da corse lente; niente lungo lento (poco tempo in piedi col caldo).
