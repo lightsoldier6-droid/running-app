@@ -1012,6 +1012,9 @@ function genPlan(silent){
     const p=paces(vdW);
     const Ea=(p.E[0]+p.E[1])/2;
     const E=`${fmtP(p.E[1])}–${fmtP(p.E[0])}`,T=rngP(p.T),I=rngP(p.I),R=rngP(p.R),M=rngP(p.M);
+    // Mona Fartlek: 20' esatti a piramide discendente (2×90" / 4×60" / 4×30" / 4×15") con recupero
+    // attivo di pari durata. 10' di lavoro forte + 10' di float: allena il cambio di ritmo, non la sola velocità.
+    const MONA=(wu=15)=>({n:'Fartlek Mona',d:`${wu}' @ ${E} + Mona 20': 2×90" / 4×60" / 4×30" / 4×15" forte @ ${R} (R), recupero di pari durata in corsa scorrevole @ ${E} + ${wu}' @ ${E}`,km:kmAt(wu*2,Ea)+kmAt(20,(p.R+Ea)/2)});
     // stagione: la settimana w termina la domenica raceDate-(n-w)*7gg (calcolo su giorni, non ms: ora legale)
     const wd=new Date(dateStr+'T12:00:00');wd.setDate(wd.getDate()-(n-w)*7);
     const mth=wd.getMonth()+1;
@@ -1060,6 +1063,7 @@ function genPlan(silent){
         sess.push({t:'Martedì',n:'Easy + allunghi',d:`45' @ ${E} + ${ns}×20" forte in piano (o su rampa breve ~100m se disponibile), rec 1' camminando`,km:kmAt(45,Ea)+0.8});
         const q=w%2===0?{n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
           :w%3===0?{n:'Progressivo',d:`40' continui da ${fmtP(p.E[0])} a ${fmtP(p.T)} (E→T)`,km:kmAt(40,(Ea+p.T)/2)}
+          :(w>=5&&w%4===1)?MONA(15) // base avanzata: il fartlek strutturato al posto di quello leggero
           :{n:'Fartlek leggero',d:`15' @ ${E} + 6×(1' @ ${R} (R) / 1' @ ${E}) + 15' @ ${E}`,km:kmAt(30,Ea)+kmAt(12,(p.R+Ea)/2)};
         sess.push({t:'Giovedì',...q});
       }
@@ -1088,8 +1092,9 @@ function genPlan(silent){
       // interval al martedì = seduta dura: il giovedì alterna qualità e base
       const nf=6+Math.min(4,Math.floor(sp/2)),pm=40+Math.min(15,sp*2),qv=Math.floor(sp/2);
       const qual=sp%2===0?{n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
-        :qv%3===2?{n:'Fartlek',d:`15' @ ${E} + ${nf}×(1' @ ${R} (R) / 1' @ ${E}) + 15' @ ${E}`,km:kmAt(30,Ea)+kmAt(nf*2,(p.R+Ea)/2)}
-        :qv%3===1?{n:'Progressivo',d:`${pm}' continui da ${fmtP(p.E[0])} a ${fmtP(p.T)} (E→T)`,km:kmAt(pm,(Ea+p.T)/2)}
+        :qv%4===3?MONA(15)
+        :qv%4===2?{n:'Fartlek',d:`15' @ ${E} + ${nf}×(1' @ ${R} (R) / 1' @ ${E}) + 15' @ ${E}`,km:kmAt(30,Ea)+kmAt(nf*2,(p.R+Ea)/2)}
+        :qv%4===1?{n:'Progressivo',d:`${pm}' continui da ${fmtP(p.E[0])} a ${fmtP(p.T)} (E→T)`,km:kmAt(pm,(Ea+p.T)/2)}
         :{n:'Medio-soglia',d:`15' @ ${E} + ${tmin}' @ ${T} (T) + 10' @ ${E}`,km:kmAt(25,Ea)+kmAt(tmin,p.T)};
       sess.push({t:'Giovedì',...qual});
       let lng=Math.round(Math.min(85+sp*3,isM?145:isHM?105:85)/5)*5;
@@ -1152,11 +1157,15 @@ function genPlan(silent){
         {n:'Interval',d:`6×2' @ ${I} (I), rec 2' @ ${E}`,km:3.2+kmAt(12,p.I)+kmAt(10,Ea)+1.7},
         {n:'Ripetute brevi',d:`10×200m @ ${R} (R), rec 200m lenta`,km:3.2+10*0.2*2+1.7},
         {n:'Interval corti',d:`8×400m @ ${I} (I), rec 90" @ ${E}`,km:3.2+8*0.4+kmAt(10.5,Ea)+1.7},
-        {n:'Ripetute brevi',d:`12×200m @ ${R} (R), rec 200m lenta`,km:3.2+12*0.2*2+1.7}];
+        // classico da 5k: la media dei 1000 è un indicatore diretto del tempo sui 5 km
+        {n:'Interval lunghi',d:`6×1000m @ ${I} (I), rec 2'30" @ ${E}`,km:3.2+6+kmAt(12.5,Ea)+1.7},
+        {n:'Ripetute brevi',d:`12×200m @ ${R} (R), rec 200m lenta`,km:3.2+12*0.2*2+1.7},
+        {n:'Interval corti',d:`12×400m @ ${I} (I), rec 90" @ ${E}`,km:3.2+12*0.4+kmAt(16.5,Ea)+1.7}];
       const WKND=[
         {n:'Fartlek',d:`10' @ ${E} + 8×(1' @ ${R} (R) / 1' @ ${E}) + 10' @ ${E}`,km:kmAt(20,Ea)+kmAt(16,(p.R+Ea)/2)},
         {n:'Medio breve',d:`10' @ ${E} + 20' @ ${T} (T) + 10' @ ${E}`,km:kmAt(20,Ea)+kmAt(20,p.T)},
         {n:'Cruise',d:`10' @ ${E} + 4×4' @ ${T} (T), rec 90" @ ${E} + 10' @ ${E}`,km:kmAt(20,Ea)+kmAt(16,p.T)+kmAt(4.5,Ea)},
+        MONA(10),
         {n:'Progressivo',d:`30' continui da ${fmtP(p.E[0])} a ${fmtP(p.T)} (E→T)`,km:kmAt(30,(Ea+p.T)/2)}];
       const z2=(t,min)=>({t,n:'Z2',d:`${min}' @ ${E} (Z2) — presto al mattino`,km:kmAt(min,Ea)});
       sess.length=0;
@@ -2130,7 +2139,7 @@ function rAna(){
       const sess=wk.sess.find(s=>s.t===dayName);
       plano=`Rispetto al piano: cade nella settimana ${wk.w} (fase ${PHn[wk.phase]||'?'}${wk.isDeload?', scarico':''}${wk.summer?', estiva':''}).`;
       if(sess){
-        const MAPS={Interval:'int','Interval corti':'int','Ripetute brevi':'int',Richiami:'int','Cruise @ soglia':'qual',Cruise:'qual','Criss-cross':'qual',Fartlek:'qual','Fartlek leggero':'qual','Medio-soglia':'qual','Medio breve':'qual',Progressivo:'qual','Progressivo lungo':'qual','Ritmo M':'qual','Ritmo gara':'qual',Lungo:'long','Lungo corto':'long','Lungo ridotto':'long','Simulazione gara':'long'};
+        const MAPS={Interval:'int','Interval corti':'int','Interval lunghi':'int','Ripetute brevi':'int',Richiami:'int','Cruise @ soglia':'qual',Cruise:'qual','Criss-cross':'qual',Fartlek:'qual','Fartlek leggero':'qual','Fartlek Mona':'qual','Medio-soglia':'qual','Medio breve':'qual',Progressivo:'qual','Progressivo lungo':'qual','Ritmo M':'qual','Ritmo gara':'qual',Lungo:'long','Lungo corto':'long','Lungo ridotto':'long','Simulazione gara':'long'};
         const expC=sess.n.startsWith('GARA')?'race':MAPS[sess.n]||'easy';
         if(expC===c){
           const kmOk=Math.abs(r.km-sess.km)<=Math.max(2,sess.km*0.2);
