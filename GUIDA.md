@@ -66,7 +66,12 @@ Scegli qualsiasi corsa dall'archivio (menu in alto) e ottieni:
 - *Periodizzazione*: base (endurance) → velocità (VO2max, lo stile del tuo "blocco qualità") → specifico (ritmo gara) → taper. Le durate si adattano alle settimane disponibili.
 - *Obiettivo in range*, mai un numero secco: es. 3:22–3:27. Dove cadi dentro dipende da meteo, percorso e giornata.
 - *Ritmi espliciti con tolleranza ±3s* già inclusa nei range, e km stimati per seduta.
-- *Alternanza*: la qualità del giovedì si alterna con corsa base; nelle settimane col finale @ M nel lungo, il giovedì è sempre base. Mai più di 2 sedute impegnative a settimana.
+- *Alternanza*: la qualità del giovedì si alterna con corsa base; nelle settimane col lungo qualificato il giovedì è sempre base. Mai più di 2 sedute impegnative a settimana.
+- *Lungo qualificato* (fase specifica): una parte del lungo si corre a ritmo gara — ritmo maratona per la maratona, **ritmo mezza** per la mezza. La forma si alterna:
+  - **Lungo alternato** — nella seconda metà 2-3 blocchi a ritmo gara intervallati da 8-10' easy, chiusura easy. Stessi km a ritmo gara ma più sostenibili, e ogni ripartenza dopo l'easy è lo stimolo specifico.
+  - **Simulazione gara** — blocco unico in coda, che cresce fino a 50'. Al **picco** (ultimo lungo prima del taper, 2-3 settimane dalla gara) è sempre questa forma: è la simulazione più fedele.
+  
+  Maratona: quasi tutti i lunghi specifici sono qualificati. Mezza: a lunghi alterni, più il picco.
 - *Scarico* ogni 4ª settimana (mai l'ultima prima del taper).
 - *Estate (giu-ago)* ☀️: volume -15%, sedute base max 90', la fase base diventa lavori di velocità (200/300/400 @ R). Lunghi presto al mattino.
 - *Colori per fase*: verde = base, rosso = velocità, blu = specifico, arancio = taper, grigio = scarico.
