@@ -1531,7 +1531,7 @@ function sLoad(s){
   const nm=(s&&s.n)||'',n=nm.toLowerCase();
   if((s&&s.race)||nm.includes('🏁'))return 4;
   if(/simulazione|big workout|sopra\/sotto/.test(n))return 4;
-  if(/interval|ripetute|cruise|criss|richiami|blocchi rm|gara continuo/.test(n))return 3;
+  if(/interval|ripetute|cruise|criss|richiami|blocchi rm|gara continuo|alternato/.test(n))return 3;
   if(/fast finish|con finale|medio|progressiv|fartlek|ritmo m|ritmo gara/.test(n))return 2;
   if(/^lungo/.test(n))return 1;   // il lungo facile è carico base: costruisce, non svuota
   return 1;
