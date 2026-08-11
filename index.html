@@ -1430,6 +1430,25 @@ function rTrack(){
     +(rows.length>10?`<p class="muted" style="margin-top:6px">Mostrate le ultime 10 di ${rows.length} settimane trascorse.</p>`:'')
     +rbtn;
 }
+// settimane già concluse di un piano (ancorate alla domenica della settimana di gara)
+function pastWeeks(pl){
+  if(!pl||!pl.weeks)return [];
+  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
+  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const race=new Date(pl.dateStr+'T12:00:00'),refSun=addD(race,(7-race.getDay())%7);
+  const N=pl.weeks.length,todayS=iso(new Date());
+  return pl.weeks.filter(w=>iso(addD(refSun,-(N-w.w)*7))<todayS);
+}
+// A che punto della fase specifica eravamo. Senza questo una rigenerazione farebbe ripartire i lunghi da
+// zero (primo lungo facile, pochi minuti a ritmo gara, rampa km da 22) anche a poche settimane dalla gara.
+function progressCarry(weeks){
+  const QS=/^(Lungo progressivo|Lungo a blocchi RM|Lungo fast finish|Lungo a ritmo gara continuo|Lungo sopra\/sotto RM|Lungo alternato|Lungo con finale|Big workout|Simulazione gara)/;
+  const spec=(weeks||[]).filter(w=>w.phase==='spec');
+  const longs=spec.map(w=>(w.sess||[]).find(s=>s.t==='Domenica'&&/^(Lungo|Big workout|Simulazione)/.test(s.n||''))).filter(Boolean);
+  const real=longs.filter(s=>!/ridotto|corto/.test(s.n));   // esclude i lunghi delle settimane di scarico
+  return {wOff:spec.length,lDone:real.length,qDone:real.filter(s=>QS.test(s.n)).length,
+          startTot:real.length?Math.max(...real.map(s=>+s.km||0)):0};
+}
 function updatePlan(){
   const old=LS('rp_plan');if(!old)return alert('Genera prima un piano');
   const vd=curVdot();
@@ -1449,18 +1468,7 @@ function updatePlan(){
   const refSun=addD(race,(7-race.getDay())%7);
   const N=old.weeks.length,todayS=iso(new Date());
   const hist=old.weeks.filter(w=>iso(addD(refSun,-(N-w.w)*7))<todayS).map(h=>({...h,hist:1}));
-  // EREDITÀ della progressione: senza questo la fase specifica ripartirebbe da zero (primo lungo facile,
-  // pochi minuti a ritmo gara, rampa km da 22) anche ricalibrando a 4 settimane dalla gara. Contiamo dai
-  // lunghi già svolti a che punto eravamo, così il nuovo blocco riprende da lì invece di ammorbidirsi.
-  const carry=(()=>{
-    const QS=/^(Lungo progressivo|Lungo a blocchi RM|Lungo fast finish|Lungo a ritmo gara continuo|Lungo sopra\/sotto RM|Lungo alternato|Lungo con finale|Big workout|Simulazione gara)/;
-    const spec=hist.filter(w=>w.phase==='spec');
-    const longs=spec.map(w=>(w.sess||[]).find(s=>s.t==='Domenica'&&/^(Lungo|Big workout|Simulazione)/.test(s.n||''))).filter(Boolean);
-    const real=longs.filter(s=>!/ridotto|corto/.test(s.n));   // esclude i lunghi delle settimane di scarico
-    return {wOff:spec.length,lDone:real.length,qDone:real.filter(s=>QS.test(s.n)).length,
-            startTot:real.length?Math.max(...real.map(s=>+s.km||0)):0};
-  })();
-  const np=genPlan(true,carry);if(!np)return;
+  const np=genPlan(true,progressCarry(hist));if(!np)return;
   np.weeks=[...hist,...np.weeks];
   np.weeks.forEach((w,i)=>w.w=i+1);
   LS('rp_plan',np);rPlan(np);rTrack();
@@ -1555,9 +1563,13 @@ function sLoad(s){
   if(/^lungo/.test(n))return 1;   // il lungo facile è carico base: costruisce, non svuota
   return 1;
 }
+// una seduta è una GARA solo se il nome porta la bandierina (o inizia per "gara", per gli .ics vecchi):
+// "Pre-gara", "Simulazione gara" e "Ritmo gara" sono allenamenti, non gare, e vanno classificati come tali.
+function isRaceName(name){const s=(name||'').trim();return s.includes('🏁')||/^gara\b/i.test(s)}
 function planCls(name){ // classifica la seduta pianificata dal suo nome
   const n=(name||'').toLowerCase();
-  if(/gara/.test(n))return 'race';
+  if(isRaceName(name))return 'race';
+  if(/^progressivo/.test(n))return 'qual';   // "Progressivo lungo" è la qualità del giovedì, non un lungo
   if(/lungo|simulazione|big workout/.test(n))return 'long';
   if(/interval|ripetut|richiami/.test(n))return 'int';
   if(/cruise|criss|fartlek|medio|progressiv|ritmo|soglia|tempo/.test(n))return 'qual';
@@ -1657,8 +1669,11 @@ function planToSessions(pl){
 document.getElementById('mon-recal').addEventListener('click',monRecalibrate);
 function monRecalibrate(){
   if(!monitor||!monitor.sessions.length)return alert('Carica prima un piano .ics nel Monitor.');
-  // gara e distanza dall'.ics
-  const raceS=monitor.sessions.find(s=>s.cls==='race');
+  // gara e distanza dall'.ics: conta la gara OBIETTIVO, cioè l'ultima in ordine di data — non la prima,
+  // che può essere una tune-up già corsa. Il filtro è sul nome perché gli .ics già caricati possono
+  // portarsi dietro la vecchia classificazione (che marcava come gara anche "Pre-gara"/"Simulazione gara").
+  const racesIcs=monitor.sessions.filter(s=>isRaceName(s.name)).sort((a,b)=>a.date<b.date?-1:1);
+  const raceS=racesIcs.length?racesIcs[racesIcs.length-1]:null;
   let dateStr,goalKm;
   if(raceS){dateStr=raceS.date;goalKm=raceS.km||42.195}
   else{
@@ -1670,7 +1685,16 @@ function monRecalibrate(){
   const goals=[5,10,21.0975,42.195];
   const goal=goals.reduce((a,b)=>Math.abs(b-goalKm)<Math.abs(a-goalKm)?b:a);
   const wtorace=Math.round((new Date(dateStr+'T12:00:00')-Date.now())/(7*864e5));
-  if(wtorace<6)return alert(`Alla gara mancano ~${wtorace} settimane: troppo poche per rigenerare un blocco sensato (minimo 6). La ricalibrazione va fatta prima, non a ridosso della gara.`);
+  if(wtorace<6){
+    const dLoc=new Date(dateStr+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
+    const pl=LS('rp_plan');
+    const hint=(pl&&pl.dateStr&&pl.dateStr!==dateStr)
+      ? `\n\nIl piano che hai in memoria punta invece al ${new Date(pl.dateStr+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}: se è quella la gara giusta, aggiorna il Monitor con "Aggiorna dal piano" (o ricarica l'.ics aggiornato) e riprova.`
+      : '';
+    return alert(wtorace<0
+      ? `La gara letta dal piano monitorato (${dLoc}) è già passata: il Monitor sta seguendo un piano vecchio.${hint}`
+      : `Alla gara del ${dLoc} mancano ~${wtorace} settimane: troppo poche per rigenerare un blocco sensato (minimo 6). La ricalibrazione va fatta prima, non a ridosso della gara.${hint}`);
+  }
   // giorni/settimana: mediana delle sedute per settimana nell'.ics
   const perWk={};monitor.sessions.forEach(s=>{const k=s.week!=null?'w'+s.week:weekKey(s.date);perWk[k]=(perWk[k]||0)+1});
   const counts=Object.values(perWk).sort((a,b)=>a-b);
@@ -1687,7 +1711,9 @@ function monRecalibrate(){
   const prev=LS('rp_plan');
   document.getElementById('p-mode').value=prev&&prev.modeVal?prev.modeVal:'mod';
   document.getElementById('p-target').value=(prev&&+prev.goal===goal&&prev.target)?prev.target:'';
-  const np=genPlan(true);if(!np)return;
+  // stessa gara del piano in memoria → riprendi la progressione dei lunghi da dove eri arrivato
+  const carry=(prev&&prev.dateStr===dateStr)?progressCarry(pastWeeks(prev)):null;
+  const np=genPlan(true,carry);if(!np)return;
   // monitor: passato conservato dall'.ics + futuro rigenerato
   const todayS=todayISO();
   const past=monitor.sessions.filter(s=>s.date<todayS);
