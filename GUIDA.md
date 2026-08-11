@@ -82,7 +82,7 @@ Scegli qualsiasi corsa dall'archivio (menu in alto) e ottieni:
 
 **Progressione vs piano**: settimana per settimana, km fatti/pianificati, corse completate, qualità e lungo spuntati. Verdetti: ✅ a target (≥85% km + qualità + lungo), 🟡 parziale, 🔴 saltata, ⏳ in corso. In testa: aderenza complessiva.
 
-**Ricalibra il piano dai dati reali**: rigenera le settimane future col VDOT attuale e il volume che stai davvero reggendo. Le settimane passate restano in archivio (attenuate, "passata") per il confronto. Da usare a ogni cambio di fase o quando l'aderenza cala.
+**Ricalibra il piano dai dati reali**: rigenera le settimane future col VDOT attuale e il volume che stai davvero reggendo. Le settimane passate restano in archivio (attenuate, "passata") per il confronto. Da usare a ogni cambio di fase o quando l'aderenza cala. Il nuovo blocco **eredita il punto della progressione già raggiunto**: se avevi già fatto progressivo e blocchi RM, riparte da fast finish, non dal lungo facile; la rampa dei km e i minuti a ritmo gara ripartono da dove eri, così ricalibrare tardi non ammorbidisce il picco.
 
 **Esportare**:
 - *Copia piano (markdown)*: per incollarlo dove vuoi.

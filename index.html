@@ -889,7 +889,12 @@ function rCmp(){
 /* ---------- piano ---------- */
 const rngP=(s,t=3)=>`${fmtP(s-t)}–${fmtP(s+t)}`; // tolleranza ±3s come nel piano 10 settimane
 const recF=r=>r%1?`${Math.floor(r)}'30"`:`${r}'`;
-function genPlan(silent){
+// carry (opzionale, da updatePlan): a che punto della fase specifica eravamo nel piano precedente.
+// wOff = settimane specifiche già fatte · lDone/qDone = lunghi specifici svolti, di cui qualificati
+// · startTot = km del lungo più lungo già raggiunto. Serve a non far ripartire la progressione da zero.
+function genPlan(silent,carry){
+  const wOff=(carry&&carry.wOff)||0,lDone=(carry&&carry.lDone)||0,qDone=(carry&&carry.qDone)||0;
+  const carryTot=(carry&&carry.startTot)||0;
   const goal=+document.getElementById('p-goal').value;
   const dateStr=document.getElementById('p-date').value;
   const days=+document.getElementById('p-days').value;
@@ -1123,9 +1128,11 @@ function genPlan(silent){
       // poi ne rientra uno facile ogni tre. Mezza: a lunghi alterni (fra quelli VERI, non per parità di
       // settimana, che salta gli scarichi). In entrambi i casi il picco è sempre qualificato, così
       // l'ultima seduta dura del blocco è la più specifica.
-      const isQ=k=>{const i=specLongWks.indexOf(k);return i<0?false:isM?(k===specW||(i>0&&i%3!==0)):isHM&&(k===specW||(i>=1&&i%2===1))};
+      // gi = posizione del lungo nella sequenza COMPLESSIVA (include quelli già svolti prima di un ricalibro)
+      const isQ=k=>{const i=specLongWks.indexOf(k);if(i<0)return false;const gi=i+lDone;
+        return isM?(k===specW||(gi>0&&gi%3!==0)):isHM&&(k===specW||(gi>=1&&gi%2===1))};
       const hasM=isQ(wq);
-      const qOrd=specLongWks.filter(k=>k<wq&&isQ(k)).length; // quanti lunghi qualificati già fatti
+      const qOrd=qDone+specLongWks.filter(k=>k<wq&&isQ(k)).length; // quanti lunghi qualificati già fatti
       const[cn,cm,crec]=CR[crx++%CR.length];
       // alterna cruise a soglia e criss-cross (Z3/Z4): entrambi lavorano la soglia, il criss-cross aggiunge cambi di ritmo gara
       if(crx%2===0)
@@ -1145,7 +1152,7 @@ function genPlan(silent){
       // Il ritmo di riferimento è quello DELLA GARA OBIETTIVO: M per la maratona, ritmo mezza per la mezza
       // (per un mezzista il ritmo maratona è ~10-15 s/km troppo lento per essere specifico).
       const qNum=isM?p.M:tFast/goal,qStr=isM?M:GP,qLab=isM?'M':'gara';
-      const mmin=Math.min(isM?50:40,(isM?12:15)+wq*(isM?5:4));
+      const mmin=Math.min(isM?50:40,(isM?12:15)+(wq+wOff)*(isM?5:4));
       // FORMA del lungo qualificato — progressione applicativa: progressivo → blocchi a ritmo gara →
       // fast finish → sopra/sotto ritmo gara → ritmo gara continuo → big workout (picco). La quota di
       // lavoro specifico è la stessa (mmin): cambia COME è distribuita, con richiesta via via maggiore.
@@ -1166,8 +1173,9 @@ function genPlan(silent){
       const qExtra=!hasM?0:kmAt(rmin,qNum)+kmAt(smin,StN)-kmAt(qmin,Ea);
       let lng,lngKm;
       if(isM){
-        // km TOTALI del lungo: rampa lineare da ~22 (prima sett. specifica) a 34 (picco), ultimo garantito al picco
-        const startTot=22,peakTot=34;
+        // km TOTALI del lungo: rampa lineare da ~22 (prima sett. specifica) a 34 (picco), ultimo garantito al picco.
+        // Dopo un ricalibro la rampa riparte dal punto già raggiunto, non da 22.
+        const peakTot=34,startTot=Math.min(peakTot-1,Math.max(22,carryTot));
         let total=isPeak?peakTot:startTot+(peakTot-startTot)*prog;
         const mExtra=qExtra;                               // km "gratis" della parte specifica (più veloce dell'easy)
         lngKm=Math.max(kmAt(50,Ea),total-mExtra);          // quota easy/Z2 (min 50')
@@ -1441,7 +1449,18 @@ function updatePlan(){
   const refSun=addD(race,(7-race.getDay())%7);
   const N=old.weeks.length,todayS=iso(new Date());
   const hist=old.weeks.filter(w=>iso(addD(refSun,-(N-w.w)*7))<todayS).map(h=>({...h,hist:1}));
-  const np=genPlan(true);if(!np)return;
+  // EREDITÀ della progressione: senza questo la fase specifica ripartirebbe da zero (primo lungo facile,
+  // pochi minuti a ritmo gara, rampa km da 22) anche ricalibrando a 4 settimane dalla gara. Contiamo dai
+  // lunghi già svolti a che punto eravamo, così il nuovo blocco riprende da lì invece di ammorbidirsi.
+  const carry=(()=>{
+    const QS=/^(Lungo progressivo|Lungo a blocchi RM|Lungo fast finish|Lungo a ritmo gara continuo|Lungo sopra\/sotto RM|Lungo alternato|Lungo con finale|Big workout|Simulazione gara)/;
+    const spec=hist.filter(w=>w.phase==='spec');
+    const longs=spec.map(w=>(w.sess||[]).find(s=>s.t==='Domenica'&&/^(Lungo|Big workout|Simulazione)/.test(s.n||''))).filter(Boolean);
+    const real=longs.filter(s=>!/ridotto|corto/.test(s.n));   // esclude i lunghi delle settimane di scarico
+    return {wOff:spec.length,lDone:real.length,qDone:real.filter(s=>QS.test(s.n)).length,
+            startTot:real.length?Math.max(...real.map(s=>+s.km||0)):0};
+  })();
+  const np=genPlan(true,carry);if(!np)return;
   np.weeks=[...hist,...np.weeks];
   np.weeks.forEach((w,i)=>w.w=i+1);
   LS('rp_plan',np);rPlan(np);rTrack();
