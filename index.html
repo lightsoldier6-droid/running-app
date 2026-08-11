@@ -73,6 +73,8 @@ svg text{fill:var(--dim);font-size:9px}
 .sbody{flex:1;font-size:13px;line-height:1.45}
 .sbody .sn{font-weight:600}
 .smeta{color:var(--dim);font-size:11px;margin-top:2px}
+.ldb{display:inline-block;padding:0 6px;border-radius:999px;font-size:10px;font-weight:600;line-height:15px;background:var(--line);color:var(--dim);vertical-align:1px}
+.ldb.l2{background:#fdf0d0;color:#8a5a00}.ldb.l3{background:#fde0d2;color:#a33f14}.ldb.l4{background:#fbd7dd;color:#a3123a}
 .sess.race{background:#e3f5e9;border:none;border-radius:8px;padding:9px;margin:3px 0}
 .sess.race .daychip{background:#fff;border-color:#bfe6cc}
 .pace{color:var(--acc);font-weight:600}
@@ -174,6 +176,7 @@ body.dark .benefit{background:#16311f;border-color:#27573a}
 body.dark .benefit .bl{color:#6cd992}
 body.dark .sess.race{background:#16311f}
 body.dark .sess.race .daychip{background:#1b1c1f;border-color:#27573a}
+body.dark .ldb.l2{background:#3a2f14;color:#e5b95a}body.dark .ldb.l3{background:#3d2417;color:#f0a077}body.dark .ldb.l4{background:#3d1622;color:#f28ba4}
 body,.card,input,select,nav{transition:background .2s,border-color .2s,color .2s}
 @media(min-width:1400px){
   .tab.on{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -1114,10 +1117,13 @@ function genPlan(silent){
       const specLongWks=[];for(let k=1;k<=specW;k++){const ww=baseW+speedW+k;if(!raceAt[ww]&&!raceAt[ww-1]&&!raceAt[ww+1]&&!(ww%4===0&&ww!==core))specLongWks.push(k);}
       const li=specLongWks.indexOf(wq),nLong=specLongWks.length;
       const prog=nLong>1&&li>=0?li/(nLong-1):(isPeak?1:0); // 0 (1° lungo specifico) → 1 (picco)
-      // maratona: quasi tutti i lunghi specifici hanno lavoro a ritmo gara (tranne il 1°).
-      // mezza: a lunghi alterni (fra quelli VERI, non per parità di settimana, che salta gli scarichi)
-      // + il picco sempre qualificato, così l'ultima seduta dura è la più specifica.
-      const isQ=k=>{const i=specLongWks.indexOf(k);return i<0?false:isM?k>=2:isHM&&(k===specW||(i>=1&&i%2===1))};
+      // ALTERNANZA lunghi facili / lunghi specifici. Non tutti i lunghi vanno trasformati in seduta di
+      // qualità: il lungo facile resta il mattone aerobico (volume, tolleranza meccanica, durability) e
+      // serve anche a reggere il costo dei lunghi specifici. Maratona: il 1° lungo della fase è facile e
+      // poi ne rientra uno facile ogni tre. Mezza: a lunghi alterni (fra quelli VERI, non per parità di
+      // settimana, che salta gli scarichi). In entrambi i casi il picco è sempre qualificato, così
+      // l'ultima seduta dura del blocco è la più specifica.
+      const isQ=k=>{const i=specLongWks.indexOf(k);return i<0?false:isM?(k===specW||(i>0&&i%3!==0)):isHM&&(k===specW||(i>=1&&i%2===1))};
       const hasM=isQ(wq);
       const qOrd=specLongWks.filter(k=>k<wq&&isQ(k)).length; // quanti lunghi qualificati già fatti
       const[cn,cm,crec]=CR[crx++%CR.length];
@@ -1140,18 +1146,30 @@ function genPlan(silent){
       // (per un mezzista il ritmo maratona è ~10-15 s/km troppo lento per essere specifico).
       const qNum=isM?p.M:tFast/goal,qStr=isM?M:GP,qLab=isM?'M':'gara';
       const mmin=Math.min(isM?50:40,(isM?12:15)+wq*(isM?5:4));
-      // FORMA del lungo qualificato: si alterna fra blocchi intervallati (E/gara/E/gara: stesso volume
-      // a ritmo gara ma più sostenibile, e ogni ripartenza dopo l'easy è lo stimolo specifico) e blocco
-      // unico finale. Il picco resta sempre a blocco unico: è la simulazione gara più fedele.
-      const alt=hasM&&!isPeak&&mmin>=24&&qOrd%2===0;
-      const nb=alt?(mmin>=36?3:2):1,bm=alt?Math.round(mmin/nb):mmin,fl=nb===3?8:10;
-      const qmin=nb*bm; // minuti effettivi a ritmo gara (arrotondati sui blocchi)
+      // FORMA del lungo qualificato — progressione applicativa: progressivo → blocchi a ritmo gara →
+      // fast finish → sopra/sotto ritmo gara → ritmo gara continuo → big workout (picco). La quota di
+      // lavoro specifico è la stessa (mmin): cambia COME è distribuita, con richiesta via via maggiore.
+      // Prima si impara a reggere la durata, poi si alza la densità interna senza allungare la seduta.
+      // l'ordine è anche di carico crescente; esauriti gli stadi si alternano le due forme più specifiche.
+      const SEQ=['prog','blocchi','fastfinish','continuo','sottosopra'];
+      const struct=!hasM?'easy':isPeak?'big'
+        :(mmin<20?'prog':SEQ[qOrd<SEQ.length?qOrd:SEQ.length-2+(qOrd-SEQ.length)%2]);
+      const StN=(p.E[0]+qNum)/2,St=rngP(StN);  // "steady": fra fondo facile e ritmo gara
+      const upN=qNum-7,dnN=qNum+9;             // poco sopra / poco sotto il ritmo gara
+      let nb=1,bm=mmin,fl=10;
+      if(struct==='blocchi'){nb=mmin>=36?3:2;bm=Math.round(mmin/nb);fl=nb===3?8:10}
+      else if(struct==='sottosopra'){nb=Math.max(3,Math.min(6,Math.round(mmin/9)));bm=2*Math.round(mmin/nb/2)}
+      const qmin=nb*bm;                        // minuti effettivi di lavoro specifico (arrotondati sui blocchi)
+      const smin=struct==='prog'?Math.round(qmin/2/5)*5:0; // progressivo: metà dei minuti specifici a steady
+      const rmin=qmin-smin;                    // minuti veri a ritmo gara
+      // km guadagnati rispetto alla stessa durata in easy: le parti veloci coprono più strada
+      const qExtra=!hasM?0:kmAt(rmin,qNum)+kmAt(smin,StN)-kmAt(qmin,Ea);
       let lng,lngKm;
       if(isM){
         // km TOTALI del lungo: rampa lineare da ~22 (prima sett. specifica) a 34 (picco), ultimo garantito al picco
         const startTot=22,peakTot=34;
         let total=isPeak?peakTot:startTot+(peakTot-startTot)*prog;
-        const mExtra=hasM?kmAt(qmin,qNum)-kmAt(qmin,Ea):0; // km "gratis" della parte @ ritmo gara (più veloce dell'easy)
+        const mExtra=qExtra;                               // km "gratis" della parte specifica (più veloce dell'easy)
         lngKm=Math.max(kmAt(50,Ea),total-mExtra);          // quota easy/Z2 (min 50')
         lng=Math.round(lngKm*Ea/60/5)*5;
         lngKm=kmAt(lng,Ea);                                 // riallinea ai minuti arrotondati
@@ -1161,12 +1179,21 @@ function genPlan(silent){
         if(lngKm>vol*0.5){lngKm=vol*0.5;lng=Math.round(lngKm*Ea/60/5)*5}
       }
       if(summer){lng=Math.min(lng,90);lngKm=Math.min(lngKm,kmAt(90,Ea));}
-      // durata totale invariata: i minuti a ritmo gara sono ricavati dentro i `lng` minuti del lungo
-      const mfin=!hasM?'':alt
-        ?` — nella seconda metà ${nb}×${bm}' @ ${qStr} (${qLab}) alternati a ${fl}' @ ${E}, poi chiudi @ ${E}`
-        :` — ultimi ${qmin}' @ ${qStr} (${qLab})`;
-      const isSim=hasM&&!alt&&qmin>=30; // blocco unico corposo = vera simulazione gara
-      sess.push({t:'Domenica',n:isSim?(isPeak?'Simulazione gara (picco)':'Simulazione gara'):alt?'Lungo alternato':'Lungo',d:`${lng}' @ ${E}${mfin}`,km:lngKm+(hasM?kmAt(qmin,qNum)-kmAt(qmin,Ea):0)});
+      // durata totale invariata: i minuti di lavoro specifico sono ricavati dentro i `lng` minuti del lungo
+      const SNAME={easy:'Lungo facile',prog:'Lungo progressivo',blocchi:'Lungo a blocchi RM',
+        fastfinish:'Lungo fast finish',sottosopra:'Lungo sopra/sotto RM',continuo:'Lungo a ritmo gara continuo',
+        big:isM?'Big workout (picco)':'Simulazione gara (picco)'};
+      const SDESC={
+        easy:`${lng}' @ ${E}${summer?' — presto al mattino, idratazione':''}`,
+        prog:`${lng}' @ ${E} + ${smin}' @ ${St} (steady) + ${rmin}' @ ${qStr} (${qLab}) — progressione continua, senza pause`,
+        blocchi:`${lng}' @ ${E} — nella seconda metà ${nb}×${bm}' @ ${qStr} (${qLab}) alternati a ${fl}' @ ${E}, poi chiudi @ ${E}`,
+        fastfinish:`${lng}' @ ${E} — ultimi ${qmin}' @ ${qStr} (${qLab}) senza rallentare`,
+        sottosopra:`${lng}' @ ${E} — poi ${nb}×${bm}' alternando ${bm/2}' @ ${fmtP(upN)} (poco sopra ${qLab}) e ${bm/2}' @ ${fmtP(dnN)} (poco sotto), senza recupero`,
+        continuo:`${Math.max(20,lng-10)}' @ ${E} + ${qmin}' @ ${qStr} (${qLab}) in blocco unico + ${Math.min(10,lng-20)}' @ ${E}`,
+        big:`${lng}' @ ${E} — nella seconda metà ${qmin}' @ ${qStr} (${qLab}) in blocco unico: è la prova generale, testa gel, liquidi, scarpe e pacing`};
+      // carico dichiarato (scala del documento): 1 base · 2 intermedio · 3 alto · 4 molto alto
+      const SLOAD={easy:1,prog:2,fastfinish:2,blocchi:3,continuo:3,sottosopra:4,big:4};
+      sess.push({t:'Domenica',n:SNAME[struct],d:SDESC[struct],load:SLOAD[struct],km:lngKm+qExtra});
     }
     // ESTATE (giu-ago): intenso ma breve. Microciclo tipo Mar interval → Gio Z2 → weekend qualità:
     // due sedute veloci corte, separate da corse lente; niente lungo lento (poco tempo in piedi col caldo).
@@ -1258,7 +1285,7 @@ function applyWkEdits(pl){
       const raceSysW=dist<=5?'vo2':dist<=10?'threshold':'endurance';
       const SYSN={vo2:'VO2max/velocità',threshold:'soglia',endurance:'resistenza',easy:'facile'};
       const sysOf=s=>{const t=(s.n+' '+s.d).toLowerCase();
-        if(/lungo|long|simulazione/.test(t))return 'endurance';
+        if(/lungo|long|simulazione|big workout/.test(t))return 'endurance';
         if(/cruise|soglia|medio|progress|criss|ritmo gara|tempo run|fartlek/.test(t))return 'threshold';
         if(/interval|ripetut|richiami|[0-9]+\s*[×x]\s*[0-9]|[0-9]{3}\s*m/.test(t))return 'vo2';
         return 'easy';};
@@ -1350,7 +1377,8 @@ function rPlan(plan){
         <div class="vbar"><i style="width:${vpct}%;background:${phCol}"></i></div>
         ${w.sess.map(s=>{const isRaceFinal=s.n.startsWith('GARA'),isr=isRaceFinal||s.race;
           const sd=isRaceFinal?race:addD(sunW,OFF[s.t]??0);
-          return `<div class="sess${isr?' race':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">≈${s.km} km</div></div></div>`;
+          const L=sLoad(s);
+          return `<div class="sess${isr?' race':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">≈${s.km} km · <span class="ldb l${L}">carico ${LOADL[L]}</span></div></div></div>`;
         }).join('')}
       </div>`;
     }).join('')+`</div>`;
@@ -1377,7 +1405,7 @@ function rTrack(){
     const aKm=rr.reduce((a,r)=>a+r.km,0),pKm=w.vol;
     const qPlan=w.sess.filter(s=>QUAL.some(q=>s.n.startsWith(q))).length;
     const qDone=rr.filter(r=>['int','qual','race'].includes(cls(r))).length;
-    const lPlan=w.sess.some(s=>s.n.startsWith('Lungo')||s.n.startsWith('Simulazione')||s.n.startsWith('GARA'));
+    const lPlan=w.sess.some(s=>s.n.startsWith('Lungo')||s.n.startsWith('Simulazione')||s.n.startsWith('Big workout')||s.n.startsWith('GARA'));
     const lDone=rr.some(r=>['long','race'].includes(cls(r))||r.km>=Math.max(12,pKm*0.3));
     const pct=pKm?Math.round(aKm/pKm*100):0;
     if(!cur){sumP+=pKm;sumA+=aKm;tot++;if(pct>=85&&qDone>=qPlan&&(!lPlan||lDone))okW++}
@@ -1493,10 +1521,25 @@ function copyPlan(){
 const toSec=p=>{const m=(''+p).split(':');return +m[0]*60+ +m[1]};
 const PHKEY={base:'base',velocità:'speed',velocita:'speed',specifico:'spec',taper:'taper'};
 const PHN={base:'Base',speed:'Velocità',spec:'Specifico',taper:'Taper'};
+/* CARICO della seduta — 1 base · 2 intermedio · 3 alto · 4 molto alto.
+   Le sedute che lo dichiarano (i lunghi della fase specifica, che conoscono la propria struttura)
+   vincono; per tutte le altre si deduce dal nome. Serve a leggere a colpo d'occhio quanto costa
+   una settimana, non solo quanti km vale. */
+const LOADL=['','base','intermedio','alto','molto alto'];
+function sLoad(s){
+  if(s&&s.load)return s.load;
+  const nm=(s&&s.n)||'',n=nm.toLowerCase();
+  if((s&&s.race)||nm.includes('🏁'))return 4;
+  if(/simulazione|big workout|sopra\/sotto/.test(n))return 4;
+  if(/interval|ripetute|cruise|criss|richiami|blocchi rm|gara continuo/.test(n))return 3;
+  if(/fast finish|con finale|medio|progressiv|fartlek|ritmo m|ritmo gara/.test(n))return 2;
+  if(/^lungo/.test(n))return 1;   // il lungo facile è carico base: costruisce, non svuota
+  return 1;
+}
 function planCls(name){ // classifica la seduta pianificata dal suo nome
   const n=(name||'').toLowerCase();
   if(/gara/.test(n))return 'race';
-  if(/lungo|simulazione/.test(n))return 'long';
+  if(/lungo|simulazione|big workout/.test(n))return 'long';
   if(/interval|ripetut|richiami/.test(n))return 'int';
   if(/cruise|criss|fartlek|medio|progressiv|ritmo|soglia|tempo/.test(n))return 'qual';
   return 'easy'; // base, easy, z2, scarico, allunghi
@@ -2157,7 +2200,7 @@ function rAna(){
       const sess=wk.sess.find(s=>s.t===dayName);
       plano=`Rispetto al piano: cade nella settimana ${wk.w} (fase ${PHn[wk.phase]||'?'}${wk.isDeload?', scarico':''}${wk.summer?', estiva':''}).`;
       if(sess){
-        const MAPS={Interval:'int','Interval corti':'int','Interval lunghi':'int','Ripetute brevi':'int',Richiami:'int','Cruise @ soglia':'qual',Cruise:'qual','Criss-cross':'qual',Fartlek:'qual','Fartlek leggero':'qual','Fartlek Mona':'qual','Medio-soglia':'qual','Medio breve':'qual',Progressivo:'qual','Progressivo lungo':'qual','Ritmo M':'qual','Ritmo gara':'qual',Lungo:'long','Lungo corto':'long','Lungo ridotto':'long','Simulazione gara':'long'};
+        const MAPS={Interval:'int','Interval corti':'int','Interval lunghi':'int','Ripetute brevi':'int',Richiami:'int','Cruise @ soglia':'qual',Cruise:'qual','Criss-cross':'qual',Fartlek:'qual','Fartlek leggero':'qual','Fartlek Mona':'qual','Medio-soglia':'qual','Medio breve':'qual',Progressivo:'qual','Progressivo lungo':'qual','Ritmo M':'qual','Ritmo gara':'qual',Lungo:'long','Lungo corto':'long','Lungo ridotto':'long','Lungo facile':'long','Lungo con finale':'long','Lungo progressivo':'long','Lungo a blocchi RM':'long','Lungo fast finish':'long','Lungo sopra/sotto RM':'long','Lungo a ritmo gara continuo':'long','Big workout (picco)':'long','Simulazione gara':'long','Simulazione gara (picco)':'long'};
         const expC=sess.n.startsWith('GARA')?'race':MAPS[sess.n]||'easy';
         if(expC===c){
           const kmOk=Math.abs(r.km-sess.km)<=Math.max(2,sess.km*0.2);
@@ -2316,6 +2359,7 @@ function rGuide(){
    ${row('Criss-cross',fmtP(p.M)+'↔'+fmtP(p.T),'gestione del lattato e cambi di ritmo gara',"6×6': 3' @ M / 3' @ T")}
    ${row('Simulazione gara',fmtP(p.E[1])+' + '+fmtP(p.M),'prova ritmo, alimentazione e testa',"90–120': Z2 + blocco finale @ M")}
   </table>
+  <p class="muted" style="margin-top:10px"><b>Strutture del lungo</b> (fase specifica, in ordine di carico crescente): <b>facile</b> — costruisce base aerobica e tolleranza; <b>progressivo</b> — easy → steady → ritmo gara senza pause; <b>a blocchi RM</b> — 2-3 blocchi a ritmo gara intervallati da easy; <b>fast finish</b> — blocco unico in coda, sulle gambe già stanche; <b>a ritmo gara continuo</b> — blocco unico centrale, chiusura easy; <b>sopra/sotto RM</b> — alternanze appena sopra e appena sotto il ritmo gara, senza recupero vero; <b>big workout</b> — il picco, prova generale di ritmo, fueling e scarpe. Non tutti i lunghi sono qualificati: i lunghi facili intercalati servono a reggere il costo degli altri.</p>
   <p class="muted" style="margin-top:8px">Sedute dure: riscaldamento 10–15' in Z1 + allunghi, defaticamento 10' Z1. Intensità crescente: Z1 recupero &lt; Z2 fondo &lt; M &lt; T &lt; I/R. I passi seguono il tuo VDOT attuale (${vd.toFixed(1)}).</p>`;
 }
 function refresh(){rDash();rLoad();rProg();rData();rManage();rAnaSel();rAna();rGuide();rToday();

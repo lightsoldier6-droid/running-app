@@ -67,11 +67,15 @@ Scegli qualsiasi corsa dall'archivio (menu in alto) e ottieni:
 - *Obiettivo in range*, mai un numero secco: es. 3:22–3:27. Dove cadi dentro dipende da meteo, percorso e giornata.
 - *Ritmi espliciti con tolleranza ±3s* già inclusa nei range, e km stimati per seduta.
 - *Alternanza*: la qualità del giovedì si alterna con corsa base; nelle settimane col lungo qualificato il giovedì è sempre base. Mai più di 2 sedute impegnative a settimana.
-- *Lungo qualificato* (fase specifica): una parte del lungo si corre a ritmo gara — ritmo maratona per la maratona, **ritmo mezza** per la mezza. La forma si alterna:
-  - **Lungo alternato** — nella seconda metà 2-3 blocchi a ritmo gara intervallati da 8-10' easy, chiusura easy. Stessi km a ritmo gara ma più sostenibili, e ogni ripartenza dopo l'easy è lo stimolo specifico.
-  - **Simulazione gara** — blocco unico in coda, che cresce fino a 50'. Al **picco** (ultimo lungo prima del taper, 2-3 settimane dalla gara) è sempre questa forma: è la simulazione più fedele.
-  
-  Maratona: quasi tutti i lunghi specifici sono qualificati. Mezza: a lunghi alterni, più il picco.
+- *Lungo qualificato* (fase specifica): una parte del lungo si corre a ritmo gara — ritmo maratona per la maratona, **ritmo mezza** per la mezza. Non tutti i lunghi sono qualificati: **maratona**, il primo della fase è facile e poi ne rientra uno facile ogni tre; **mezza**, a lunghi alterni. Il lungo facile non è un riempitivo — è il mattone aerobico (volume, tolleranza meccanica, capacità di reggere il ritmo sotto fatica) e serve anche a permettersi il costo di quelli specifici. Il picco è sempre qualificato.
+- *Strutture del lungo*, in progressione lungo il blocco specifico. La quota di lavoro a ritmo gara è la stessa: cambia come è distribuita, con richiesta via via maggiore.
+  - **Lungo progressivo** — easy → steady → ritmo gara, senza pause. Impara ad alzare l'intensità sulla fatica.
+  - **Lungo a blocchi RM** — 2-3 blocchi a ritmo gara intervallati da 8-10' easy. Stessi km specifici ma più sostenibili, e ogni ripartenza dopo l'easy è lo stimolo.
+  - **Lungo fast finish** — blocco unico in coda: correre a ritmo gara con la fatica già accumulata.
+  - **Lungo a ritmo gara continuo** — blocco unico centrale, chiusura easy. Specificità e stabilità del ritmo.
+  - **Lungo sopra/sotto RM** — alternanze poco sopra e poco sotto il ritmo gara, senza recupero vero: controllo metabolico e recupero in corsa.
+  - **Big workout** (picco, ultimo lungo prima del taper) — la prova generale: massima quota specifica in blocco unico, e l'occasione per testare gel, liquidi, scarpe e pacing. Sulla mezza si chiama *Simulazione gara*.
+- *Carico dichiarato*: ogni seduta porta un'etichetta — base, intermedio, alto, molto alto — accanto ai km. Serve a leggere quanto costa una settimana, non solo quanto è lunga: due settimane da 70 km possono pesare in modo molto diverso.
 - *Scarico* ogni 4ª settimana (mai l'ultima prima del taper).
 - *Estate (giu-ago)* ☀️: volume -15%, sedute base max 90', la fase base diventa lavori di velocità (200/300/400 @ R). Lunghi presto al mattino.
 - *Colori per fase*: verde = base, rosso = velocità, blu = specifico, arancio = taper, grigio = scarico.
