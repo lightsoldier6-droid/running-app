@@ -889,10 +889,15 @@ function rCmp(){
 /* ---------- piano ---------- */
 const rngP=(s,t=3)=>`${fmtP(s-t)}–${fmtP(s+t)}`; // tolleranza ±3s come nel piano 10 settimane
 const recF=r=>r%1?`${Math.floor(r)}'30"`:`${r}'`;
-// carry (opzionale, da updatePlan): a che punto della fase specifica eravamo nel piano precedente.
-// wOff = settimane specifiche già fatte · lDone/qDone = lunghi specifici svolti, di cui qualificati
-// · startTot = km del lungo più lungo già raggiunto. Serve a non far ripartire la progressione da zero.
+// carry (opzionale): come agganciarsi a un piano già in corso.
+// · nWeeks — genera sulla STESSA griglia di un piano esistente invece di ricalcolare le settimane da oggi.
+//   Con lo stesso totale di settimane (e le stesse gare intermedie) fasi, scarichi e diamante ricadono
+//   dove erano: il calendario non si muove, cambiano solo i contenuti delle sedute. È la "rigenerazione
+//   in place" del Monitor, che aggiorna passi, tipologie e strutture dei lunghi senza spostare il piano.
+// · wOff/lDone/qDone/startTot — a che punto della fase specifica eravamo, per non far ripartire la
+//   progressione dei lunghi da zero quando invece il blocco viene ricostruito accorciato.
 function genPlan(silent,carry){
+  const nFix=(carry&&carry.nWeeks)||0;
   const wOff=(carry&&carry.wOff)||0,lDone=(carry&&carry.lDone)||0,qDone=(carry&&carry.qDone)||0;
   const carryTot=(carry&&carry.startTot)||0;
   const goal=+document.getElementById('p-goal').value;
@@ -902,7 +907,8 @@ function genPlan(silent,carry){
   const vd=+document.getElementById('p-vdot').value||curVdot();
   const base=+document.getElementById('p-base').value||30;
   if(!dateStr)return alert('Inserisci la data della gara');
-  let n=Math.round((new Date(dateStr)-Date.now())/(7*864e5));
+  if(!vd)return alert('Non riesco a stimare il VDOT dalle tue corse: importane qualcuna dal tab Dati, oppure scrivi il VDOT a mano nel campo del tab Piano.');
+  let n=nFix||Math.round((new Date(dateStr)-Date.now())/(7*864e5));
   if(n<6)return alert('Servono almeno 6 settimane alla gara');
   n=Math.min(n,52);
   const p=paces(vd);
@@ -1430,6 +1436,22 @@ function rTrack(){
     +(rows.length>10?`<p class="muted" style="margin-top:6px">Mostrate le ultime 10 di ${rows.length} settimane trascorse.</p>`:'')
     +rbtn;
 }
+// Ripopola dal piano salvato i campi che una rigenerazione perderebbe: gare intermedie e opzioni.
+// I campi del form sono vuoti dopo un ricaricamento della pagina, e il generatore legge da lì: senza
+// questo passaggio le tune-up sparirebbero dal piano rigenerato (niente mini-scarico, gara, recupero).
+function restorePlanOptions(pl){
+  const fut=((pl&&pl.interRaces)||[])
+    .filter(r=>r&&r.dist>0&&r.date&&new Date(r.date+'T12:00:00')>Date.now())   // le tune-up già corse non servono più
+    .sort((a,b)=>a.date<b.date?-1:1).slice(0,2);
+  [['p-r1-dist','p-r1-date'],['p-r2-dist','p-r2-date']].forEach(([d,t],i)=>{
+    const ed=document.getElementById(d),et=document.getElementById(t);
+    if(!ed||!et)return;
+    ed.value=fut[i]?String(fut[i].dist):'';
+    et.value=fut[i]?fut[i].date:'';
+  });
+  const cb=document.getElementById('p-mara-extra');if(cb)cb.checked=!!(pl&&pl.maraExtraEasy);
+  return fut;
+}
 // settimane già concluse di un piano (ancorate alla domenica della settimana di gara)
 function pastWeeks(pl){
   if(!pl||!pl.weeks)return [];
@@ -1455,7 +1477,7 @@ function updatePlan(){
   document.getElementById('p-goal').value=old.goal;
   document.getElementById('p-date').value=old.dateStr;
   document.getElementById('p-days').value=old.days;
-  {const cb=document.getElementById('p-mara-extra');if(cb)cb.checked=!!old.maraExtraEasy;}
+  restorePlanOptions(old);   // gare intermedie + "+1 easy": senza questo la rigenerazione le perde
   document.getElementById('p-mode').value=old.modeVal||'mod';
   document.getElementById('p-target').value=old.target||'';
   document.getElementById('p-vdot').value=vd?vd.toFixed(1):old.vd;
@@ -1704,16 +1726,29 @@ function monRecalibrate(){
   document.getElementById('p-goal').value=goal;
   document.getElementById('p-date').value=dateStr;
   document.getElementById('p-days').value=days;
-  const vd=curVdot();document.getElementById('p-vdot').value=vd?vd.toFixed(1):'';
+  const prev=LS('rp_plan');
+  const vd=curVdot();
+  // se i dati recenti non bastano a stimare il VDOT, si riparte da quello del piano in corso
+  document.getElementById('p-vdot').value=vd?vd.toFixed(1):(prev&&prev.vd?String(prev.vd):'');
   const wkv=weeklyKm().slice(-4).map(([,v])=>v);
   const baseVol=Math.max(15,Math.round(wkv.reduce((a,b)=>a+b,0)/Math.max(1,wkv.length)));
   document.getElementById('p-base').value=baseVol;
-  const prev=LS('rp_plan');
   document.getElementById('p-mode').value=prev&&prev.modeVal?prev.modeVal:'mod';
   document.getElementById('p-target').value=(prev&&+prev.goal===goal&&prev.target)?prev.target:'';
-  // stessa gara del piano in memoria → riprendi la progressione dei lunghi da dove eri arrivato
-  const carry=(prev&&prev.dateStr===dateStr)?progressCarry(pastWeeks(prev)):null;
-  const np=genPlan(true,carry);if(!np)return;
+  // stessa gara del piano in memoria → conserva gare intermedie, opzioni e la griglia del piano
+  const same=!!(prev&&prev.dateStr===dateStr&&prev.weeks&&prev.weeks.length>=6);
+  const keptRaces=same?restorePlanOptions(prev):restorePlanOptions(null);
+  // IN PLACE: stesso numero di settimane del piano in corso → fasi, scarichi e diamante restano dove
+  // sono e si aggiornano solo i contenuti (passi, tipologie, strutture dei lunghi). Se invece il piano
+  // in memoria è di un'altra gara si riparte da capo, riprendendo almeno il punto della progressione.
+  const np=genPlan(true,same?{nWeeks:prev.weeks.length}:progressCarry(pastWeeks(prev)));
+  if(!np)return;
+  if(same){ // le settimane già concluse restano quelle vere: la numerazione coincide, si sostituiscono in blocco
+    const past=pastWeeks(prev).map(h=>({...h,hist:1}));
+    np.weeks=[...past,...np.weeks.slice(past.length)];
+    np.weeks.forEach((w,i)=>w.w=i+1);
+    LS('rp_plan',np);rPlan(np);rTrack();
+  }
   // monitor: passato conservato dall'.ics + futuro rigenerato
   const todayS=todayISO();
   const past=monitor.sessions.filter(s=>s.date<todayS);
@@ -1727,7 +1762,10 @@ function monRecalibrate(){
   LS('rp_monitor',monitor);rMonitor();
   exportICS(true); // scarica il nuovo .ics (settimane future)
   const gname=goal>=42?'maratona':goal>=21?'mezza':goal+' km';
-  alert(`Piano rigenerato dal reale.\nGara: ${gname} il ${dateStr} · VDOT ${np.vd} · volume ${baseVol} km/sett · ${days} corse/sett.\n\nIl Monitor è aggiornato (passato conservato, futuro rigenerato) e ho scaricato il nuovo .ics. Importalo nel calendario dedicato "Allenamenti corsa" (Google Calendar → Impostazioni → Importa): gli eventi con la stessa data si aggiornano sul posto e le sedute non più previste vengono rimosse, senza doppioni.`);
+  const rTxt=keptRaces.length?`\nGare intermedie conservate: ${keptRaces.map(r=>`${r.dist>=42?'maratona':r.dist>=21?'mezza':r.dist+'k'} il ${r.date}`).join(' · ')}.`:'';
+  const gTxt=same?`\nCalendario invariato: stesse settimane, stesse fasi, stessi scarichi — ho aggiornato passi, tipi di seduta e strutture dei lunghi.`
+    :`\nPiano ricostruito da capo (il piano in memoria non è di questa gara): le settimane si rinumerano da adesso.`;
+  alert(`Piano rigenerato dal reale.\nGara: ${gname} il ${dateStr} · VDOT ${np.vd} · volume ${baseVol} km/sett · ${days} corse/sett.${gTxt}${rTxt}\n\nIl Monitor è aggiornato (passato conservato, futuro rigenerato) e ho scaricato il nuovo .ics. Importalo nel calendario dedicato "Allenamenti corsa" (Google Calendar → Impostazioni → Importa): gli eventi con la stessa data si aggiornano sul posto e le sedute non più previste vengono rimosse, senza doppioni.`);
 }
 function rMonitor(){
   const info=document.getElementById('mon-info');
