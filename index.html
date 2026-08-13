@@ -1522,6 +1522,7 @@ function exportICS(silent){
     w.sess.forEach(s=>{
       const d=s.n.startsWith('GARA')?race:addD(sun,OFF[s.t]??0);
       const dy=ymd(d),d1=ymd(addD(d,1));
+      if(dy<todayY)return; // giorni già trascorsi: l'evento in calendario resta com'era (storico, non si riscrive)
       const slot=slotUsed[dy]||0;slotUsed[dy]=slot+1;          // UID stabile ancorato alla DATA (aggiorna sul posto, niente doppioni)
       const uid=`runplan-${dy}${slot?'-'+slot:''}@runplan`;
       curr.push({uid,ymd:dy});
@@ -1751,8 +1752,18 @@ function monRecalibrate(){
   }
   // monitor: passato conservato dall'.ics + futuro rigenerato
   const todayS=todayISO();
-  const past=monitor.sessions.filter(s=>s.date<todayS);
-  const merged=[...past,...planToSessions(np)].sort((a,b)=>a.date<b.date?-1:1);
+  // il passato è quello vero: una sola seduta per data (una rigenerazione precedente può averne lasciate
+  // due sullo stesso giorno — si tiene la prima, cioè quella dell'.ics originale già svolta)
+  const seenPast=new Set();
+  const past=monitor.sessions.filter(s=>{
+    if(s.date>=todayS||seenPast.has(s.date))return false;
+    seenPast.add(s.date);return true;
+  });
+  // la rigenerazione riparte da OGGI: i giorni già trascorsi della settimana in corso NON vengono
+  // riscritti, altrimenti la seduta nuova si aggiunge a quella già svolta (doppione sullo stesso giorno)
+  const fut=planToSessions(np).filter(s=>s.date>=todayS);
+  // comparatore stabile: a parità di data l'ordine di inserimento (passato prima) va conservato
+  const merged=[...past,...fut].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
   const wkKeys=[...new Set(merged.map(s=>weekKey(s.date)))].sort();
   const wkNum={};wkKeys.forEach((k,i)=>wkNum[k]=i+1);
   merged.forEach(s=>s.week=wkNum[weekKey(s.date)]);
