@@ -821,20 +821,32 @@ function rRecap(){
   const eff=a=>wavg(a.filter(r=>r.hr),r=>r.km*1000,r=>r.hr*r.sec/60); // metri totali / battiti totali
   const wkKm=a=>{if(a.length<2)return null;const d=(day(a[a.length-1].date)-day(a[0].date))/864e5+1;return a.reduce((s,r)=>s+r.km,0)/Math.max(1,d/7)};
   const vA=wkKm(A);
-  const M=[ // [nome, A, B, formato, direzione buona, soglia significatività]
+  // il passo easy non si giudica "più veloce = meglio": conta quanto sta dentro la fascia E prescritta dal VDOT del momento
+  const eRange=vd=>vd?paces(vd).E:null; // [lento, veloce]
+  const eDev=(v,E)=>(v==null||!E)?null:(v>E[0]?v-E[0]:(v<E[1]?v-E[1]:0)); // >0 troppo lento, <0 troppo veloce, 0 in fascia
+  const eNote=d=>d==null?'':d===0?' <span class="up" style="font-size:11px">in fascia</span>':` <span class="muted" style="font-size:11px">${Math.abs(d).toFixed(0)}s ${d<0?'troppo veloce':'troppo lento'}</span>`;
+  const M=[ // [nome, A, B, formato, direzione buona, soglia significatività, fasce E per il passo easy]
     ['VDOT',bestVdot(A),bestVdot(B),v=>v.toFixed(1),1,0.3],
-    ['Passo easy',wpace(easyA),wpace(easyB),v=>fmtP(v)+'/km',-1,3],
+    ['Passo easy',wpace(easyA),wpace(easyB),v=>fmtP(v)+'/km',-1,3,{a:eRange(bestVdot(A)),b:eRange(bestVdot(B))}],
     ['Efficienza (m/battito)',eff(easyA),eff(easyB),v=>v.toFixed(2),1,0.03],
     ['Volume settimanale',vA,wkKm(B),v=>v.toFixed(0)+' km',1,vA?Math.max(2,vA*0.05):2],
     ['Cadenza',avg(A,r=>r.cad),avg(B,r=>r.cad),v=>v.toFixed(0)+' spm',1,1],
     ['Contatto suolo',avg(A,r=>r.gct),avg(B,r=>r.gct),v=>v.toFixed(0)+' ms',-1,3]
   ];
   let up=0,down=0,rows='';
-  M.forEach(([n,a,b,f,dir,thr])=>{
+  M.forEach(([n,a,b,f,dir,thr,rng])=>{
     if(a==null||b==null)return;
-    const d=b-a,sig=Math.abs(d)>=thr,good=d*dir>0;
+    const d=b-a;let sig=Math.abs(d)>=thr,good=d*dir>0,nA='',nB='';
+    if(rng&&rng.a&&rng.b){
+      const da=eDev(a,rng.a),db=eDev(b,rng.b);
+      if(da!=null&&db!=null){
+        good=Math.abs(db)<Math.abs(da);           // avvicinarsi alla fascia è il miglioramento
+        sig=Math.abs(Math.abs(db)-Math.abs(da))>=thr;
+        nA=eNote(da);nB=eNote(db);
+      }
+    }
     if(sig)good?up++:down++;
-    rows+=`<tr><td>${n}</td><td class="r muted">${f(a)}</td><td class="r">${f(b)}</td>
+    rows+=`<tr><td>${n}</td><td class="r muted">${f(a)}${nA}</td><td class="r">${f(b)}${nB}</td>
       <td class="r ${!sig?'':good?'up':'down'}">${!sig?'≈':(good?'▲':'▼')}</td></tr>`;
   });
   const net=up-down;let verdict;
@@ -845,7 +857,7 @@ function rRecap(){
   el.innerHTML=`<p class="muted" style="margin-bottom:6px">Prime ~4 settimane vs ultime ~4 del periodo (${list[0].date.slice(0,10)} → ${list[list.length-1].date.slice(0,10)})</p>
     <table><tr><th>Metrica</th><th class="r">Inizio</th><th class="r">Fine</th><th class="r"></th></tr>${rows}</table>
     <p style="margin-top:10px">${verdict}</p>
-    <p class="muted" style="margin-top:4px">${up} metriche migliorate · ${down} peggiorate · variazioni sotto soglia = stabili (≈).</p>`;
+    <p class="muted" style="margin-top:4px">${up} metriche migliorate · ${down} peggiorate · variazioni sotto soglia = stabili (≈). Il passo easy è valutato sulla fascia E prescritta dal VDOT del periodo, non in assoluto.</p>`;
 }
 
 /* ---------- confronto ultima vs simile ---------- */
