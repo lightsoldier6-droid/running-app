@@ -2400,8 +2400,39 @@ function parseFit(buf){
   }
   return{sess,laps};
 }
+/* nome file generico (es. 23989492515_ACTIVITY): meglio dedurre il titolo dai lap */
+function genericFitName(n){
+  const w=String(n).toLowerCase().replace(/[\d_\-.]+/g,' ').match(/[a-zà-ù]{3,}/g)||[];
+  return w.every(x=>['activity','activities','record','workout','running','run','corsa','garmin','untitled'].includes(x));
+}
+function fitStruct(rows){ // struttura riconosciuta dai lap: ripetute, interval o progressivo
+  const core=rows.filter(r=>r[0]>=200);
+  const work=core.filter(r=>r[4]==='act'),rec=core.filter(r=>r[4]==='rest'||r[4]==='rec');
+  const kmT=n=>String(Math.round(n*10)/10).replace(/\.0$/,'')+'k';
+  if(work.length>=3&&rec.length>=work.length-2){
+    const d=work.map(r=>r[0]),avg=d.reduce((x,y)=>x+y,0)/d.length;
+    const t=work.map(r=>r[1]),tavg=t.reduce((x,y)=>x+y,0)/t.length;
+    const reg=Math.max(...d)-Math.min(...d)<=.15*avg;
+    const lbl=reg?(avg>=1000?kmT(avg/1000):Math.round(avg/50)*50+'m'):Math.round(tavg/60)+"'";
+    return{kind:avg<=600?'Ripetute':'Interval',label:work.length+'x'+lbl};
+  }
+  if(work.length>=3){
+    const p=work.map(r=>r[1]/(r[0]/1000));let dn=0;
+    for(let i=1;i<p.length;i++)if(p[i]<p[i-1]-2)dn++;
+    if(dn>=p.length-2&&p[0]-p[p.length-1]>=30)
+      return{kind:'Progressivo',label:kmT(work.reduce((x,r)=>x+r[0],0)/1000)};
+  }
+  return null;
+}
+function fitTitle(rows,km,key){
+  const kmT=n=>String(Math.round(n*10)/10).replace(/\.0$/,'')+'k';
+  const st=fitStruct(rows),pl=plannedFor(key),n=pl&&pl.name; // il nome della seduta a piano batte l'indovinello
+  if(st)return (n||st.kind)+' - '+st.label;
+  if(n)return n+' - '+kmT(km);
+  return (km>=15?'Lungo - ':'Easy - ')+kmT(km);
+}
 async function importFit(files){
-  let nf=0,nr=0;
+  let nf=0,nr=0,nu=0;
   const INT={0:'act',1:'rest',2:'wu',3:'cd',4:'rec'};
   for(const f of files){
     try{
@@ -2411,10 +2442,14 @@ async function importFit(files){
       const dt=new Date((sess[2]+631065600)*1000);
       const pad=n=>String(n).padStart(2,'0');
       const key=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-      lapsDB[key]={laps:laps.filter(l=>(l[9]||0)>0).map(l=>[Math.round(l[9]/100),+(l[8]/1000).toFixed(1),l[15]??null,l[16]??null,INT[l[23]]||'act',l[17]!=null?Math.round(l[17]*2):null])};
+      const rows=laps.filter(l=>(l[9]||0)>0).map(l=>[Math.round(l[9]/100),+(l[8]/1000).toFixed(1),l[15]??null,l[16]??null,INT[l[23]]||'act',l[17]!=null?Math.round(l[17]*2):null]);
+      lapsDB[key]={laps:rows};
       nf++;
-      if(!runs.some(r=>r.date===key)&&sess[9]&&sess[8]){
-        runs.push({date:key,title:f.name.replace(/\.fit$/i,''),km:+(sess[9]/100000).toFixed(2),
+      const base=f.name.replace(/\.fit$/i,''),km=+(sess[9]/100000).toFixed(2);
+      const title=genericFitName(base)?fitTitle(rows,km,key):base;
+      const old=runs.find(r=>r.date===key);
+      if(!old&&sess[9]&&sess[8]){
+        runs.push({date:key,title,km,
           sec:Math.round(sess[8]/1000),hr:sess[16]??null,hrmax:sess[17]??null,
           cad:sess[18]!=null?Math.round((sess[18]+(sess[92]??0)/128)*2):null,
           stl:sess[134]!=null?+(sess[134]/10000).toFixed(2):null,
@@ -2423,15 +2458,24 @@ async function importFit(files){
           gct:sess[91]!=null?Math.round(sess[91]/10):null,
           asc:0,tm:0});
         runs.sort((a,b)=>a.date<b.date?-1:1);nr++;
+      }else{
+        if(old&&genericFitName(old.title))old.title=title; // rinomina i vecchi import col nome file grezzo
+        nu++;
       }
     }catch(err){alert(f.name+': '+err.message)}
   }
-  LS('rp_lapsdb',lapsDB);LS('rp_runs',runs);refresh();
-  return{nf,nr};
+  try{LS('rp_lapsdb',lapsDB);LS('rp_runs',runs);refresh()}
+  catch(err){alert('Dati importati, ma errore nell\'aggiornamento schermata: '+err.message)}
+  return{nf,nr,nu};
 }
 document.getElementById('dt-fit').addEventListener('change',async e=>{
-  const{nf,nr}=await importFit(e.target.files);
-  alert(`${nf} file .FIT elaborati · ${nr} nuove corse aggiunte`);
+  const files=[...e.target.files];
+  e.target.value=''; // senza reset, riselezionare lo stesso file non emette 'change' e non succede nulla
+  if(!files.length)return;
+  try{
+    const{nf,nr,nu}=await importFit(files);
+    alert(nf?`${nf} file .FIT elaborati · ${nr} nuove corse${nu?` · ${nu} già presenti (lap aggiornati)`:''}`:'Nessun file .FIT elaborato');
+  }catch(err){alert('Errore import .FIT: '+err.message)}
 });
 
 /* ---------- init ---------- */
