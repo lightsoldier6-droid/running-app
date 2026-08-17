@@ -77,6 +77,8 @@ svg text{fill:var(--dim);font-size:9px}
 .ldb.l2{background:#fdf0d0;color:#8a5a00}.ldb.l3{background:#fde0d2;color:#a33f14}.ldb.l4{background:#fbd7dd;color:#a3123a}
 .sess.race{background:#e3f5e9;border:none;border-radius:8px;padding:9px;margin:3px 0}
 .sess.race .daychip{background:#fff;border-color:#bfe6cc}
+.sess.done{background:#eef2fb;border:none;border-radius:8px;padding:9px;margin:3px 0}
+.sess.done .daychip{background:#fff;border-color:#c3d3f0}
 .pace{color:var(--acc);font-weight:600}
 .shoecard{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .shoecard:last-child{border:none}
@@ -176,6 +178,8 @@ body.dark .benefit{background:#16311f;border-color:#27573a}
 body.dark .benefit .bl{color:#6cd992}
 body.dark .sess.race{background:#16311f}
 body.dark .sess.race .daychip{background:#1b1c1f;border-color:#27573a}
+body.dark .sess.done{background:#1a2338}
+body.dark .sess.done .daychip{background:#1b1c1f;border-color:#2e3f63}
 body.dark .ldb.l2{background:#3a2f14;color:#e5b95a}body.dark .ldb.l3{background:#3d2417;color:#f0a077}body.dark .ldb.l4{background:#3d1622;color:#f28ba4}
 body,.card,input,select,nav{transition:background .2s,border-color .2s,color .2s}
 @media(min-width:1400px){
@@ -321,7 +325,7 @@ details.pinfo .pinfo-body p{margin:7px 0}
     <label style="margin-top:12px">Carica il piano .ics (export dal tab Piano)</label>
     <input type="file" id="mon-ics" accept=".ics">
     <button class="btn btn2" id="mon-fromplan" style="margin-top:10px">↺ Aggiorna dal piano corrente</button>
-    <p class="muted" style="margin-top:4px">Crea lo snapshot da monitorare direttamente dal tab Piano — incluse le settimane che hai reso scarico o messo a gara a mano. Senza esportare e ricaricare l’.ics.</p>
+    <p class="muted" style="margin-top:4px">Crea lo snapshot da monitorare direttamente dal tab Piano — incluse le settimane che hai reso scarico, messo a gara a mano o riscritto sulle corse svolte (in quel caso le sedute già fatte entrano qui con la loro data vera). Senza esportare e ricaricare l’.ics.</p>
     <label style="margin-top:12px">Scegli una corsa già in archivio (importate dal tab Dati)</label>
     <div style="display:flex;gap:8px">
       <select id="mon-runsel" style="flex:1"></select>
@@ -1302,6 +1306,67 @@ function applyWkEdits(pl){
       sess.forEach(s=>s.km=r2(s.km));
       return {...w,isDeload:true,manual:'deload',sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
     }
+    if(ov==='real'){ // adatta la settimana alle corse DAVVERO fatte (stessa logica della gara al volo:
+      // le sedute svolte entrano al loro giorno, del pianificato resta solo la qualità più utile).
+      const sunISOw=wkSunISO(clone,w);
+      const addDw=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
+      const isoW=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const monISOw=isoW(addDw(new Date(sunISOw+'T12:00:00'),-6));
+      const wkRuns=((typeof runs!=='undefined'&&runs)||[]).filter(r=>{const d=r.date.slice(0,10);return d>=monISOw&&d<=sunISOw})
+        .slice().sort((a,b)=>a.date<b.date?-1:1);
+      if(!wkRuns.length)return w; // niente da adattare: la settimana resta quella del piano
+      const DN=['','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
+      const DI={'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':7};
+      const idxOf=ds=>{const g=new Date(ds+'T12:00:00').getDay();return g===0?7:g};
+      const SYSN={vo2:'VO2max/velocità',threshold:'soglia',endurance:'resistenza',easy:'facile'};
+      const sysOf=s=>{const t=(s.n+' '+s.d).toLowerCase();
+        if(/lungo|long|simulazione|big workout/.test(t))return 'endurance';
+        if(/cruise|soglia|medio|progress|criss|ritmo gara|tempo run|fartlek/.test(t))return 'threshold';
+        if(/interval|ripetut|richiami|[0-9]+\s*[×x]\s*[0-9]|[0-9]{3}\s*m/.test(t))return 'vo2';
+        return 'easy';};
+      const sysReal=r=>{const c=cls(r);
+        return c==='int'?'vo2':c==='race'?(r.km<=10?'vo2':'threshold'):c==='qual'?'threshold':c==='long'?'endurance':'easy'};
+      // 1) le corse svolte diventano sedute fissate al loro giorno reale
+      const done=wkRuns.map(r=>{const sp=r.sec/r.km,m=Math.floor(sp/60),s2=Math.round(sp%60);
+        return {t:DN[idxOf(r.date.slice(0,10))],n:r.title||'Corsa',done:true,realDate:r.date.slice(0,10),rcls:cls(r),
+          d:`svolta · ${r.km.toFixed(1)} km @ ${m}:${String(s2).padStart(2,'0')}/km${r.hr?` · FC media ${r.hr}`:''}`,
+          km:r.km,load:sLoad({n:r.title||''})}});
+      const doneQ=wkRuns.filter(r=>['int','qual','race','long'].includes(cls(r)));
+      const doneSys=new Set(doneQ.map(sysReal));
+      const lastQ=doneQ.length?Math.max(...doneQ.map(r=>idxOf(r.date.slice(0,10)))):0;
+      const lastAny=Math.max(...wkRuns.map(r=>idxOf(r.date.slice(0,10))));
+      // 2) del pianificato tengo UNA sola qualità: il carico più alto che non ripete un sistema già allenato
+      const hard=w.sess.filter(s=>sysOf(s)!=='easy');
+      const scoreOf=s=>sLoad(s)-(doneSys.has(sysOf(s))?5:0);
+      const ranked=hard.slice().sort((a,b)=>scoreOf(b)-scoreOf(a));
+      let kept=(doneQ.length<2&&ranked.length&&scoreOf(ranked[0])>=1)?ranked[0]:null,keptI=null;
+      if(kept){ // carico alto ⇒ sabato (lascia 2 giorni prima del martedì dopo), altrimenti domenica
+        keptI=sLoad(kept)>=3?6:7;
+        if(keptI<lastQ+2)keptI=lastQ+2;          // almeno 2 giorni pieni dall'ultima qualità svolta
+        if(keptI>7){kept=null;keptI=null}        // non c'è più spazio: la settimana finisce qui
+      }
+      const dropped=hard.filter(s=>s!==kept);
+      sess=done.slice();
+      if(kept){
+        const midI=Math.floor((Math.max(lastAny,1)+keptI)/2); // corsa lenta di raccordo a metà strada
+        if(midI>lastAny&&midI<keptI){
+          const z2=w.sess.find(s=>sysOf(s)==='easy');
+          sess.push(z2?{...z2,t:DN[midI],d:z2.d.replace(/\s*—.*$/,'')+' — raccordo'}
+                      :{t:DN[midI],n:'Z2',d:`45' @ ${E} (Z2) — raccordo`,km:kmAt(45,Ea)});
+        }
+        sess.push({...kept,t:DN[keptI]});
+      }
+      sess.sort((a,b)=>DI[a.t]-DI[b.t]);
+      sess.forEach(s=>s.km=r2(s.km));
+      let note=`Settimana riscritta sulle corse svolte. `;
+      note+=doneQ.length
+        ? `Hai già fatto ${doneQ.map(r=>`«${r.title}» ${DN[idxOf(r.date.slice(0,10))].toLowerCase()} (${SYSN[sysReal(r)]})`).join(' e ')}. `
+        : `Finora solo corse facili. `;
+      if(kept)note+=`Tengo «${kept.n}» spostata a ${DN[keptI].toLowerCase()}: è il carico più alto rimasto (${LOADL[sLoad(kept)]}) e allena un sistema diverso (${SYSN[sysOf(kept)]}), con ${keptI-lastQ} giorni di stacco da quello che hai già fatto${keptI===6?' e 2 giorni pieni prima del martedì della settimana dopo, che resta intatta':''}. `;
+      if(dropped.length)note+='Tolgo '+dropped.map(s=>`«${s.n}» (${doneSys.has(sysOf(s))?'stesso sistema di quello che hai già allenato':'per non affollare la settimana'})`).join(' e ')+'. ';
+      note+='Gli altri giorni sono riposo.';
+      return {...w,isDeload:false,manual:'real',fromReal:true,raceNote:note,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+    }
     // gara al volo: 'r*' = settimana dedicata (mini-scarico + gara); 'a*' = gara la domenica, resto invariato
     const add=ov[0]==='a',num=ov.slice(1);
     const dist=num==='5'?5:num==='10'?10:21.0975;
@@ -1391,20 +1456,21 @@ function rPlan(plan){
       const editSel=(!w.hist&&w.w!==nAll)?`<select class="wksel" onchange="setWkEdit('${wkKey}',this.value)">
           ${sO('','Auto')}
           ${sO('deload','Rendi scarico')}
+          <optgroup label="Adatta al reale">${sO('real','✔ Riscrivi sulle corse svolte')}</optgroup>
           <optgroup label="Gara la domenica (resto invariato)">${sO('a5','+ Gara 5k')}${sO('a10','+ Gara 10k')}${sO('a21','+ Gara mezza')}</optgroup>
           <optgroup label="Settimana dedicata (scarico + gara)">${sO('r5','Gara 5k')}${sO('r10','Gara 10k')}${sO('r21','Gara mezza')}</optgroup>
           <optgroup label="Gara infrasettimanale (giovedì)">${sO('w5','Gara 5k giovedì')}${sO('w10','Gara 10k giovedì')}${sO('w21','Gara mezza giovedì')}</optgroup>
         </select>`:'';
       return `<div class="wk ph-${w.phase||'base'}${w.isDeload?' deload':''}${isCur?' cur':''}${w.manual?' manual':''}"${w.hist?' style="opacity:.55"':''}>
         <div class="wkhead"><div class="wktitle">Settimana ${w.w}${isCur?' <span class="nowb">in corso</span>':''}</div><div class="wkvol">~${w.vol} km</div></div>
-        <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.manual&&w.manual!=='deload'?`<span class="phb race">🏁 gara${w.addRace?' (dom)':w.midRace?' (gio)':''}</span>`:''}${w.manual?'<span class="phb manual">✎ a mano</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
+        <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.manual&&w.manual!=='deload'&&w.manual!=='real'?`<span class="phb race">🏁 gara${w.addRace?' (dom)':w.midRace?' (gio)':''}</span>`:''}${w.fromReal?'<span class="phb manual">✔ dal reale</span>':''}${w.manual&&!w.fromReal?'<span class="phb manual">✎ a mano</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
         ${editSel}
         ${w.raceNote?`<p style="font-size:11px;color:var(--dim);margin:6px 0 0;padding:6px 8px;border-left:3px solid var(--acc2,#2563eb);background:rgba(37,99,235,.07);border-radius:6px;line-height:1.4">🧠 ${w.raceNote}</p>`:''}
         <div class="vbar"><i style="width:${vpct}%;background:${phCol}"></i></div>
         ${w.sess.map(s=>{const isRaceFinal=s.n.startsWith('GARA'),isr=isRaceFinal||s.race;
           const sd=isRaceFinal?race:addD(sunW,OFF[s.t]??0);
           const L=sLoad(s);
-          return `<div class="sess${isr?' race':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">≈${s.km} km · <span class="ldb l${L}">carico ${LOADL[L]}</span></div></div></div>`;
+          return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">carico ${LOADL[L]}</span></div></div></div>`;
         }).join('')}
       </div>`;
     }).join('')+`</div>`;
@@ -1696,7 +1762,8 @@ function planToSessions(pl){
     w.sess.forEach(s=>{
       const isr=s.n.startsWith('GARA'); // solo la gara finale usa la data gara; le gare al volo restano nel loro giorno
       const d=isr?race:addD(sun,OFF[s.t]??0);
-      out.push({date:isoL(d),week:w.w,name:s.n,cls:planCls(s.n),km:s.km,phase:w.phase,work:s.d,paces:(s.d.match(/\d:\d\d/g)||[]),summer:!!w.summer,deload:!!w.isDeload});
+      // le sedute già svolte (settimana riscritta sul reale) portano la loro data e classificazione vera
+      out.push({date:s.done&&s.realDate?s.realDate:isoL(d),week:w.w,name:s.n,cls:s.done&&s.rcls?s.rcls:planCls(s.n),km:s.km,phase:w.phase,work:s.d,paces:(s.d.match(/\d:\d\d/g)||[]),summer:!!w.summer,deload:!!w.isDeload,done:!!s.done});
     });
   });
   return out;
