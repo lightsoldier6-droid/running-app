@@ -1834,13 +1834,17 @@ function monRecalibrate(){
   // il passato è quello vero: una sola seduta per data (una rigenerazione precedente può averne lasciate
   // due sullo stesso giorno — si tiene la prima, cioè quella dell'.ics originale già svolta)
   const seenPast=new Set();
+  const gen=planToSessions(np);
+  // eccezione: le sedute «svolte» delle settimane riscritte sul reale sono nel passato ma vanno tenute,
+  // altrimenti la corsa che hai davvero fatto sparisce dal monitor e risulta "extra non a piano"
+  const doneDates=new Set(gen.filter(s=>s.done).map(s=>s.date));
   const past=monitor.sessions.filter(s=>{
-    if(s.date>=todayS||seenPast.has(s.date))return false;
+    if(s.date>=todayS||seenPast.has(s.date)||doneDates.has(s.date))return false;
     seenPast.add(s.date);return true;
   });
   // la rigenerazione riparte da OGGI: i giorni già trascorsi della settimana in corso NON vengono
   // riscritti, altrimenti la seduta nuova si aggiunge a quella già svolta (doppione sullo stesso giorno)
-  const fut=planToSessions(np).filter(s=>s.date>=todayS);
+  const fut=gen.filter(s=>s.date>=todayS||s.done);
   // comparatore stabile: a parità di data l'ordine di inserimento (passato prima) va conservato
   const merged=[...past,...fut].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
   const wkKeys=[...new Set(merged.map(s=>weekKey(s.date)))].sort();
