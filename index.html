@@ -336,8 +336,10 @@ details.pinfo .pinfo-body p{margin:7px 0}
   </div>
   <div class="card"><h2>Aderenza al piano</h2><div id="mon-head"></div></div>
   <div class="card"><h2>Quando ricalibrare il piano</h2><div id="mon-advice"></div>
-    <button class="btn" id="mon-recal" style="margin-top:12px">Rigenera il piano dal reale (.ics + .fit)</button>
-    <p class="muted" style="margin-top:6px">Prendo gara e data dall’.ics che segui e il tuo VDOT + volume reali dai .fit, e rigenero le settimane da oggi alla gara. Le passate restano. Scarico anche il nuovo .ics per il calendario.</p>
+    <button class="btn btn2" id="mon-repace" style="margin-top:12px">↻ Ricalibra i passi delle sedute</button>
+    <p class="muted" style="margin-top:6px">Il calendario resta dov’è: aggiorno solo il <b>contenuto</b> delle sedute — passi, tipologie, strutture — sul tuo VDOT attuale e sul volume medio delle ultime 4 settimane. Gara, data e settimane già concluse non si toccano, e non riscarico l’.ics.</p>
+    <button class="btn" id="mon-recal" style="margin-top:14px">Rigenera il piano dal reale (.ics + .fit)</button>
+    <p class="muted" style="margin-top:6px">Più invasivo: prendo gara e data dall’.ics che segui e il tuo VDOT + volume reali dai .fit, e rigenero le settimane da oggi alla gara aggiornando anche il piano monitorato. Le passate restano. Scarico anche il nuovo .ics per il calendario.</p>
   </div>
   <div class="card"><h2>Andamento aderenza settimanale</h2>
     <div id="mon-trend"></div><p class="muted" id="mon-trend-note" style="margin-top:6px"></p>
@@ -1768,6 +1770,8 @@ function planToSessions(pl){
   });
   return out;
 }
+// ricalibrazione leggera: stessa gara e stesso calendario, cambiano solo i contenuti delle sedute
+document.getElementById('mon-repace').addEventListener('click',updatePlan);
 document.getElementById('mon-recal').addEventListener('click',monRecalibrate);
 function monRecalibrate(){
   if(!monitor||!monitor.sessions.length)return alert('Carica prima un piano .ics nel Monitor.');
