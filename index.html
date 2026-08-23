@@ -73,6 +73,7 @@ svg text{fill:var(--dim);font-size:9px}
 .sbody{flex:1;font-size:13px;line-height:1.45}
 .sbody .sn{font-weight:600}
 .smeta{color:var(--dim);font-size:11px;margin-top:2px}
+.swork{font-size:12.5px;line-height:1.4;margin-top:1px}
 .ldb{display:inline-block;padding:0 6px;border-radius:999px;font-size:10px;font-weight:600;line-height:15px;background:var(--line);color:var(--dim);vertical-align:1px}
 .ldb.l2{background:#fdf0d0;color:#8a5a00}.ldb.l3{background:#fde0d2;color:#a33f14}.ldb.l4{background:#fbd7dd;color:#a3123a}
 .sess.race{background:#e3f5e9;border:none;border-radius:8px;padding:9px;margin:3px 0}
@@ -926,7 +927,19 @@ function genPlan(silent,carry){
   const base=+document.getElementById('p-base').value||30;
   if(!dateStr)return alert('Inserisci la data della gara');
   if(!vd)return alert('Non riesco a stimare il VDOT dalle tue corse: importane qualcuna dal tab Dati, oppure scrivi il VDOT a mano nel campo del tab Piano.');
-  let n=nFix||Math.round((new Date(dateStr)-Date.now())/(7*864e5));
+  // Numero di settimane: si contano le settimane di CALENDARIO (lun-dom) dalla settimana in corso a
+  // quella della gara, inclusa. Con il vecchio conteggio (giorni-alla-gara/7 arrotondato) rigenerare a
+  // metà settimana poteva produrre una settimana in meno: siccome il tab Piano ricalcola le date a
+  // ritroso dalla domenica di gara, l'intera griglia scivolava di 7 giorni e si sfalsava dal Monitor.
+  let n=nFix;
+  if(!n){
+    const _add=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
+    const _race=new Date(dateStr+'T12:00:00');
+    const _raceSun=_add(_race,(7-_race.getDay())%7);          // domenica della settimana di gara
+    const _today=new Date();_today.setHours(12,0,0,0);
+    const _curSun=_add(_today,(7-_today.getDay())%7);         // domenica della settimana in corso
+    n=Math.round((_raceSun-_curSun)/(7*864e5))+1;             // +1: la settimana in corso conta
+  }
   if(n<6)return alert('Servono almeno 6 settimane alla gara');
   n=Math.min(n,52);
   const p=paces(vd);
@@ -1413,6 +1426,54 @@ function applyWkEdits(pl){
   });
   return clone;
 }
+/* ---------- allineamento Piano ↔ Monitor ----------
+   Il Monitor tiene il calendario VERO: ogni seduta ha la sua data reale. Il tab Piano invece ricalcola
+   le settimane a ritroso dalla domenica di gara sul totale `weeks.length`, quindi basta una settimana
+   di differenza nel conteggio perché tutta la griglia scivoli e i due tab mostrino la stessa settimana
+   con numeri e contenuti diversi. Quando succede, il Monitor è la fonte attendibile: questa funzione
+   ricostruisce le settimane del piano dalle sedute del Monitor, così le due viste tornano identiche. */
+function monFirstMonday(){
+  if(typeof monitor==='undefined'||!monitor||!monitor.sessions||!monitor.sessions.length)return '';
+  return monitor.sessions.map(s=>weekKey(s.date)).sort()[0];
+}
+function alignPlanToMonitor(){
+  if(typeof monitor==='undefined'||!monitor||!monitor.sessions||!monitor.sessions.length)
+    return alert('Il Monitor non ha nessun piano caricato: non c’è niente a cui allinearsi.');
+  const old=LS('rp_plan');
+  if(!old)return alert('Genera prima un piano nel tab Piano.');
+  if(!confirm('Riscrivo le settimane del tab Piano usando il calendario e le sedute del Monitor. Le due viste torneranno identiche. Procedo?'))return;
+  const DN=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
+  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const todayS=todayISO();
+  const g={};
+  monitor.sessions.forEach(s=>{const k=weekKey(s.date);(g[k]=g[k]||[]).push(s)});
+  const keys=Object.keys(g).sort();
+  const weeks=keys.map((k,i)=>{
+    const ss=g[k].slice().sort((a,b)=>a.date<b.date?-1:1);
+    const sunISO=iso(addD(day(k),6));
+    const cnt={};ss.forEach(s=>{const p=s.phase||'base';cnt[p]=(cnt[p]||0)+1});
+    const phase=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'base';
+    const wk={w:i+1,phase,summer:ss.some(s=>s.summer),isDeload:ss.some(s=>s.deload),
+      isTaper:phase==='taper',vol:Math.round(ss.reduce((a,s)=>a+(s.km||0),0)),
+      sess:ss.map(s=>{const o={t:DN[day(s.date).getDay()],n:s.name,d:s.work||'',km:s.km||0};
+        if(s.done){o.done=1;o.realDate=s.date;o.rcls=s.cls}
+        return o;})};
+    if(sunISO<todayS)wk.hist=1;
+    return wk;
+  });
+  const PHK={base:'baseW',speed:'speedW',spec:'specW',taper:'taper'};
+  const ph={baseW:0,speedW:0,specW:0,taper:0};
+  weeks.forEach(w=>{const kk=PHK[w.phase];if(kk)ph[kk]++});
+  const np={...old,weeks,ph};
+  // le modifiche a mano già trascorse sono ormai incorporate nelle settimane ricostruite: se restassero
+  // verrebbero riapplicate sopra a sé stesse (gare duplicate, settimane riscritte due volte).
+  const we=LS('rp_wkedit')||{};
+  let dropped=0;Object.keys(we).forEach(kk=>{if(kk<todayS){delete we[kk];dropped++}});
+  if(dropped)LS('rp_wkedit',we);
+  LS('rp_plan',np);rPlan(np);rTrack();
+  alert(`Piano allineato al Monitor: ${weeks.length} settimane, da lunedì ${keys[0]} alla gara del ${np.dateStr}.`);
+}
 function rPlan(plan){
   if(!plan)return;
   plan=applyWkEdits(plan);
@@ -1435,11 +1496,18 @@ function rPlan(plan){
   let curWeek=0;
   plan.weeks.forEach(w=>{if(w.hist)return;const sun=addD(refSun,-(nAll-w.w)*7),mon=addD(sun,-6);if(todayS>=iso(mon)&&todayS<=iso(sun))curWeek=w.w});
   const peakVol=Math.max(1,...plan.weeks.map(w=>w.vol||0));
+  // il Monitor ha le date vere: se il primo lunedì non coincide, la griglia qui è scivolata (vedi alignPlanToMonitor)
+  const monMon=monFirstMonday(),planMon=iso(addD(refSun,-(nAll-1)*7-6));
+  const misAlign=monMon&&monMon!==planMon
+    ? `<p class="muted" style="margin:6px 0;padding:8px 10px;border-left:3px solid var(--red,#d33);background:rgba(211,51,51,.08);border-radius:6px">⚠️ <b>Calendario sfasato rispetto al Monitor</b> — qui il piano parte da lunedì ${planMon}, nel Monitor da lunedì ${monMon}: le stesse date finiscono su settimane diverse. Il calendario giusto è quello del Monitor (ha le date reali delle sedute).
+       <button class="btn btn2" style="margin:8px 0 0" onclick="alignPlanToMonitor()">Allinea il piano al Monitor</button></p>`
+    : '';
   document.getElementById('p-out').innerHTML=`<div class="card">
     <h2>${gn} · ${plan.dateStr} · VDOT ${plan.vd}${plan.vdTarget&&plan.vdTarget!==plan.vd?` → ${plan.vdTarget}`:''}</h2>
     <p style="margin-bottom:2px">Obiettivo: <b class="pace">${plan.GT}</b> (${plan.GP}/km).${plan.mode?` <span class="muted">· Modalità: <b>${plan.mode}</b>${plan.targetSet?' (tempo scelto da te)':''}</span>`:''}<br>
     <span class="muted">È un range, non un numero: dove cadi dentro dipende da meteo, percorso e giornata. Entrambi gli estremi sono un buon risultato.${plan.vdTarget&&plan.vdTarget>plan.vd?` I ritmi delle sedute progrediscono nel blocco: partono dal VDOT ${plan.vd} attuale e salgono fino al VDOT ${plan.vdTarget} previsto in gara, così le settimane finali mostrano il passo che punti a raggiungere. Rigenera dal reale per ricalibrarli su/giù coi tuoi dati.`:''}</span></p>
     ${phaseBar}
+    ${misAlign}
     ${plan.readiness?`<p class="muted" style="margin:6px 0;padding:8px 10px;border-left:3px solid var(--warn,#e0a800);background:rgba(224,168,0,.08);border-radius:6px">⚠️ <b>Base leggera</b> — ${plan.readiness.text} ${plan.readiness.advice} Il piano parte comunque nei limiti di sicurezza, ma le prime settimane saranno più impegnative.</p>`:''}
     ${plan.interRaces&&plan.interRaces.length?`<p class="muted" style="margin:6px 0">🏁 Gare intermedie (tune-up): ${plan.interRaces.map(r=>`${r.dist>=42?'Maratona':r.dist>=21?'Mezza':r.dist+'k'} il ${new Date(r.date).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}`).join(' · ')}. Mini-scarico prima, la gara sostituisce la qualità, poi recupero. Il blocco a diamante è collocato fuori dagli scarichi gara.</p>`:''}
     ${plan.weeks.some(w=>w.summer)?'<p class="muted" style="margin:6px 0">☀️ Estate (giu-ago): intenso ma breve — martedì interval, giovedì Z2, weekend qualità. Due sedute veloci corte separate da corse lente, niente lungo lento. Corri presto al mattino.</p>':''}
@@ -2011,11 +2079,14 @@ function rMonitor(){
           paceTxt=`<br><span class="muted">passo medio ${fmtP(pace(run))}/km${['int','qual','race'].includes(s.cls)?' (include recuperi — vedi lap in Analisi)':''}</span>`;
         }
         detail=`${okType?'':'tipo diverso: hai corso una '+CLSN[cls(run)].toLowerCase()+' · '}${kmTxt}${paceTxt}`;
-      }else if(fut){icon='⏳';detail='<span class="muted">in programma</span>'}
+      }else if(fut){icon='⏳';detail=`<span class="muted">in programma${s.km?` · ≈${s.km} km`:''}</span>`}
       else{icon='🔴';detail='<span class="down">saltata</span>'+(s.km?` <span class="muted">(≈${s.km} km previsti)</span>`:'')}
+      // la descrizione della seduta (ripetute, recuperi, passi target) come nel tab Piano: qui serve
+      // per sapere cosa andava fatto senza dover saltare avanti e indietro fra i due tab
+      const work=s.work?`<div class="swork">${s.work}</div>`:'';
       return `<div class="sess"><span class="daychip">${chip}<br><span style="font-weight:400;font-size:9px">${dd.getDate()} ${MESI[dd.getMonth()]}</span></span>
         <div class="sbody"><span class="sn">${icon} ${s.name}</span> <span class="badge ${s.cls}">${CLSN[s.cls]}</span>
-        <div class="smeta">${detail}</div></div></div>`;
+        ${work}<div class="smeta">${detail}</div></div></div>`;
     }).join('');
     const extraTxt=w.extra.length?`<p class="muted" style="margin:6px 0 0">+${w.extra.length} corsa/e extra non a piano: ${w.extra.map(r=>`${r.title} (${r.km.toFixed(1)} km)`).join(', ')}</p>`:'';
     const cls2=w.inProg?' cur':'';
