@@ -147,14 +147,17 @@ td,th,.stat b,.wkvol,.smeta,.daychip{font-variant-numeric:tabular-nums}
   .card:has(#mon-trend){order:3}
   .card:has(#mon-cum){order:4}
   .card:has(#mon-weeks){order:5}
+  /* riga 3: la tabella settimanale non resta più da sola con due colonne vuote accanto */
+  .card:has(#mon-paces){order:6}
+  .card:has(#mon-dist){order:7}
   #mon-head{display:flex;align-items:center;gap:20px}
   #mon-head>div:first-child{flex:1;justify-content:space-evenly}
   #mon-head>p{flex:0 0 320px;margin-top:0!important}
   #p-out{grid-column:1/-1;display:flex;flex-direction:column;gap:12px}
   #p-out .card:last-child{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px;align-content:start}
   #p-out .card:last-child .wk{margin-bottom:0}
-  .card:has(#mon-sess){grid-column:1/-1;order:6}
-  .card:has(#mon-info){grid-column:1/-1;order:7}
+  .card:has(#mon-sess){grid-column:1/-1;order:8}
+  .card:has(#mon-info){grid-column:1/-1;order:9}
   #mon-sess{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px}
   #mon-sess .wk{margin-bottom:0}
 }
@@ -350,6 +353,12 @@ details.pinfo .pinfo-body p{margin:7px 0}
   </div>
   <div class="card"><h2>Settimana per settimana</h2>
     <div id="mon-weeks"></div>
+  </div>
+  <div class="card"><h2>Passi: target vs reale</h2>
+    <div id="mon-paces"></div>
+  </div>
+  <div class="card"><h2>Distribuzione dell’intensità</h2>
+    <div id="mon-dist"></div>
   </div>
   <div class="card"><h2>Seduta per seduta</h2><div id="mon-sess"></div></div>
 </div>
@@ -1933,9 +1942,114 @@ function monRecalibrate(){
     :`\nPiano ricostruito da capo (il piano in memoria non è di questa gara): le settimane si rinumerano da adesso.`;
   alert(`Piano rigenerato dal reale.\nGara: ${gname} il ${dateStr} · VDOT ${np.vd} · volume ${baseVol} km/sett · ${days} corse/sett.${gTxt}${rTxt}\n\nIl Monitor è aggiornato (passato conservato, futuro rigenerato) e ho scaricato il nuovo .ics. Importalo nel calendario dedicato "Allenamenti corsa" (Google Calendar → Impostazioni → Importa): gli eventi con la stessa data si aggiornano sul posto e le sedute non più previste vengono rimosse, senza doppioni.`);
 }
+/* ---------- Monitor: passi target vs reale ----------
+   Il passo MEDIO di una seduta dura non dice niente: dentro ci sono riscaldamento, recuperi e
+   defaticamento, che lo rallentano di 40-60"/km. Per qualità e interval si usano quindi i lap di
+   lavoro del .fit (tipo 'act'), che sono il ritmo vero delle frazioni; per easy e lunghi, dove la
+   corsa è continua, il passo medio della corsa è già il dato giusto. */
+function workLapPace(run){
+  const lp=lapsDB[run.date];
+  if(!lp||!lp.laps)return null;
+  const acts=lp.laps.filter(l=>l[4]==='act'&&l[0]>=200);
+  if(!acts.length)return null;
+  const m=acts.reduce((a,l)=>a+l[0],0),s=acts.reduce((a,l)=>a+l[1],0);
+  return m>=800&&s>0?s/(m/1000):null;   // sotto gli 800 m di lavoro il dato è troppo rumoroso
+}
+function rMonPaces(weeks,todayS){
+  const el=document.getElementById('mon-paces');if(!el)return;
+  const ORD=['easy','long','qual','int'];
+  const LAB={easy:'Easy / Z2',long:'Lungo',qual:'Qualità (T/M)',int:'Interval / ripetute'};
+  const G={};ORD.forEach(k=>G[k]={n:0,lo:0,hi:0,real:0,ok:0,dsum:0});
+  let noLap=0,noTgt=0;
+  weeks.filter(w=>w.started).forEach(w=>{
+    w.sess.forEach((s,si)=>{
+      const run=w.matches[si];
+      if(!run||s.date>todayS||!G[s.cls])return;          // gare escluse: lì il target è il tempo, non il passo
+      const t=workTarget(s);
+      if(!t){noTgt++;return}
+      const cont=s.cls==='easy'||s.cls==='long';
+      const real=cont?pace(run):workLapPace(run);
+      if(real==null){noLap++;return}
+      const g=G[s.cls];
+      g.n++;g.lo+=t.lo;g.hi+=t.hi;g.real+=real;
+      g.dsum+=real<t.lo?real-t.lo:real>t.hi?real-t.hi:0;   // scarto dal bordo più vicino della fascia
+      if(real>=t.lo-3&&real<=t.hi+3)g.ok++;
+    });
+  });
+  const rows=ORD.filter(k=>G[k].n).map(k=>{
+    const g=G[k],d=g.dsum/g.n;
+    const dTxt=Math.abs(d)<1.5?'<span class="up">in fascia</span>'
+      :`<span class="${Math.abs(d)<=5?'':'down'}">${d>0?'+':'−'}${Math.abs(d).toFixed(0)}"</span>`;
+    return `<tr><td>${LAB[k]}</td>
+      <td class="r pace">${fmtP(g.lo/g.n)}–${fmtP(g.hi/g.n)}</td>
+      <td class="r">${fmtP(g.real/g.n)}</td>
+      <td class="r">${dTxt}</td>
+      <td class="r">${g.ok}/${g.n}</td></tr>`;
+  }).join('');
+  if(!rows){el.innerHTML='<p class="muted">Ancora nessuna seduta svolta con un passo target confrontabile. Serve almeno una corsa agganciata a una seduta del piano che indichi i ritmi.</p>';return}
+  // lettura: gli errori tipici sono easy troppo forti e qualità troppo morbide
+  const notes=[];
+  const dE=(G.easy.n+G.long.n)?((G.easy.dsum+G.long.dsum)/(G.easy.n+G.long.n)):null;
+  const dQ=(G.qual.n+G.int.n)?((G.qual.dsum+G.int.dsum)/(G.qual.n+G.int.n)):null;
+  if(dE!=null&&dE<=-5)notes.push(`Le corse facili le stai correndo <b>${Math.abs(dE).toFixed(0)}"/km più forte</b> della fascia easy: è il modo classico per arrivare stanco alle sedute che contano. Rallenta.`);
+  else if(dE!=null&&dE>=8)notes.push(`Le corse facili sono <b>${dE.toFixed(0)}"/km più lente</b> della fascia: va bene se sono recuperi veri, ma se capita sempre il volume ti sta costando più del previsto.`);
+  if(dQ!=null&&dQ>=5)notes.push(`Le sedute dure girano <b>${dQ.toFixed(0)}"/km sopra il target</b>: o i passi del piano sono ottimistici, o le stai affrontando con troppa fatica addosso. Se si ripete, ricalibra i passi.`);
+  else if(dQ!=null&&dQ<=-5)notes.push(`Le sedute dure le chiudi <b>${Math.abs(dQ).toFixed(0)}"/km sotto il target</b>: sei avanti rispetto al VDOT del piano — una ricalibrazione ti darebbe ritmi più aderenti.`);
+  if(!notes.length&&(dE!=null||dQ!=null))notes.push('Passi in linea col piano, sia in facile che nelle sedute dure: l’esecuzione sta seguendo l’intenzione.');
+  const skip=[];
+  if(noLap)skip.push(`${noLap} seduta/e dura/e senza lap nel .fit (non posso isolare il ritmo delle frazioni)`);
+  if(noTgt)skip.push(`${noTgt} senza un passo target scritto nella scheda`);
+  el.innerHTML=`<table><tr><th>Tipo</th><th class="r">Target</th><th class="r">Reale</th><th class="r">Δ</th><th class="r">In fascia</th></tr>${rows}</table>
+    ${notes.map(n=>`<p style="margin:8px 0 0;font-size:12.5px;line-height:1.45">${n}</p>`).join('')}
+    <p class="muted" style="margin-top:8px">Easy e lunghi: passo medio della corsa. Qualità e interval: solo i <b>lap di lavoro</b> del .fit, senza riscaldamento e recuperi. Δ = scarto medio dal bordo più vicino della fascia (± 3" di tolleranza).${skip.length?` Escluse: ${skip.join('; ')}.`:''}</p>`;
+}
+/* ---------- Monitor: distribuzione dell'intensità ----------
+   Due letture diverse e vale la pena tenerle separate: i km per TIPO DI SEDUTA (quanto pesa il lavoro
+   duro nel piano) e i km davvero corsi A RITMO, ricavati dai lap: dentro una seduta di ripetute la
+   maggior parte dei km è riscaldamento e recupero, cioè corsa facile. */
+function rMonDist(weeks,todayS){
+  const el=document.getElementById('mon-dist');if(!el)return;
+  const BK={easy:'fac',long:'fac',qual:'qua',int:'itv',race:'itv'};
+  const ORD=['fac','qua','itv'];
+  const LAB={fac:'Facile / lungo',qua:'Qualità (T/M)',itv:'Interval, ripetute, gare'};
+  const COL={fac:'var(--acc)',qua:'var(--warn,#e0a800)',itv:'var(--red,#d33)'};
+  const P={fac:0,qua:0,itv:0},A={fac:0,qua:0,itv:0};
+  let hardKm=0,hardWork=0,lapKm=0,lapN=0;
+  weeks.filter(w=>w.started).forEach(w=>{
+    w.sess.forEach(s=>{if(s.date<=todayS)P[BK[s.cls]||'fac']+=s.km||0});
+    w.weekRuns.forEach(r=>{
+      const c=cls(r);A[BK[c]||'fac']+=r.km;
+      if(c==='int'||c==='qual'||c==='race'){
+        hardKm+=r.km;
+        const wp=workLapPace(r);
+        const lp=lapsDB[r.date],acts=lp&&lp.laps?lp.laps.filter(l=>l[4]==='act'&&l[0]>=200):[];
+        if(wp!=null&&acts.length){lapKm+=r.km;lapN++;hardWork+=acts.reduce((a,l)=>a+l[0],0)/1000}
+      }
+    });
+  });
+  const tP=ORD.reduce((a,k)=>a+P[k],0),tA=ORD.reduce((a,k)=>a+A[k],0);
+  if(!tA)  {el.innerHTML='<p class="muted">Nessuna corsa ancora nelle settimane del piano.</p>';return}
+  const pc=(v,t)=>t?Math.round(v/t*100):0;
+  const rows=ORD.map(k=>`<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${COL[k]};margin-right:6px"></span>${LAB[k]}</td>
+      <td class="r">${pc(P[k],tP)}%<br><span class="muted">${P[k].toFixed(0)} km</span></td>
+      <td class="r">${pc(A[k],tA)}%<br><span class="muted">${A[k].toFixed(0)} km</span></td></tr>`).join('');
+  const bar=(o,t)=>`<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin:2px 0 8px">${ORD.map(k=>`<div style="width:${t?o[k]/t*100:0}%;background:${COL[k]}"></div>`).join('')}</div>`;
+  // km davvero a ritmo: dai lap dove ci sono, stimati con la stessa proporzione dove mancano
+  let real='';
+  if(lapKm>0){
+    const frac=hardWork/lapKm;                       // quota di km a ritmo dentro una seduta dura
+    const workTot=hardWork+(hardKm-lapKm)*frac;
+    const easyTot=tA-workTot;
+    real=`<p style="margin:10px 0 0;font-size:12.5px;line-height:1.45">Dei <b>${hardKm.toFixed(0)} km</b> di sedute dure solo <b>${workTot.toFixed(0)} km</b> sono davvero corsi a ritmo: il resto è riscaldamento, recuperi e defaticamento, cioè corsa facile. Il rapporto vero tra facile e duro è <b>${Math.round(easyTot/tA*100)}/${Math.round(workTot/tA*100)}</b>.</p>
+      <p class="muted" style="margin-top:4px">Calcolato sui lap di ${lapN} sedute${hardKm-lapKm>0.5?`, e stimato con la stessa proporzione sui ${(hardKm-lapKm).toFixed(0)} km di sedute dure senza lap`:''}. Il riferimento classico è ~80/20.</p>`;
+  }else{
+    real='<p class="muted" style="margin-top:10px">Importa i .fit con i lap per sapere quanti di questi km sono davvero corsi a ritmo: dentro una seduta dura la maggior parte è riscaldamento e recupero.</p>';
+  }
+  el.innerHTML=`${bar(A,tA)}<table><tr><th>Tipo di seduta</th><th class="r">Pianificato</th><th class="r">Svolto</th></tr>${rows}</table>${real}`;
+}
 function rMonitor(){
   const info=document.getElementById('mon-info');
-  const ids=['mon-head','mon-weeks','mon-sess'];
+  const ids=['mon-head','mon-weeks','mon-sess','mon-paces','mon-dist'];
   if(!monitor||!monitor.sessions||!monitor.sessions.length){
     info.textContent="Carica l’.ics esportato dal tab Piano (bottone “Esporta .ics”): lo confronto con le tue corse, seduta per seduta.";
     ids.forEach(id=>document.getElementById(id).innerHTML='<p class="muted">Nessun piano caricato.</p>');
@@ -2012,7 +2126,7 @@ function rMonitor(){
     const started=monISO<=todayS,inProg=started&&sunISO>=todayS;
     const pct=plannedKm?Math.round(actualKm/plannedKm*100):0;
     const okTarget=pct>=85&&qDone>=qPlan&&(!lPlan||lDone);
-    weeks.push({num:sess[0].week,monISO,sunISO,sess,matches,extra,plannedKm,actualKm,qPlan,qDone,lPlan,lDone,started,inProg,pct,okTarget,summer:sess.some(s=>s.summer)});
+    weeks.push({num:sess[0].week,monISO,sunISO,sess,matches,extra,weekRuns,plannedKm,actualKm,qPlan,qDone,lPlan,lDone,started,inProg,pct,okTarget,summer:sess.some(s=>s.summer)});
   });
   const startedW=weeks.filter(w=>w.started);
   const completed=weeks.filter(w=>w.started&&!w.inProg);
@@ -2098,6 +2212,9 @@ function rMonitor(){
       ${rows}${extraTxt}</div>`;
   }).join('');
   document.getElementById('mon-sess').innerHTML=sblocks;
+  // box accessori: se un .fit ha lap malformati non devono portarsi dietro il resto del Monitor
+  try{rMonPaces(weeks,todayS)}catch(e){document.getElementById('mon-paces').innerHTML='<p class="muted">Non riesco a calcolare i passi: '+e.message+'</p>'}
+  try{rMonDist(weeks,todayS)}catch(e){document.getElementById('mon-dist').innerHTML='<p class="muted">Non riesco a calcolare la distribuzione: '+e.message+'</p>'}
   // ---- consiglio: quando ricalibrare ----
   const adv=document.getElementById('mon-advice');
   if(!completed.length){
