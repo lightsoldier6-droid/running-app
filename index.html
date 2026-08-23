@@ -2040,8 +2040,12 @@ function rMonDist(weeks,todayS){
     const frac=hardWork/lapKm;                       // quota di km a ritmo dentro una seduta dura
     const workTot=hardWork+(hardKm-lapKm)*frac;
     const easyTot=tA-workTot;
-    real=`<p style="margin:10px 0 0;font-size:12.5px;line-height:1.45">Dei <b>${hardKm.toFixed(0)} km</b> di sedute dure solo <b>${workTot.toFixed(0)} km</b> sono davvero corsi a ritmo: il resto è riscaldamento, recuperi e defaticamento, cioè corsa facile. Il rapporto vero tra facile e duro è <b>${Math.round(easyTot/tA*100)}/${Math.round(workTot/tA*100)}</b>.</p>
-      <p class="muted" style="margin-top:4px">Calcolato sui lap di ${lapN} sedute${hardKm-lapKm>0.5?`, e stimato con la stessa proporzione sui ${(hardKm-lapKm).toFixed(0)} km di sedute dure senza lap`:''}. Il riferimento classico è ~80/20.</p>`;
+    const rat=Math.round(easyTot/tA*100);
+    const verd=rat>=75?'Sei nell’ordine di grandezza del riferimento.'
+      :rat>=62?'Sei sopra il riferimento sul lato duro. Con sedute corte e intense (tipico di un blocco estivo) ci sta; quando rientrano i lunghi la quota facile risale da sola.'
+      :'Molto più duro del riferimento: gran parte dei km è a ritmo. Regge per blocchi brevi, meno se va avanti per settimane.';
+    real=`<p style="margin:10px 0 0;font-size:12.5px;line-height:1.45">Dei <b>${hardKm.toFixed(0)} km</b> di sedute dure solo <b>${workTot.toFixed(0)} km</b> sono davvero corsi a ritmo: il resto è riscaldamento, recuperi e defaticamento, cioè corsa facile. Il rapporto vero tra facile e duro è <b>${rat}/${100-rat}</b>. ${verd}</p>
+      <p class="muted" style="margin-top:4px">Calcolato sui lap di ${lapN} sedute${hardKm-lapKm>0.5?`, e stimato con la stessa proporzione sui ${(hardKm-lapKm).toFixed(0)} km di sedute dure senza lap`:''}. Il riferimento ~80/20 nasce sul <b>tempo</b> in zona, non sui km: prendilo come ordine di grandezza.</p>`;
   }else{
     real='<p class="muted" style="margin-top:10px">Importa i .fit con i lap per sapere quanti di questi km sono davvero corsi a ritmo: dentro una seduta dura la maggior parte è riscaldamento e recupero.</p>';
   }
