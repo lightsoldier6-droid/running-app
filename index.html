@@ -2135,11 +2135,18 @@ function rMonitor(){
   const startedW=weeks.filter(w=>w.started);
   const completed=weeks.filter(w=>w.started&&!w.inProg);
   const curW=weeks.find(w=>w.inProg);
-  const sumP=startedW.reduce((a,w)=>a+w.plannedKm,0),sumA=startedW.reduce((a,w)=>a+w.actualKm,0);
+  // I tre anelli misurano lo STESSO periodo: le settimane concluse. Contare anche quella in corso
+  // falsava l'aderenza km — il lunedì mattina i km previsti della settimana nuova sono già tutti nel
+  // denominatore ma nessuno è ancora stato corso, quindi la percentuale crollava per finta e risaliva
+  // da sola nei giorni successivi. La settimana in corso ha una riga sua, sotto gli anelli.
+  const sumP=completed.reduce((a,w)=>a+w.plannedKm,0),sumA=completed.reduce((a,w)=>a+w.actualKm,0);
   const okW=completed.filter(w=>w.okTarget).length;
-  const sessPast=startedW.flatMap(w=>w.sess.map((s,si)=>({s,run:w.matches[si],future:s.date>todayS})));
+  const sessPast=completed.flatMap(w=>w.sess.map((s,si)=>({s,run:w.matches[si],future:s.date>todayS})));
   const doneCount=sessPast.filter(x=>x.run&&!x.future).length;
   const dueCount=sessPast.filter(x=>!x.future).length;
+  // settimana in corso: contata a parte, con i soli giorni già trascorsi
+  const curDue=curW?curW.sess.filter(s=>s.date<=todayS).length:0;
+  const curDone=curW?curW.sess.filter((s,si)=>s.date<=todayS&&curW.matches[si]).length:0;
   // header aderenza
   const kmPct=Math.round(sumA/Math.max(1,sumP)*100);
   const wkPct=completed.length?Math.round(okW/completed.length*100):0;
@@ -2148,13 +2155,20 @@ function rMonitor(){
   const rcol=p=>p>=85?'var(--acc)':p>=60?'var(--warn)':'var(--red)';
   const ring=(pct,val,lab,sub)=>{const r=26,c=2*Math.PI*r,p=Math.min(100,Math.max(0,pct));
     return `<div style="text-align:center;flex:1;min-width:100px"><svg viewBox="0 0 64 64" width="106" height="106" style="max-width:100%"><circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--line)" stroke-width="6"/><circle cx="32" cy="32" r="${r}" fill="none" stroke="${rcol(pct)}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${(c*p/100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 32 32)"/><text x="32" y="36" text-anchor="middle" style="fill:var(--txt);font-size:12px;font-weight:700">${val}</text></svg><div style="font-size:12px;color:var(--dim);margin-top:2px">${lab}</div><div style="font-size:11px;color:var(--dim)">${sub}</div></div>`};
-  document.getElementById('mon-head').innerHTML=startedW.length
+  const dm=s=>`${+s.slice(8,10)}/${+s.slice(5,7)}`;
+  const curLine=curW?`<p style="margin:10px 0 0;padding:8px 10px;border-left:3px solid var(--acc2,#2563eb);background:rgba(37,99,235,.07);border-radius:6px;font-size:12.5px;line-height:1.45">
+      <b>Settimana ${curW.num||''} in corso</b> (${dm(curW.monISO)}→${dm(curW.sunISO)}): ${curW.actualKm.toFixed(0)}/${curW.plannedKm.toFixed(0)} km, ${curDone}/${curW.sess.length} sedute${curDue>curDone?` · <span class="down">${curDue-curDone} già in ritardo</span>`:curDue?' · in linea finora':' · nessuna seduta ancora in programma'}.
+      <span class="muted">Non entra negli anelli qui sopra finché non è finita.</span></p>`:'';
+  document.getElementById('mon-head').innerHTML=completed.length
     ?`<div style="display:flex;gap:6px;justify-content:space-between;flex-wrap:wrap">
         ${ring(kmPct,kmPct+'%','aderenza km',`${sumA.toFixed(0)}/${sumP.toFixed(0)} km`)}
-        ${ring(wkPct,completed.length?okW+'/'+completed.length:'—','sett. a target',completed.length?wkPct+'%':'in corso')}
+        ${ring(wkPct,okW+'/'+completed.length,'sett. a target',wkPct+'%')}
         ${ring(sePct,doneCount+'/'+dueCount,'sedute svolte',sePct+'%')}
       </div>
-      ${curW?`<p class="muted" style="margin-top:8px">Settimana ${curW.num||''} in corso: ${curW.actualKm.toFixed(0)}/${curW.plannedKm.toFixed(0)} km finora (${curW.pct}%). Include la settimana corrente, ancora da completare.</p>`:''}`
+      <p class="muted" style="margin-top:8px">Sulle <b>${completed.length}</b> settimane concluse del piano (fino a domenica ${dm(completed[completed.length-1].sunISO)}).</p>
+      ${curLine}`
+    :startedW.length
+    ?`<p class="muted">Prima settimana del piano ancora in corso: gli anelli compaiono quando si chiude.</p>${curLine}`
     :`<p class="muted">Il piano parte lunedì ${weeks[0].monISO.slice(5)}: qui comparirà l’aderenza appena inizia.</p>`;
   // grafici trend + scostamento cumulato (solo settimane concluse: la corrente è parziale)
   const wcol=w=>w.okTarget?'var(--acc)':w.pct>=60?'var(--warn)':'var(--red)';
@@ -2791,7 +2805,20 @@ function refresh(){rDash();rLoad();rProg();rData();rManage();rAnaSel();rAna();rG
       <button class="btn btn2" style="margin:0" onclick="showPlan()">Mostra ultimo piano</button></div>`;
   }else pout.innerHTML='';
   rTrack();rMonitor();
+  lastRenderDay=todayISO();
 }
+/* Tutto ciò che è "oggi" viene calcolato durante il rendering, e il rendering avviene una volta sola
+   al caricamento. Su un'app installata sul telefono la pagina resta aperta per giorni: senza questo
+   controllo, a mezzanotte la seduta del giorno, la settimana in corso e l'aderenza resterebbero
+   ferme al giorno in cui l'hai aperta. Al cambio di data si ridisegna tutto. */
+let lastRenderDay=null;
+function checkDayRollover(){
+  if(lastRenderDay&&todayISO()!==lastRenderDay)refresh();
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDayRollover()});
+window.addEventListener('focus',checkDayRollover);
+window.addEventListener('pageshow',checkDayRollover);
+setInterval(checkDayRollover,60000);
 function showPlan(){const p=LS('rp_plan');if(p)rPlan(p)}
 document.querySelectorAll('#pr-pills .pill').forEach(pl=>pl.onclick=()=>{
   document.querySelectorAll('#pr-pills .pill').forEach(x=>x.classList.remove('on'));pl.classList.add('on');
