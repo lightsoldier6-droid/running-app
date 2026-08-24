@@ -1441,6 +1441,28 @@ function applyWkEdits(pl){
    di differenza nel conteggio perché tutta la griglia scivoli e i due tab mostrino la stessa settimana
    con numeri e contenuti diversi. Quando succede, il Monitor è la fonte attendibile: questa funzione
    ricostruisce le settimane del piano dalle sedute del Monitor, così le due viste tornano identiche. */
+/* ---------- registro delle ricalibrazioni ----------
+   Serve al box "Quando ricalibrare il piano": senza, il consiglio misura tutto dall'inizio del piano,
+   quindi "sono trascorse N settimane" e "il VDOT è cambiato di X" restano veri per sempre e il box
+   ripete lo stesso messaggio anche il giorno dopo che hai premuto il bottone. Registrando data e VDOT
+   di ogni ritocco, il conteggio riparte da lì. Vive dentro `monitor` perché è già sincronizzato. */
+function logRecal(kind){
+  if(typeof monitor==='undefined'||!monitor)return;
+  const h=((monitor.recal||[]).filter(r=>r&&r.at));
+  h.push({at:todayISO(),kind,vdot:curVdot()||null});
+  monitor.recal=h.slice(-10);
+  LS('rp_monitor',monitor);
+}
+function lastRecal(){
+  const h=(typeof monitor!=='undefined'&&monitor&&monitor.recal)||[];
+  return h.length?h[h.length-1]:null;
+}
+// domenica della n-esima settimana piena dopo una data (per dire quando tornerò a valutare)
+function nthSundayAfter(iso,n){
+  const d=day(iso);
+  d.setDate(d.getDate()+((7-d.getDay())%7||7)+7*(Math.max(1,n)-1));
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function monFirstMonday(){
   if(typeof monitor==='undefined'||!monitor||!monitor.sessions||!monitor.sessions.length)return '';
   return monitor.sessions.map(s=>weekKey(s.date)).sort()[0];
@@ -1651,6 +1673,7 @@ function updatePlan(){
   np.weeks=[...hist,...np.weeks];
   np.weeks.forEach((w,i)=>w.w=i+1);
   LS('rp_plan',np);rPlan(np);rTrack();
+  logRecal('repace');rMonitor();   // il box "Quando ricalibrare" riparte a contare da oggi
   alert(`Piano ricalibrato: VDOT ${np.vd}, volume di partenza ${document.getElementById('p-base').value} km (dai tuoi dati reali).${old.target?` Obiettivo mantenuto: ${old.target} (${np.mode}).`:` Modalità: ${np.mode}.`} ${np.weeks.length-hist.length} settimane rimanenti aggiornate, ${hist.length} passate conservate. Riesporta il .ics: contiene solo le settimane future.`);
 }
 function exportICS(silent){
@@ -1805,7 +1828,9 @@ document.getElementById('mon-fromplan').addEventListener('click',()=>{
   const sessions=planToSessions(pl); // applica già scarichi/gare messi a mano
   if(!sessions.length)return alert('Il piano non contiene sedute future da monitorare.');
   const prevRuns=(monitor&&monitor.runs)||[]; // conserva le corse selezionate manualmente
-  monitor={name:'Piano corrente',importedAt:new Date().toISOString(),sessions,vdot0:curVdot()||null,runs:prevRuns};
+  const prevRecal=(monitor&&monitor.recal)||[]; // e il registro delle ricalibrazioni: è lo stesso piano
+  const prevVd0=(monitor&&monitor.vdot0)||curVdot()||null;
+  monitor={name:'Piano corrente',importedAt:new Date().toISOString(),sessions,vdot0:prevVd0,runs:prevRuns,recal:prevRecal};
   LS('rp_monitor',monitor);rMonitor();
   const races=sessions.filter(s=>s.cls==='race');
   alert(`Monitor aggiornato dal piano: ${sessions.length} sedute in ${new Set(sessions.map(s=>s.week)).size} settimane${races.length?` · ${races.length} gara/e`:''}.`);
@@ -1934,7 +1959,8 @@ function monRecalibrate(){
   monitor.sessions=merged;
   if(!/ricalibrato/.test(monitor.name||''))monitor.name=(monitor.name||'piano')+' (ricalibrato)';
   monitor.vdot0=monitor.vdot0||vd||null;
-  LS('rp_monitor',monitor);rMonitor();
+  LS('rp_monitor',monitor);
+  logRecal('recal');rMonitor();   // il box "Quando ricalibrare" riparte a contare da oggi
   exportICS(true); // scarica il nuovo .ics (settimane future)
   const gname=goal>=42?'maratona':goal>=21?'mezza':goal+' km';
   const rTxt=keptRaces.length?`\nGare intermedie conservate: ${keptRaces.map(r=>`${r.dist>=42?'maratona':r.dist>=21?'mezza':r.dist+'k'} il ${r.date}`).join(' · ')}.`:'';
@@ -2267,34 +2293,49 @@ function rMonitor(){
   try{rMonPaces(weeks,todayS)}catch(e){document.getElementById('mon-paces').innerHTML='<p class="muted">Non riesco a calcolare i passi: '+e.message+'</p>'}
   try{rMonDist(weeks,todayS)}catch(e){document.getElementById('mon-dist').innerHTML='<p class="muted">Non riesco a calcolare la distribuzione: '+e.message+'</p>'}
   // ---- consiglio: quando ricalibrare ----
+  // Il consiglio si misura DALL'ULTIMA RICALIBRAZIONE, non dall'inizio del piano: altrimenti "sono
+  // trascorse N settimane" e "il VDOT è cambiato di X" restano veri per sempre e il box ripete lo
+  // stesso messaggio anche subito dopo che hai ricalibrato. Vedi logRecal().
   const adv=document.getElementById('mon-advice');
+  const lr=lastRecal();
+  const sinceRecal=lr?completed.filter(w=>w.sunISO>lr.at):completed;
+  const KIND={repace:'ricalibrati i passi delle sedute',recal:'piano rigenerato dal reale',align:'piano allineato al Monitor'};
+  const lrLine=lr?`<p class="muted" style="margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid var(--line)">Ultima ricalibrazione: <b>${dm(lr.at)}</b> — ${KIND[lr.kind]||lr.kind}${lr.vdot?` · VDOT di allora ${(+lr.vdot).toFixed(1)}`:''}. Da lì ${sinceRecal.length===0?'non si è ancora chiusa nessuna settimana':sinceRecal.length===1?'si è chiusa <b>1</b> settimana':`si sono chiuse <b>${sinceRecal.length}</b> settimane`}.</p>`:'';
   if(!completed.length){
-    adv.innerHTML='<p class="muted">Ancora presto: serve almeno una settimana conclusa per un consiglio sulla ricalibrazione.</p>';
+    adv.innerHTML=lrLine+'<p class="muted">Ancora presto: serve almeno una settimana conclusa per un consiglio sulla ricalibrazione.</p>';
+  }else if(lr&&sinceRecal.length<2){
+    // periodo di grazia: i dati che avevano motivato il ritocco sono ancora quelli, giudicarli di
+    // nuovo farebbe ricomparire lo stesso consiglio il giorno dopo aver ricalibrato
+    adv.innerHTML=lrLine+`<p><span class="up"><b>Hai appena ricalibrato: lascia lavorare il piano.</b></span></p>
+      <p class="muted" style="margin-top:6px">Servono <b>2 settimane concluse</b> dopo un ritocco per capire se ne serve un altro: prima di allora i segnali sarebbero ancora quelli vecchi. Torno a valutare da domenica ${dm(nthSundayAfter(lr.at,2-sinceRecal.length))}.</p>`;
   }else{
     const cur=curVdot();
-    const base=monitor.vdot0||bestVdot(runs.filter(r=>r.date.slice(0,10)<S[0].date))||cur;
+    const from=lr?'dall’ultima ricalibrazione':'da inizio piano';
+    const base=(lr&&lr.vdot)||monitor.vdot0||bestVdot(runs.filter(r=>r.date.slice(0,10)<S[0].date))||cur;
     const dv=(cur&&base)?cur-base:0;
-    const recent=completed.slice(-3);
+    const recent=sinceRecal.slice(-3);
     const recentPct=Math.round(recent.reduce((a,w)=>a+w.pct,0)/recent.length);
     const missedQ=recent.reduce((a,w)=>a+Math.max(0,w.qPlan-w.qDone),0);
-    const phaseChange=curW&&completed.length&&completed[completed.length-1].sess[0].phase!==curW.sess[0].phase;
+    // il cambio di fase non vale se hai già ricalibrato dentro la settimana in corso
+    const phaseChange=curW&&completed.length&&completed[completed.length-1].sess[0].phase!==curW.sess[0].phase
+      &&!(lr&&lr.at>=curW.monISO);
     let level=0;const reasons=[];
     if(recentPct<75){level=2;reasons.push(`nelle ultime ${recent.length} settimane hai coperto in media il <b>${recentPct}%</b> dei km previsti: il volume del piano è oltre quello che stai reggendo — ricalibra verso il basso`)}
     else if(recentPct<85){level=Math.max(level,1);reasons.push(`aderenza km recente al <b>${recentPct}%</b>, un po' sotto il piano`)}
-    if(cur&&base&&dv>=1.5){level=2;reasons.push(`il tuo VDOT è salito di <b>${dv.toFixed(1)}</b> punti da inizio piano (${base.toFixed(1)}→${cur.toFixed(1)}): i ritmi target sono ormai troppo morbidi, ricalibrando corri ai valori giusti`)}
-    else if(cur&&base&&dv<=-1.5){level=2;reasons.push(`il tuo VDOT è sceso di <b>${Math.abs(dv).toFixed(1)}</b> punti (${base.toFixed(1)}→${cur.toFixed(1)}): i ritmi attuali rischiano di essere troppo duri — meglio ritararli`)}
-    else if(cur&&base&&Math.abs(dv)>=0.7){level=Math.max(level,1);reasons.push(`VDOT variato di <b>${dv>0?'+':''}${dv.toFixed(1)}</b> da inizio piano`)}
+    if(cur&&base&&dv>=1.5){level=2;reasons.push(`il tuo VDOT è salito di <b>${dv.toFixed(1)}</b> punti ${from} (${base.toFixed(1)}→${cur.toFixed(1)}): i ritmi target sono ormai troppo morbidi, ricalibrando corri ai valori giusti`)}
+    else if(cur&&base&&dv<=-1.5){level=2;reasons.push(`il tuo VDOT è sceso di <b>${Math.abs(dv).toFixed(1)}</b> punti ${from} (${base.toFixed(1)}→${cur.toFixed(1)}): i ritmi attuali rischiano di essere troppo duri — meglio ritararli`)}
+    else if(cur&&base&&Math.abs(dv)>=0.7){level=Math.max(level,1);reasons.push(`VDOT variato di <b>${dv>0?'+':''}${dv.toFixed(1)}</b> ${from}`)}
     if(missedQ>=3){level=2;reasons.push(`<b>${missedQ}</b> sedute di qualità saltate di recente: sono quelle che spostano davvero la forma`)}
     else if(missedQ>=1){level=Math.max(level,1);reasons.push(`${missedQ} seduta/e di qualità saltata/e nelle ultime settimane`)}
     if(phaseChange){level=Math.max(level,1);reasons.push('stai entrando in una nuova fase del piano: è il momento naturale per ritarare volume e ritmi sui dati reali')}
-    if(completed.length>=5&&level===0){level=1;reasons.push(`sono trascorse <b>${completed.length}</b> settimane: una ricalibrazione periodica tiene i ritmi allineati alla forma`)}
+    if(sinceRecal.length>=5&&level===0){level=1;reasons.push(`sono trascorse <b>${sinceRecal.length}</b> settimane ${lr?'dall’ultimo ritocco':'dall’inizio del piano'}: una ricalibrazione periodica tiene i ritmi allineati alla forma`)}
     const head=level===2?'<span class="down"><b>Conviene ricalibrare ora.</b></span>'
       :level===1?'<span style="color:var(--warn)"><b>Puoi valutare una ricalibrazione.</b></span>'
       :'<span class="up"><b>Prosegui così: il piano è ancora ben calibrato.</b></span>';
     const body=reasons.length?`<ul style="margin:8px 0 0 18px;padding:0">${reasons.map(r=>`<li style="margin-bottom:5px">${r}</li>`).join('')}</ul>`
       :'<p class="muted" style="margin-top:6px">Aderenza in linea e forma stabile: nessun segnale che imponga un ritocco.</p>';
     const how=level>0?`<p class="muted" style="margin-top:10px">Come fare: usa il pulsante <b>Rigenera il piano dal reale (.ics + .fit)</b> qui sotto — rigenera con VDOT e volume attuali, aggiorna il Monitor e riscarica il .ics per il calendario.</p>`:'';
-    adv.innerHTML=`<p>${head}</p>${body}${how}`;
+    adv.innerHTML=lrLine+`<p>${head}</p>${body}${how}`;
   }
   rToday();
 }
