@@ -2030,26 +2030,43 @@ function rMonDist(weeks,todayS){
   const tP=ORD.reduce((a,k)=>a+P[k],0),tA=ORD.reduce((a,k)=>a+A[k],0);
   if(!tA)  {el.innerHTML='<p class="muted">Nessuna corsa ancora nelle settimane del piano.</p>';return}
   const pc=(v,t)=>t?Math.round(v/t*100):0;
-  const rows=ORD.map(k=>`<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${COL[k]};margin-right:6px"></span>${LAB[k]}</td>
-      <td class="r">${pc(P[k],tP)}%<br><span class="muted">${P[k].toFixed(0)} km</span></td>
-      <td class="r">${pc(A[k],tA)}%<br><span class="muted">${A[k].toFixed(0)} km</span></td></tr>`).join('');
-  const bar=(o,t)=>`<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin:2px 0 8px">${ORD.map(k=>`<div style="width:${t?o[k]/t*100:0}%;background:${COL[k]}"></div>`).join('')}</div>`;
-  // km davvero a ritmo: dai lap dove ci sono, stimati con la stessa proporzione dove mancano
-  let real='';
+  const km=v=>v.toFixed(0)+' km';
+  const dot=c=>`<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${c};margin-right:6px"></span>`;
+  const bar=(segs)=>{const t=segs.reduce((a,s)=>a+s[0],0)||1;
+    return `<div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin:6px 0 10px">${segs.map(s=>`<div style="width:${s[0]/t*100}%;background:${s[1]}"></div>`).join('')}</div>`};
+  // BLOCCO 1 — come sono divisi i km per tipo di seduta. Le percentuali sono su totali diversi
+  // (pianificato vs svolto), perciò la riga del totale è necessaria: senza, due colonne con gli stessi
+  // km ma percentuali diverse sembrano un errore di calcolo.
+  const rows=ORD.map(k=>`<tr><td>${dot(COL[k])}${LAB[k]}</td>
+      <td class="r">${pc(P[k],tP)}%<br><span class="muted">${km(P[k])}</span></td>
+      <td class="r">${pc(A[k],tA)}%<br><span class="muted">${km(A[k])}</span></td></tr>`).join('')
+    +`<tr><td class="muted">Totale</td><td class="r muted">${km(tP)}</td><td class="r muted">${km(tA)}</td></tr>`;
+  const blk1=`<p class="muted" style="margin:0 0 2px">Come sono divisi i km <b>per tipo di seduta</b>.</p>
+    ${bar(ORD.map(k=>[A[k],COL[k]]))}
+    <table><tr><th>Tipo di seduta</th><th class="r">Pianificato</th><th class="r">Svolto</th></tr>${rows}</table>`;
+  // BLOCCO 2 — quanti di quei km sono corsi davvero forte. È una domanda diversa dalla prima: dentro
+  // una seduta dura riscaldamento, recuperi e defaticamento sono corsa facile a tutti gli effetti.
+  let blk2;
   if(lapKm>0){
     const frac=hardWork/lapKm;                       // quota di km a ritmo dentro una seduta dura
-    const workTot=hardWork+(hardKm-lapKm)*frac;
+    const workTot=hardWork+(hardKm-lapKm)*frac;      // stima sulle sedute dure senza lap
+    const insideEasy=hardKm-workTot;                 // km facili nascosti dentro le sedute dure
     const easyTot=tA-workTot;
     const rat=Math.round(easyTot/tA*100);
-    const verd=rat>=75?'Sei nell’ordine di grandezza del riferimento.'
-      :rat>=62?'Sei sopra il riferimento sul lato duro. Con sedute corte e intense (tipico di un blocco estivo) ci sta; quando rientrano i lunghi la quota facile risale da sola.'
+    const verd=rat>=75?'In linea con l’ordine di grandezza del riferimento.'
+      :rat>=62?'Sei sopra il riferimento sul lato duro: coerente con un blocco di sedute corte e intense, la quota facile risale quando rientrano i lunghi.'
       :'Molto più duro del riferimento: gran parte dei km è a ritmo. Regge per blocchi brevi, meno se va avanti per settimane.';
-    real=`<p style="margin:10px 0 0;font-size:12.5px;line-height:1.45">Dei <b>${hardKm.toFixed(0)} km</b> di sedute dure solo <b>${workTot.toFixed(0)} km</b> sono davvero corsi a ritmo: il resto è riscaldamento, recuperi e defaticamento, cioè corsa facile. Il rapporto vero tra facile e duro è <b>${rat}/${100-rat}</b>. ${verd}</p>
-      <p class="muted" style="margin-top:4px">Calcolato sui lap di ${lapN} sedute${hardKm-lapKm>0.5?`, e stimato con la stessa proporzione sui ${(hardKm-lapKm).toFixed(0)} km di sedute dure senza lap`:''}. Il riferimento ~80/20 nasce sul <b>tempo</b> in zona, non sui km: prendilo come ordine di grandezza.</p>`;
+    blk2=`<p class="muted" style="margin:14px 0 2px;padding-top:12px;border-top:1px solid var(--line)">Quanti di quei km sono corsi <b>davvero a ritmo</b>, letti dai lap.</p>
+      ${bar([[easyTot,'var(--acc)'],[workTot,'var(--red,#d33)']])}
+      <table><tr><th>Intensità reale</th><th class="r">km</th><th class="r">quota</th></tr>
+        <tr><td>${dot('var(--acc)')}Corsa facile</td><td class="r">${km(easyTot)}</td><td class="r"><b>${rat}%</b></td></tr>
+        <tr><td>${dot('var(--red,#d33)')}A ritmo</td><td class="r">${km(workTot)}</td><td class="r"><b>${100-rat}%</b></td></tr></table>
+      <p style="margin:10px 0 0;font-size:12.5px;line-height:1.45">Le sedute dure svolte pesano <b>${km(hardKm)}</b> (qualità + interval qui sopra), ma solo <b>${km(workTot)}</b> sono corsi a ritmo: gli altri <b>${km(insideEasy)}</b> — riscaldamento, recuperi, defaticamento — sono corsa facile e vanno sommati ai ${km(A.fac)} delle sedute facili. Ecco perché si passa da <b>${100-pc(A.fac,tA)}%</b> di sedute dure a <b>${100-rat}%</b> di km duri.</p>
+      <p class="muted" style="margin-top:6px">${verd} Il riferimento ~80/20 nasce sul <b>tempo</b> in zona, non sui km: prendilo come ordine di grandezza. Dai lap di ${lapN} sedute${hardKm-lapKm>0.5?`, con i ${km(hardKm-lapKm)} di sedute dure senza lap stimati alla stessa proporzione`:''}.</p>`;
   }else{
-    real='<p class="muted" style="margin-top:10px">Importa i .fit con i lap per sapere quanti di questi km sono davvero corsi a ritmo: dentro una seduta dura la maggior parte è riscaldamento e recupero.</p>';
+    blk2='<p class="muted" style="margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line)">Importa i .fit con i lap per sapere quanti di questi km sono davvero corsi a ritmo: dentro una seduta dura la maggior parte è riscaldamento e recupero.</p>';
   }
-  el.innerHTML=`${bar(A,tA)}<table><tr><th>Tipo di seduta</th><th class="r">Pianificato</th><th class="r">Svolto</th></tr>${rows}</table>${real}`;
+  el.innerHTML=blk1+blk2;
 }
 function rMonitor(){
   const info=document.getElementById('mon-info');
