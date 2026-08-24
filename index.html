@@ -2241,13 +2241,22 @@ function rMonitor(){
   // tabella settimana per settimana
   const wrows=weeks.filter(w=>w.started).map(w=>{
     const icon=w.inProg?'⏳':w.okTarget?'✅':w.pct>=60?'🟡':'🔴';
-    return `<tr><td>${icon} S${w.num||''}${w.summer?'☀️':''}<br><span class="muted">${w.monISO.slice(5)}→${w.sunISO.slice(5)}</span></td>
+    // dire QUALE dei tre criteri è mancato: senza, una settimana all'83% con qualità e lungo a posto
+    // sembra bocciata senza motivo
+    const miss=[];
+    if(!w.inProg&&!w.okTarget){
+      if(w.pct<85)miss.push(`km al ${w.pct}%`);
+      if(w.qDone<w.qPlan)miss.push(`${w.qPlan-w.qDone} qualità in meno`);
+      if(w.lPlan&&!w.lDone)miss.push('lungo saltato');
+    }
+    return `<tr><td>${icon} S${w.num||''}${w.summer?'☀️':''}<br><span class="muted">${w.monISO.slice(5)}→${w.sunISO.slice(5)}</span>${miss.length?`<br><span class="muted" style="font-size:10px">manca: ${miss.join(' · ')}</span>`:''}</td>
       <td class="r">${w.actualKm.toFixed(0)}/${w.plannedKm.toFixed(0)} km<br><span class="muted">${w.pct}%</span></td>
       <td class="r">${Object.keys(w.matches).length}/${w.sess.length}</td>
       <td class="r">${w.qDone}/${w.qPlan}${w.lPlan?`<br><span class="muted">lungo ${w.lDone?'✓':'—'}</span>`:''}</td></tr>`;
   });
   document.getElementById('mon-weeks').innerHTML=wrows.length
-    ?`<table><tr><th>Sett.</th><th class="r">Volume</th><th class="r">Corse</th><th class="r">Qualità</th></tr>${wrows.slice(-12).join('')}</table>${wrows.length>12?`<p class="muted" style="margin-top:6px">Ultime 12 di ${wrows.length} settimane iniziate.</p>`:''}`
+    ?`<table><tr><th>Sett.</th><th class="r">Volume</th><th class="r">Corse</th><th class="r">Qualità</th></tr>${wrows.slice(-12).join('')}</table>${wrows.length>12?`<p class="muted" style="margin-top:6px">Ultime 12 di ${wrows.length} settimane iniziate.</p>`:''}
+      <p class="muted" style="margin-top:8px">✅ <b>a target</b> = almeno l’<b>85%</b> dei km previsti <i>e</i> tutte le sedute di qualità svolte <i>e</i> il lungo fatto. Bastano <b>tutte e tre</b>: una settimana all’83% dei km resta 🟡 anche se qualità e lungo sono a posto. 🟡 = dal 60% in su, 🔴 = sotto il 60%.</p>`
     :'<p class="muted">Nessuna settimana ancora iniziata.</p>';
   // seduta per seduta (dettaglio, per settimana)
   const DN=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
