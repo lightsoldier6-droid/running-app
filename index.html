@@ -429,6 +429,9 @@ applyTheme(localStorage.getItem('rp_theme')||'light');
 /* ---------- storage ---------- */
 const LS=(k,v)=>{
   if(v===undefined) return JSON.parse(localStorage.getItem(k)||'null');
+  // ogni scrittura del piano porta l'ora: serve al bottone "Recupera dal Monitor" per capire se il
+  // Monitor è più vecchio del piano (cioè se recuperare butterebbe via una ricalibrazione appena fatta)
+  if(k==='rp_plan'&&v&&typeof v==='object')v.savedAt=new Date().toISOString();
   localStorage.setItem(k,JSON.stringify(v));
   if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit') pushCloud();
   return v;
@@ -1469,10 +1472,18 @@ function monFirstMonday(){
 }
 function alignPlanToMonitor(){
   if(typeof monitor==='undefined'||!monitor||!monitor.sessions||!monitor.sessions.length)
-    return alert('Il Monitor non ha nessun piano caricato: non c’è niente a cui allinearsi.');
+    return alert('Il Monitor non ha nessun piano caricato: non c’è niente da recuperare.');
   const old=LS('rp_plan');
   if(!old)return alert('Genera prima un piano nel tab Piano.');
-  if(!confirm('Riscrivo le settimane del tab Piano usando il calendario e le sedute del Monitor. Le due viste torneranno identiche. Procedo?'))return;
+  const nEd=Object.keys(LS('rp_wkedit')||{}).length;
+  const dL=x=>new Date(x).toLocaleString('it-IT',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  // Direzione: qui si copia Monitor → Piano. Se il piano è stato toccato DOPO l'ultimo allineamento del
+  // Monitor (tipico di "Ricalibra i passi", che aggiorna il piano ma non il Monitor), recuperare da qui
+  // butterebbe via la ricalibrazione: la direzione giusta sarebbe l'opposta.
+  const stale=old.savedAt&&monitor.syncedAt&&old.savedAt>monitor.syncedAt;
+  const warn=stale?`\n\n⚠️ Il piano qui è più recente del Monitor (piano ${dL(old.savedAt)}, Monitor ${dL(monitor.syncedAt)}). Se hai appena premuto “Ricalibra i passi” e vuoi portare quei passi nel Monitor, annulla e usa invece “↺ Aggiorna dal piano corrente” nel tab Monitor.`:'';
+  const edTxt=nEd?`\nLe ${nEd} modifiche manuali alle settimane (scarico / riscrivi sul reale) vengono azzerate: sono già dentro le sedute del Monitor, e riapplicarle sopra le duplicherebbe.`:'';
+  if(!confirm(`Riscrivo le settimane del tab Piano usando il calendario e le sedute del Monitor: le due viste torneranno identiche.${edTxt}${warn}\n\nProcedo?`))return;
   const DN=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
   const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1497,13 +1508,15 @@ function alignPlanToMonitor(){
   const ph={baseW:0,speedW:0,specW:0,taper:0};
   weeks.forEach(w=>{const kk=PHK[w.phase];if(kk)ph[kk]++});
   const np={...old,weeks,ph};
-  // le modifiche a mano già trascorse sono ormai incorporate nelle settimane ricostruite: se restassero
-  // verrebbero riapplicate sopra a sé stesse (gare duplicate, settimane riscritte due volte).
-  const we=LS('rp_wkedit')||{};
-  let dropped=0;Object.keys(we).forEach(kk=>{if(kk<todayS){delete we[kk];dropped++}});
-  if(dropped)LS('rp_wkedit',we);
-  LS('rp_plan',np);rPlan(np);rTrack();
-  alert(`Piano allineato al Monitor: ${weeks.length} settimane, da lunedì ${keys[0]} alla gara del ${np.dateStr}.`);
+  // Tutte le modifiche a mano sono ormai incorporate nelle settimane ricostruite (il Monitor le ha già
+  // dentro): se restassero verrebbero riapplicate sopra a sé stesse — gare duplicate, settimane
+  // riscritte due volte — e le due viste mostrerebbero titoli diversi a griglia allineata.
+  if(nEd)LS('rp_wkedit',{});
+  LS('rp_plan',np);
+  monitor.syncedAt=np.savedAt||new Date().toISOString(); // da adesso sono la stessa cosa
+  LS('rp_monitor',monitor);
+  rPlan(np);rTrack();if(typeof rToday==='function')rToday();
+  alert(`Piano recuperato dal Monitor: ${weeks.length} settimane, da lunedì ${keys[0]} alla gara del ${np.dateStr}.${nEd?` Azzerate ${nEd} modifiche manuali alle settimane.`:''}`);
 }
 function rPlan(plan){
   if(!plan)return;
@@ -1531,7 +1544,7 @@ function rPlan(plan){
   const monMon=monFirstMonday(),planMon=iso(addD(refSun,-(nAll-1)*7-6));
   const misAlign=monMon&&monMon!==planMon
     ? `<p class="muted" style="margin:6px 0;padding:8px 10px;border-left:3px solid var(--red,#d33);background:rgba(211,51,51,.08);border-radius:6px">⚠️ <b>Calendario sfasato rispetto al Monitor</b> — qui il piano parte da lunedì ${planMon}, nel Monitor da lunedì ${monMon}: le stesse date finiscono su settimane diverse. Il calendario giusto è quello del Monitor (ha le date reali delle sedute).
-       <button class="btn btn2" style="margin:8px 0 0" onclick="alignPlanToMonitor()">Allinea il piano al Monitor</button></p>`
+       <button class="btn btn2" style="margin:8px 0 0" onclick="alignPlanToMonitor()">↺ Recupera dal Monitor</button></p>`
     : '';
   document.getElementById('p-out').innerHTML=`<div class="card">
     <h2>${gn} · ${plan.dateStr} · VDOT ${plan.vd}${plan.vdTarget&&plan.vdTarget!==plan.vd?` → ${plan.vdTarget}`:''}</h2>
@@ -1542,9 +1555,11 @@ function rPlan(plan){
     ${plan.readiness?`<p class="muted" style="margin:6px 0;padding:8px 10px;border-left:3px solid var(--warn,#e0a800);background:rgba(224,168,0,.08);border-radius:6px">⚠️ <b>Base leggera</b> — ${plan.readiness.text} ${plan.readiness.advice} Il piano parte comunque nei limiti di sicurezza, ma le prime settimane saranno più impegnative.</p>`:''}
     ${plan.interRaces&&plan.interRaces.length?`<p class="muted" style="margin:6px 0">🏁 Gare intermedie (tune-up): ${plan.interRaces.map(r=>`${r.dist>=42?'Maratona':r.dist>=21?'Mezza':r.dist+'k'} il ${new Date(r.date).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}`).join(' · ')}. Mini-scarico prima, la gara sostituisce la qualità, poi recupero. Il blocco a diamante è collocato fuori dagli scarichi gara.</p>`:''}
     ${plan.weeks.some(w=>w.summer)?'<p class="muted" style="margin:6px 0">☀️ Estate (giu-ago): intenso ma breve — martedì interval, giovedì Z2, weekend qualità. Due sedute veloci corte separate da corse lente, niente lungo lento. Corri presto al mattino.</p>':''}
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn btn2" style="margin:0;flex:1" onclick="copyPlan()">Copia (markdown)</button>
-      <button class="btn btn2" style="margin:0;flex:1" onclick="exportICS()">Esporta .ics</button></div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn2" style="margin:0;flex:1 1 44%" onclick="copyPlan()">Copia (markdown)</button>
+      <button class="btn btn2" style="margin:0;flex:1 1 44%" onclick="exportICS()">Esporta .ics</button>
+      ${monMon?`<button class="btn btn2" style="margin:0;flex:1 1 100%" onclick="alignPlanToMonitor()">↺ Recupera dal Monitor</button>`:''}</div>
+    ${monMon?`<p class="muted" style="margin:6px 0 0"><b>↺ Recupera dal Monitor</b> riscrive le settimane qui sotto con le date e le sedute che vedi nel Monitor: premilo dopo aver ricalibrato o rigenerato il piano da lì, così le due viste coincidono. La direzione opposta è <b>↺ Aggiorna dal piano corrente</b>, nel tab Monitor.</p>`:''}
     <p class="muted" style="margin:12px 0 2px"><b>Note operative</b> — Riscaldamento interval/cruise: 15-20' easy progressivo + 4-5 allunghi 80m (inclusi nei km). Defaticamento: 10' easy. Tolleranza sui passi: ±3s (già nei range). I km indicati sono ≈ totali di seduta. Tra due sedute dure c'è sempre una corsa lenta (Z2/base) per non sovraccaricare le gambe. D'estate: due sedute veloci corte e intense separate da Z2 (es. martedì interval, giovedì Z2, weekend qualità), niente lungo lento.</p></div>`+
     `<div class="card">`+
     plan.weeks.map(w=>{
@@ -1814,7 +1829,7 @@ document.getElementById('mon-ics').addEventListener('change',e=>{
     try{
       const sessions=parseICS(rd.result);
       if(!sessions.length)throw new Error('nessuna seduta riconosciuta (serve l’.ics esportato dal tab Piano)');
-      monitor={name:f.name,importedAt:new Date().toISOString(),sessions,vdot0:curVdot()||null};
+      monitor={name:f.name,importedAt:new Date().toISOString(),syncedAt:new Date().toISOString(),sessions,vdot0:curVdot()||null};
       LS('rp_monitor',monitor);rMonitor();
       const races=sessions.filter(s=>s.cls==='race');
       alert(`Piano caricato: ${sessions.length} sedute in ${new Set(sessions.map(s=>s.week)).size} settimane${races.length?` · gara ${races[0].date}`:''}.`);
@@ -1830,7 +1845,7 @@ document.getElementById('mon-fromplan').addEventListener('click',()=>{
   const prevRuns=(monitor&&monitor.runs)||[]; // conserva le corse selezionate manualmente
   const prevRecal=(monitor&&monitor.recal)||[]; // e il registro delle ricalibrazioni: è lo stesso piano
   const prevVd0=(monitor&&monitor.vdot0)||curVdot()||null;
-  monitor={name:'Piano corrente',importedAt:new Date().toISOString(),sessions,vdot0:prevVd0,runs:prevRuns,recal:prevRecal};
+  monitor={name:'Piano corrente',importedAt:new Date().toISOString(),syncedAt:new Date().toISOString(),sessions,vdot0:prevVd0,runs:prevRuns,recal:prevRecal};
   LS('rp_monitor',monitor);rMonitor();
   const races=sessions.filter(s=>s.cls==='race');
   alert(`Monitor aggiornato dal piano: ${sessions.length} sedute in ${new Set(sessions.map(s=>s.week)).size} settimane${races.length?` · ${races.length} gara/e`:''}.`);
@@ -1957,6 +1972,7 @@ function monRecalibrate(){
   const wkNum={};wkKeys.forEach((k,i)=>wkNum[k]=i+1);
   merged.forEach(s=>s.week=wkNum[weekKey(s.date)]);
   monitor.sessions=merged;
+  monitor.syncedAt=new Date().toISOString(); // Monitor e piano escono da qui allineati
   if(!/ricalibrato/.test(monitor.name||''))monitor.name=(monitor.name||'piano')+' (ricalibrato)';
   monitor.vdot0=monitor.vdot0||vd||null;
   LS('rp_monitor',monitor);
