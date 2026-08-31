@@ -1840,15 +1840,32 @@ document.getElementById('mon-ics').addEventListener('change',e=>{
 document.getElementById('mon-fromplan').addEventListener('click',()=>{
   const pl=LS('rp_plan');
   if(!pl)return alert('Genera prima un piano nel tab Piano.');
-  const sessions=planToSessions(pl); // applica già scarichi/gare messi a mano
-  if(!sessions.length)return alert('Il piano non contiene sedute future da monitorare.');
+  const fut=planToSessions(pl); // applica già scarichi/gare messi a mano
+  if(!fut.length)return alert('Il piano non contiene sedute future da monitorare.');
+  // IL PASSATO NON SI BUTTA. `planToSessions` salta le settimane già concluse (`hist`), quindi
+  // prendendo solo il suo output il Monitor perdeva tutto lo storico: bastava aggiungere una gara al
+  // volo per veder sparire i mesi già corsi. Il passato si ricompone da due fonti, in quest'ordine:
+  //  1. le sedute che il Monitor ha già (registro vero, arrivato dall'.ics o da rigenerazioni);
+  //  2. le settimane `hist` del piano, per i giorni che al Monitor mancano.
+  const todayS=todayISO();
+  const seen=new Set(fut.map(s=>s.date)); // una sola seduta per data, come nella rigenerazione
+  const past=[];
+  const take=s=>{if(s.date<todayS&&!seen.has(s.date)){seen.add(s.date);past.push(s)}};
+  ((monitor&&monitor.sessions)||[]).forEach(take);
+  planToSessions(pl,true).forEach(take);
+  const merged=[...past,...fut].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  // numerazione per settimana di calendario: il passato recuperato entra davanti e le settimane
+  // future scalano di conseguenza, senza buchi né doppioni di numero
+  const wkKeys=[...new Set(merged.map(s=>weekKey(s.date)))].sort();
+  const wkNum={};wkKeys.forEach((k,i)=>wkNum[k]=i+1);
+  merged.forEach(s=>s.week=wkNum[weekKey(s.date)]);
   const prevRuns=(monitor&&monitor.runs)||[]; // conserva le corse selezionate manualmente
   const prevRecal=(monitor&&monitor.recal)||[]; // e il registro delle ricalibrazioni: è lo stesso piano
   const prevVd0=(monitor&&monitor.vdot0)||curVdot()||null;
-  monitor={name:'Piano corrente',importedAt:new Date().toISOString(),syncedAt:new Date().toISOString(),sessions,vdot0:prevVd0,runs:prevRuns,recal:prevRecal};
+  monitor={name:'Piano corrente',importedAt:new Date().toISOString(),syncedAt:new Date().toISOString(),sessions:merged,vdot0:prevVd0,runs:prevRuns,recal:prevRecal};
   LS('rp_monitor',monitor);rMonitor();
-  const races=sessions.filter(s=>s.cls==='race');
-  alert(`Monitor aggiornato dal piano: ${sessions.length} sedute in ${new Set(sessions.map(s=>s.week)).size} settimane${races.length?` · ${races.length} gara/e`:''}.`);
+  const races=merged.filter(s=>s.cls==='race');
+  alert(`Monitor aggiornato dal piano: ${merged.length} sedute in ${wkKeys.length} settimane${past.length?`, di cui ${past.length} già svolte conservate`:''}${races.length?` · ${races.length} gara/e`:''}.`);
 });
 document.getElementById('mon-clear').addEventListener('click',()=>{
   if(!monitor)return;
@@ -1867,8 +1884,9 @@ function monRemoveRun(k){
   monitor.runs=(monitor.runs||[]).filter(x=>x!==k);
   LS('rp_monitor',monitor);rMonitor();
 }
-// converte un piano rp_plan (settimane future) in sedute stile .ics
-function planToSessions(pl){
+// converte un piano rp_plan in sedute stile .ics. Di norma solo le settimane future: con withHist=true
+// restituisce anche quelle già concluse (`hist`), che servono a ricostruire lo storico del Monitor.
+function planToSessions(pl,withHist){
   pl=applyWkEdits(pl);
   const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
   const isoL=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1876,7 +1894,7 @@ function planToSessions(pl){
   const race=new Date(pl.dateStr+'T12:00:00');
   const refSun=addD(race,(7-race.getDay())%7);
   const n=pl.weeks.length;const out=[];
-  pl.weeks.forEach(w=>{if(w.hist)return;
+  pl.weeks.forEach(w=>{if(w.hist&&!withHist)return;
     const sun=addD(refSun,-(n-w.w)*7);
     w.sess.forEach(s=>{
       const isr=s.n.startsWith('GARA'); // solo la gara finale usa la data gara; le gare al volo restano nel loro giorno
