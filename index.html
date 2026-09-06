@@ -997,7 +997,7 @@ function genPlan(silent,carry){
     // deve stare dentro il build (non invade la fase specifica della gara obiettivo) e lasciare
     // almeno 2 settimane di base davanti, per non partire con la qualità dal primo giorno
     if(r0&&wR<=endSpeed){
-      const len=Math.min(5,wR-4);
+      const len=Math.min(4,wR-4);
       if(len>=3)iSpec={dist:r0.dist,date:r0.date,w0:wR,len,start:wR-1-len,end:wR-2};
     }
   }
@@ -1087,8 +1087,10 @@ function genPlan(silent,carry){
     const diaEntry=(!isTaper&&!raceWeek&&!recovery)?(diaByWeek[w]||null):null; // entry del diamante o {deload}
     const inSpeedRange=!isTaper&&w>baseW&&w<=endSpeed;
     // deload: nella fase velocità è agganciato al picco (dal diamante); nella base/specifico cadenza ogni 4 sett.
-    // le ultime due settimane del blocco intermedio restano cariche: lo scarico è la settimana pre-gara
-    const noDl=inIspec(w)&&w>=iSpec.end-1;
+    // Dentro il blocco intermedio niente scarico automatico: sono 3-4 settimane e lo scarico è già la
+    // settimana pre-gara. Senza questo la cadenza w%4 poteva cadere sulla PRIMA settimana del blocco
+    // (visto sul piano reale: 5-11 ott) e mangiarsene una su quattro.
+    const noDl=inIspec(w);
     const isDeload=!isTaper&&!raceWeek&&!recovery&&!preRace&&!noDl&&(diaEntry?!!diaEntry.deload:(!inSpeedRange&&w%4===0&&w!==core));
     const phase=isTaper?'taper':inIspec(w)?'ispec':diaEntry?'speed':(inSpeedRange?'base':(w<=baseW?'base':'spec'));
     // ritmi progressivi: il VDOT sale linearmente da attuale (sett.1) a target (fine blocco), poi tenuto nel taper.
