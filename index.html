@@ -48,6 +48,7 @@ svg text{fill:var(--dim);font-size:9px}
 .wk{background:var(--bg);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:10px;padding:11px 13px;margin-bottom:10px}
 .wk.ph-base{border-left-color:var(--acc)}
 .wk.ph-speed{border-left-color:var(--red)}
+.wk.ph-ispec{border-left-color:#8b5cf6}
 .wk.ph-spec{border-left-color:var(--acc2)}
 .wk.ph-taper{border-left-color:var(--warn)}
 .wk.deload{border-left-color:var(--dim)}
@@ -61,6 +62,7 @@ svg text{fill:var(--dim);font-size:9px}
 .phb{font-size:10px;padding:2px 8px;border-radius:8px;font-weight:600}
 .phb.base{background:#e3f5e9;color:#1a8a3f}.phb.speed{background:#fde8e6;color:#c0392b}
 .phb.spec{background:#e4f0fd;color:#0a6ed1}.phb.taper{background:#fdf0dc;color:#b26a00}
+.phb.ispec{background:#ece5fe;color:#5b34c7}
 .phb.deload{background:#eceef1;color:#6b7280}.phb.summer{background:#fff8e1;color:#a86b00}
 .phb.race{background:#e3f5e9;color:#1a7a3a}.phb.manual{background:#ede7fb;color:#6a3fc0}
 .wksel{width:auto;font-size:11px;padding:3px 6px;margin:6px 0 0;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--fg,inherit)}
@@ -173,6 +175,7 @@ body.dark .badge.easy{background:#16311f;color:#6cd992}
 body.dark .phb.base{background:#16311f;color:#6cd992}
 body.dark .phb.speed{background:#3b2220;color:#ff958c}
 body.dark .phb.spec{background:#17293f;color:#82bdff}
+body.dark .phb.ispec{background:#221a3a;color:#b79bff}
 body.dark .phb.taper{background:#3a2c15;color:#ffbe66}
 body.dark .phb.deload{background:#26272b;color:#9fa2aa}
 body.dark .phb.summer{background:#33290f;color:#e3b455}
@@ -977,8 +980,31 @@ function genPlan(silent,carry){
   // finestra velocità (diamante) su settimane "pulite": non estive, non gara, non recupero post-gara.
   // Cresce all'indietro dall'ultima settimana pre-specifico fino a 10 settimane idonee (blocco pulito da 10),
   // lasciando almeno 2 settimane di base. build (base+speed) = core-specW resta invariato.
-  const eligibleW=w=>!isSummerW(w)&&!raceAt[w]&&!raceAt[w-1];
   const endSpeed=core-specW;
+  // BLOCCO SPECIFICO PER LA PRIMA GARA INTERMEDIA.
+  // La prima gara intermedia vera (≥10 km: tipicamente la mezza d'autunno dentro un blocco maratona
+  // lungo) non è solo un tune-up. Dieci settimane di base indifferenziata la sprecano: 3-5 settimane di
+  // lavoro specifico prima — volume a soglia + ritmo gara nel lungo — alzano la soglia, e quel guadagno
+  // resta dentro il blocco maratona che segue. Le gare intermedie SUCCESSIVE restano tune-up puri
+  // (mini-scarico, gara, recupero): a quel punto il piano ha già la sua fase specifica da difendere.
+  // Il blocco si chiude 2 settimane prima della gara: l'ultima è il mini-scarico pre-gara.
+  let iSpec=null;
+  {
+    // SOLO la prima gara intermedia in ordine di data: le successive sono verifiche dentro un piano
+    // che ha già una sua fase specifica, e mettere un secondo blocco le toglierebbe settimane.
+    const wR=Object.keys(raceAt).map(Number).sort((a,b)=>a-b)[0];
+    const r0=wR&&raceAt[wR].dist>=10?raceAt[wR]:null; // sotto i 10 km non vale un blocco dedicato
+    // deve stare dentro il build (non invade la fase specifica della gara obiettivo) e lasciare
+    // almeno 2 settimane di base davanti, per non partire con la qualità dal primo giorno
+    if(r0&&wR<=endSpeed){
+      const len=Math.min(5,wR-4);
+      if(len>=3)iSpec={dist:r0.dist,date:r0.date,w0:wR,len,start:wR-1-len,end:wR-2};
+    }
+  }
+  // la fase copre anche il mini-scarico pre-gara e la settimana di gara: sono il finale del blocco,
+  // non un ritorno alla base (il contenuto di quelle settimane resta però quello dei tune-up)
+  const inIspec=w=>!!iSpec&&w>=iSpec.start&&w<=iSpec.w0;
+  const eligibleW=w=>!isSummerW(w)&&!raceAt[w]&&!raceAt[w-1]&&!inIspec(w);
   let start=endSpeed+1,elig=0;
   while(start-1>=3&&elig<10){start--;if(eligibleW(start))elig++;}
   let baseW=Math.max(1,start-1),speedW=endSpeed-baseW;
@@ -1061,8 +1087,10 @@ function genPlan(silent,carry){
     const diaEntry=(!isTaper&&!raceWeek&&!recovery)?(diaByWeek[w]||null):null; // entry del diamante o {deload}
     const inSpeedRange=!isTaper&&w>baseW&&w<=endSpeed;
     // deload: nella fase velocità è agganciato al picco (dal diamante); nella base/specifico cadenza ogni 4 sett.
-    const isDeload=!isTaper&&!raceWeek&&!recovery&&!preRace&&(diaEntry?!!diaEntry.deload:(!inSpeedRange&&w%4===0&&w!==core));
-    const phase=isTaper?'taper':diaEntry?'speed':(inSpeedRange?'base':(w<=baseW?'base':'spec'));
+    // le ultime due settimane del blocco intermedio restano cariche: lo scarico è la settimana pre-gara
+    const noDl=inIspec(w)&&w>=iSpec.end-1;
+    const isDeload=!isTaper&&!raceWeek&&!recovery&&!preRace&&!noDl&&(diaEntry?!!diaEntry.deload:(!inSpeedRange&&w%4===0&&w!==core));
+    const phase=isTaper?'taper':inIspec(w)?'ispec':diaEntry?'speed':(inSpeedRange?'base':(w<=baseW?'base':'spec'));
     // ritmi progressivi: il VDOT sale linearmente da attuale (sett.1) a target (fine blocco), poi tenuto nel taper.
     // Questi shadowano p/E/T/I/R/M/Ea del blocco per questa iterazione, così TUTTE le sedute usano i passi della settimana.
     const vdW=vd+(vdTarget-vd)*Math.min(1,w/Math.max(1,core));
@@ -1106,6 +1134,40 @@ function genPlan(silent,carry){
       sess.push({t:'Giovedì',n:'Ritmo gara',d:w===n?`20' @ ${E} + 10' @ ${GP} (gara)`:`15' @ ${E} + 2×10' @ ${GP} (gara), rec 3' @ ${E}`,km:w===n?kmAt(20,Ea)+kmAt(10,tFast/goal):kmAt(18,Ea)+kmAt(20,tFast/goal)});
       sess.push(w===n?{t:'Domenica',n:'GARA 🏁',d:`${goal>=21?goal.toFixed(1):goal} km @ ${GP}/km — obiettivo ${GT}`,km:goal}
         :{t:'Domenica',n:'Lungo corto',d:`70' @ ${E}`,km:kmAt(70,Ea)});
+    }else if(phase==='ispec'){ // specifico gara intermedia: soglia + ritmo gara sulla distanza
+      const rd=iSpec.dist,rp=predict(rd,vdW)/rd,RP=rngP(rp);
+      const rn=rd>=42?'maratona':rd>=21?'mezza':rd+'k';
+      const k=w-iSpec.start+1,L=iSpec.len,prog=L>1?(k-1)/(L-1):1; // posizione nel blocco → 0..1
+      // lungo qualificato a settimane alterne, l'ultima sempre: è la seduta più specifica del blocco
+      const hasQ=k===L||k%2===0;
+      // MARTEDÌ: volume a soglia, il motore della mezza (non le ripetute corte). Progressione dedicata
+      // e più contenuta di quella della fase specifica maratona: lì il blocco arriva su un volume molto
+      // più alto, qui si innesta su settimane di base e 40' a soglia sono già il tetto.
+      const ICR=[[3,8,2],[4,8,2],[3,12,3],[4,10,2.5],[5,8,2]];
+      const[cn,cm,crec]=ICR[Math.min(k,ICR.length)-1];
+      if(k%2===0)
+        sess.push({t:'Martedì',n:'Criss-cross',d:`${cn}×${cm}' alternando ${Math.round(cm/2)}' @ ${RP} (gara) / ${Math.round(cm/2)}' @ ${T} (T), rec ${recF(crec)} @ ${E}`,km:3.2+kmAt(cn*cm,(rp+p.T)/2)+kmAt((cn-1)*crec,Ea)+1.7});
+      else
+        sess.push({t:'Martedì',n:'Cruise @ soglia',d:`${cn}×${cm}' @ ${T} (T), rec ${recF(crec)} @ ${E}`,km:3.2+kmAt(cn*cm,p.T)+kmAt((cn-1)*crec,Ea)+1.7});
+      // GIOVEDÌ: base quando la domenica è qualificata (mai 3 sedute dure), altrimenti ritmo gara
+      const nrep=3+Math.round(prog); // 3 → 4 × 2000m
+      sess.push(hasQ?{t:'Giovedì',n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
+        :{t:'Giovedì',n:`Ritmo ${rn}`,d:`15' @ ${E} + ${nrep}×2000m @ ${RP} (gara), rec 2' @ ${E} + 10' @ ${E}`,km:kmAt(25,Ea)+nrep*2+kmAt((nrep-1)*2,Ea)});
+      // DOMENICA: il lungo è la variabile di aggiustamento. Punta verso ~85% della distanza di gara ma
+      // non oltre quello che resta del volume della settimana: senza questo vincolo il blocco produceva
+      // settimane da 46 km innestate su una base da 30, cioè il modo più rapido per farsi male.
+      const oth=sess.reduce((a,x)=>a+x.km,0);
+      let lngKm=Math.min(rd*(0.62+0.23*prog),Math.max(kmAt(65,Ea),vol-oth));
+      let lng=Math.round(lngKm*Ea/60/5)*5;lngKm=kmAt(lng,Ea);
+      if(hasQ){
+        // minuti a ritmo gara nel finale: 35' su una mezza sono una seduta chiave, su una 10k sarebbero
+        // di fatto la gara — sotto i 21 km il tetto scende a 20'
+        const fin=Math.max(15,Math.min(rd>=21?35:20,Math.round((15+prog*20)/5)*5));
+        lngKm=lngKm+kmAt(fin,rp)-kmAt(fin,Ea);
+        sess.push({t:'Domenica',n:'Lungo specifico',d:`${lng-fin}' @ ${E} + ${fin}' @ ${RP} (ritmo ${rn})`,km:lngKm});
+      }else{
+        sess.push({t:'Domenica',n:'Lungo',d:`${lng}' @ ${E}`,km:lngKm});
+      }
     }else if(phase==='base'){ // endurance: volume, salite, ritmo aerobico (estate: velocità)
       if(summer){
         const SR=[[10,200],[12,200],[8,300],[6,400]];const[rn,rm]=SR[(w-1)%SR.length];
@@ -1290,7 +1352,10 @@ function genPlan(silent,carry){
     sess.forEach(s=>s.km=Math.round(s.km*2)/2);
     weeks.push({w,vol:Math.round(sess.reduce((a,s)=>a+(w===n&&s.n.startsWith('GARA')?0:s.km),0)),phase,summer,isDeload,isTaper,sess});
   }
-  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,maraExtraEasy,weeks,GP,GT,E,I,T,interRaces,readiness,ph:{baseW,speedW,specW,taper}};
+  // conteggio fasi dalle settimane effettivamente costruite: il nominale non conosce il blocco intermedio
+  const phC={base:0,speed:0,ispec:0,spec:0,taper:0};
+  weeks.forEach(w=>{if(phC[w.phase]!=null)phC[w.phase]++});
+  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,maraExtraEasy,weeks,GP,GT,E,I,T,interRaces,iSpec,readiness,ph:{baseW:phC.base,speedW:phC.speed,ispecW:phC.ispec,specW:phC.spec,taper:phC.taper}};
   LS('rp_plan',plan);rPlan(plan);rTrack();rToday();
   return plan;
 }
@@ -1314,7 +1379,7 @@ function setWkEdit(key,val){
 function applyWkEdits(pl){
   if(!pl||!pl.weeks)return pl;
   const ed=wkEdits();if(!Object.keys(ed).length)return pl;
-  const ph=pl.ph||{},core=Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.specW||0));
+  const ph=pl.ph||{},core=Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.ispecW||0)+(ph.specW||0));
   const kmAt=(min,sp)=>min*60/sp,r2=k=>Math.round(k*2)/2;
   const clone=JSON.parse(JSON.stringify(pl)),nAll=clone.weeks.length;
   clone.weeks=clone.weeks.map(w=>{
@@ -1504,8 +1569,8 @@ function alignPlanToMonitor(){
     if(sunISO<todayS)wk.hist=1;
     return wk;
   });
-  const PHK={base:'baseW',speed:'speedW',spec:'specW',taper:'taper'};
-  const ph={baseW:0,speedW:0,specW:0,taper:0};
+  const PHK={base:'baseW',speed:'speedW',ispec:'ispecW',spec:'specW',taper:'taper'};
+  const ph={baseW:0,speedW:0,ispecW:0,specW:0,taper:0};
   weeks.forEach(w=>{const kk=PHK[w.phase];if(kk)ph[kk]++});
   const np={...old,weeks,ph};
   // Tutte le modifiche a mano sono ormai incorporate nelle settimane ricostruite (il Monitor le ha già
@@ -1522,11 +1587,13 @@ function rPlan(plan){
   if(!plan)return;
   plan=applyWkEdits(plan);
   const gn={5:'5 km',10:'10 km','21.0975':'Mezza maratona','42.195':'Maratona'}[plan.goal]||plan.goal+' km';
-  const PH={base:'Base',speed:'Velocità',spec:'Specifico',taper:'Taper'};
-  const PHC={base:'var(--acc)',speed:'var(--red)',spec:'var(--acc2)',taper:'var(--warn)'};
+  const iS=plan.iSpec;
+  const iNm=iS?(iS.dist>=42?'maratona':iS.dist>=21?'mezza':iS.dist+'k'):'gara';
+  const PH={base:'Base',speed:'Velocità',ispec:`Specifico ${iNm}`,spec:'Specifico',taper:'Taper'};
+  const PHC={base:'var(--acc)',speed:'var(--red)',ispec:'#8b5cf6',spec:'var(--acc2)',taper:'var(--warn)'};
   // barra della periodizzazione, proporzionale alle settimane di ogni fase
   const ph=plan.ph||{};
-  const segs=[['Base',ph.baseW,'var(--acc)'],['Velocità',ph.speedW,'var(--red)'],['Specifico',ph.specW,'var(--acc2)'],['Taper',ph.taper,'var(--warn)']].filter(s=>s[1]>0);
+  const segs=[['Base',ph.baseW,'var(--acc)'],[`Specifico ${iNm}`,ph.ispecW,'#8b5cf6'],['Velocità',ph.speedW,'var(--red)'],['Specifico',ph.specW,'var(--acc2)'],['Taper',ph.taper,'var(--warn)']].filter(s=>s[1]>0);
   const totW=segs.reduce((a,s)=>a+s[1],0)||1;
   const phaseBar=segs.length?`<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin:10px 0 8px">${segs.map(s=>`<div style="width:${(s[1]/totW*100).toFixed(1)}%;background:${s[2]}"></div>`).join('')}</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--dim);margin-bottom:2px">${segs.map(s=>`<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${s[2]};vertical-align:middle;margin-right:5px"></span>${s[0]} · ${s[1]} sett.</span>`).join('')}</div>`:'';
@@ -1553,7 +1620,7 @@ function rPlan(plan){
     ${phaseBar}
     ${misAlign}
     ${plan.readiness?`<p class="muted" style="margin:6px 0;padding:8px 10px;border-left:3px solid var(--warn,#e0a800);background:rgba(224,168,0,.08);border-radius:6px">⚠️ <b>Base leggera</b> — ${plan.readiness.text} ${plan.readiness.advice} Il piano parte comunque nei limiti di sicurezza, ma le prime settimane saranno più impegnative.</p>`:''}
-    ${plan.interRaces&&plan.interRaces.length?`<p class="muted" style="margin:6px 0">🏁 Gare intermedie (tune-up): ${plan.interRaces.map(r=>`${r.dist>=42?'Maratona':r.dist>=21?'Mezza':r.dist+'k'} il ${new Date(r.date).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}`).join(' · ')}. Mini-scarico prima, la gara sostituisce la qualità, poi recupero. Il blocco a diamante è collocato fuori dagli scarichi gara.</p>`:''}
+    ${plan.interRaces&&plan.interRaces.length?`<p class="muted" style="margin:6px 0">🏁 Gare intermedie (tune-up): ${plan.interRaces.map(r=>`${r.dist>=42?'Maratona':r.dist>=21?'Mezza':r.dist+'k'} il ${new Date(r.date).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}`).join(' · ')}. Mini-scarico prima, la gara sostituisce la qualità, poi recupero. Il blocco a diamante è collocato fuori dagli scarichi gara.${plan.iSpec?` <b>La prima</b> ha davanti ${plan.iSpec.len} settimane di <b>fase specifica ${iNm}</b> (viola): soglia al martedì e lungo con finale a ritmo gara, perché a quella distanza vale la pena arrivarci preparati — e la soglia guadagnata resta per la gara obiettivo. Le successive restano tune-up.`:''}</p>`:''}
     ${plan.weeks.some(w=>w.summer)?'<p class="muted" style="margin:6px 0">☀️ Estate (giu-ago): intenso ma breve — martedì interval, giovedì Z2, weekend qualità. Due sedute veloci corte separate da corse lente, niente lungo lento. Corri presto al mattino.</p>':''}
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
       <button class="btn btn2" style="margin:0;flex:1 1 44%" onclick="copyPlan()">Copia (markdown)</button>
@@ -1707,7 +1774,7 @@ function exportICS(silent){
   // stato di sync incrementale per questa gara: UID per data + SEQUENCE + cancellazioni
   let sync=LS('rp_ics');if(!sync||sync.key!==pl.dateStr)sync={key:pl.dateStr,seq:0,events:[]};
   const seq=(sync.seq||0)+1;
-  const PHN={base:'Base',speed:'Velocità',spec:'Specifico',taper:'Taper'};
+  const PHN={base:'Base',speed:'Velocità',ispec:'Intermedio',spec:'Specifico',taper:'Taper'};
   const QUALN=['Interval','Ripetute','Cruise','Criss','Richiami'];
   let ics='BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//RunPlan//IT\r\nCALSCALE:GREGORIAN\r\nX-WR-CALNAME:Allenamenti corsa\r\n';
   const curr=[],slotUsed={};
@@ -1755,7 +1822,7 @@ function exportICS(silent){
 }
 function copyPlan(){
   const pl=LS('rp_plan');if(!pl)return;
-  const PH={base:'base',speed:'velocità',spec:'specifico',taper:'taper'};
+  const PH={base:'base',speed:'velocità',ispec:'specifico gara intermedia',spec:'specifico',taper:'taper'};
   let md=`# Piano ${pl.dateStr} — VDOT ${pl.vd}\nObiettivo: ${pl.GT} (${pl.GP}/km)\n\n`;
   pl.weeks.forEach(w=>{md+=`## Settimana ${w.w} — ${PH[w.phase]||''} (~${w.vol} km)${w.isDeload?' — scarico':''}\n`;
     w.sess.forEach(s=>md+=`- **${s.t}** ${s.n}: ${s.d} (≈${s.km} km)\n`);md+='\n'});
@@ -1764,8 +1831,8 @@ function copyPlan(){
 
 /* ---------- monitoraggio piano (da .ics) ---------- */
 const toSec=p=>{const m=(''+p).split(':');return +m[0]*60+ +m[1]};
-const PHKEY={base:'base',velocità:'speed',velocita:'speed',specifico:'spec',taper:'taper'};
-const PHN={base:'Base',speed:'Velocità',spec:'Specifico',taper:'Taper'};
+const PHKEY={base:'base',velocità:'speed',velocita:'speed',intermedio:'ispec',specifico:'spec',taper:'taper'};
+const PHN={base:'Base',speed:'Velocità',ispec:'Intermedio',spec:'Specifico',taper:'Taper'};
 /* CARICO della seduta — 1 base · 2 intermedio · 3 alto · 4 molto alto.
    Le sedute che lo dichiarano (i lunghi della fase specifica, che conoscono la propria struttura)
    vincono; per tutte le altre si deduce dal nome. Serve a leggere a colpo d'occhio quanto costa
