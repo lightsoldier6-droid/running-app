@@ -91,6 +91,18 @@ svg text{fill:var(--dim);font-size:9px}
 .muted{color:var(--dim);font-size:12px}
 .pill{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:12px;padding:3px 10px;margin:2px 4px 2px 0;color:var(--dim)}
 .pill.on{border-color:var(--acc);color:var(--acc)}
+.reptab{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0 4px}
+.reptab th{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);font-weight:600;text-align:right;padding:3px 6px;border-bottom:1px solid var(--line)}
+.reptab th:first-child{text-align:left}
+.reptab td{padding:3px 6px;text-align:right;border-bottom:1px solid var(--line)}
+.reptab td:first-child{text-align:left;color:var(--dim)}
+.reptab tr:last-child td{border-bottom:none}
+.reptab .ok{color:#1a8a3f;font-weight:600}
+.reptab .fast{color:#0a6ed1;font-weight:600}
+.reptab .slow{color:#c0392b;font-weight:600}
+.presc{font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.presc b{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);display:block;margin-bottom:2px}
+.nolap{font-size:12px;border-left:3px solid var(--warn);background:rgba(224,168,0,.08);border-radius:6px;padding:7px 10px;margin-bottom:8px;color:var(--dim)}
 .benefit{background:#e3f5e9;border:1px solid #bfe6cc;border-radius:12px;padding:11px 13px;margin-bottom:12px}
 .benefit .bl{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:#1a8a3f;margin-bottom:2px}
 .benefit b{font-size:16px}
@@ -2618,6 +2630,103 @@ function rAnaSel(){
   sel.innerHTML=runs.slice().reverse().map(r=>`<option value="${r.date}">${r.date.slice(0,10)} · ${r.title} (${r.km.toFixed(1)} km)</option>`).join('');
   sel.value=cur&&runs.some(r=>r.date===cur)?cur:(runs.length?runs[runs.length-1].date:'');
 }
+/* ---------- ESECUZIONE vs PRESCRIZIONE ----------
+   Prima l'analisi indovinava la struttura dai lap: un 6×2' diventava "6×487m" (i metri sono un
+   sottoprodotto del cronometro, cambiano ogni volta), le soglie dello scarto erano in secondi assoluti
+   e ogni paragrafo dava il suo verdetto — così la stessa seduta risultava insieme "troppa varianza" e
+   "eseguita come da programma". Adesso si parte dal testo della seduta a piano, che è scritto da
+   genPlan e quindi ha un formato noto, e si confronta ripetuta per ripetuta. */
+function parseWork(txt){
+  if(!txt)return null;
+  const t=String(txt);
+  const bandOf=x=>{const m=x.match(/(\d:\d\d)\s*[–—-]\s*(\d:\d\d)/);
+    if(m){const a=toSec(m[1]),b=toSec(m[2]);return{lo:Math.min(a,b),hi:Math.max(a,b)}}
+    const o=x.match(/@\s*(\d:\d\d)/);if(o){const a=toSec(o[1]);return{lo:a-3,hi:a+3}}return null};
+  const zoneOf=x=>(x.match(/\((I|R|T|M|gara|E|Z2)\)/)||[])[1]||null;
+  // ripetute: n × valore, in minuti (') o in metri (m)
+  const m=t.match(/(\d+)\s*[x×]\s*(\d+)\s*(m|')/);
+  if(m){
+    const n=+m[1],v=+m[2],isD=m[3]==='m';
+    const seg=t.slice(m.index+m[0].length).split(/,\s*rec/)[0];
+    let b=bandOf(seg);
+    if(/alternando/.test(seg)){ // criss-cross: due fasce, il target è la loro unione
+      const all=[...seg.matchAll(/(\d:\d\d)\s*[–—-]\s*(\d:\d\d)/g)].flatMap(x=>[toSec(x[1]),toSec(x[2])]);
+      if(all.length)b={lo:Math.min(...all),hi:Math.max(...all)};
+    }
+    if(!b)return null;
+    return{kind:'reps',n,dist:isD?v:null,dur:isD?null:v*60,lo:b.lo,hi:b.hi,zone:zoneOf(seg),
+      label:n+'×'+(isD?v+'m':v+"'"),alt:/alternando/.test(seg)};
+  }
+  const pr=t.match(/(\d+)'\s*continui\s*da\s*(\d:\d\d)\s*a\s*(\d:\d\d)/);
+  if(pr)return{kind:'prog',dur:+pr[1]*60,lo:Math.min(toSec(pr[2]),toSec(pr[3])),hi:Math.max(toSec(pr[2]),toSec(pr[3])),
+    zone:zoneOf(t),label:pr[1]+"' progressivi"};
+  // blocchi continui a ritmo (medio, ritmo gara, finale del lungo): quelli col tag di zona
+  const bl=[...t.matchAll(/(\d+)'\s*@\s*(\d:\d\d)\s*[–—-]\s*(\d:\d\d)\s*\((I|R|T|M|gara)\)/g)];
+  if(bl.length){const b=bl[0],tot=bl.reduce((x,y)=>x+ +y[1],0);
+    return{kind:'blocchi',n:bl.length,dur:tot*60,lo:Math.min(toSec(b[2]),toSec(b[3])),hi:Math.max(toSec(b[2]),toSec(b[3])),
+      zone:b[4],label:bl.length>1?bl.length+' blocchi ('+tot+"' a ritmo)":b[1]+"' a ritmo"};
+  }
+  // corsa continua facile: nessuna prescrizione da confrontare frazione per frazione
+  const ez=t.match(/(\d+)'\s*@\s*(\d:\d\d)\s*[–—-]\s*(\d:\d\d)/);
+  if(ez)return{kind:'facile',dur:+ez[1]*60,lo:Math.min(toSec(ez[2]),toSec(ez[3])),hi:Math.max(toSec(ez[2]),toSec(ez[3])),zone:'E',label:ez[1]+"' facili"};
+  return null;
+}
+/* Abbina i lap del .fit alle frazioni prescritte. Se Garmin ha registrato la struttura (allenamento
+   programmato) bastano i lap 'act'; se il file ha tutti i lap 'act' — giro manuale o auto-lap — si
+   cercano quelli che somigliano alla frazione prescritta. Se non tornano, lo si dichiara. */
+function matchReps(pres,laps){
+  if(!pres||!laps||!laps.length||pres.kind!=='reps')return null;
+  const strutt=laps.some(l=>l[4]!=='act');
+  const n=pres.n;
+  let cand=laps.filter(l=>l[4]==='act'&&l[0]>=150);
+  let dedotto=false;
+  const okLap=l=>pres.dist?Math.abs(l[0]-pres.dist)<=pres.dist*0.15
+    :pres.dur?Math.abs(l[1]-pres.dur)<=Math.max(10,pres.dur*0.2):false;
+  if(!strutt||cand.length>n+1){
+    const f=cand.filter(okLap);
+    if(f.length>=Math.max(2,n-1)&&f.length<=n+1){cand=f;dedotto=!strutt}
+  }
+  if(cand.length<2)return null;
+  const reps=cand.slice(0,n).map((l,i)=>({i:i+1,m:l[0],s:l[1],pace:l[1]/(l[0]/1000),hr:l[2]}));
+  return{reps,trovate:cand.length,attese:n,strutt,dedotto};
+}
+/* Blocco continuo (medio, ritmo gara, finale del lungo): non sono frazioni da incolonnare — il dato
+   giusto è il passo dell'INTERO blocco. Serve che il .fit marchi riscaldamento e defaticamento,
+   altrimenti non c'è modo di sapere dove comincia il lavoro e si dichiara che non si sa. */
+function matchBlock(pres,laps){
+  if(!pres||pres.kind!=='blocchi'||!laps||!laps.length)return null;
+  if(!laps.some(l=>l[4]!=='act'))return null;
+  const a=laps.filter(l=>l[4]==='act'&&l[0]>=200);
+  if(!a.length)return null;
+  const m=a.reduce((x,l)=>x+l[0],0),sec=a.reduce((x,l)=>x+l[1],0);
+  if(m<800)return null;
+  return{m,s:sec,pace:sec/(m/1000),n:a.length};
+}
+/* Verdetto UNICO sull'esecuzione: quante frazioni, quante in fascia, scarto medio, regolarità.
+   La regolarità si misura in % sul passo (6s/km su ripetute a 4:00 sono l'2,5%, su un easy a 5:40
+   sono un'altra cosa) e non contraddice mai il verdetto sulla fascia. */
+function repVerdict(pres,mr){
+  const R=mr.reps,tol=3;
+  const pcs=R.map(x=>x.pace),avg=pcs.reduce((a,b)=>a+b,0)/pcs.length;
+  const inB=R.filter(x=>x.pace>=pres.lo-tol&&x.pace<=pres.hi+tol).length;
+  const spread=Math.max(...pcs)-Math.min(...pcs),spreadPct=spread/avg*100;
+  const d=avg<pres.lo?avg-pres.lo:avg>pres.hi?avg-pres.hi:0;
+  const band=fmtP(pres.lo)+'–'+fmtP(pres.hi)+'/km'+(pres.zone?' ('+pres.zone+')':'');
+  let v='';
+  if(mr.trovate<mr.attese)v+=`Hai chiuso ${mr.trovate} frazioni delle ${mr.attese} previste. `;
+  else if(mr.trovate>mr.attese)v+=`Ne hai fatte ${mr.trovate} invece delle ${mr.attese} previste (qui sotto le prime ${mr.attese}). `;
+  if(inB===R.length)v+=`Tutte a target (${band}): seduta eseguita come prescritta.`;
+  else if(inB>=R.length-1)v+=`${inB} frazioni su ${R.length} dentro il target (${band})`+
+    (d===0?`, media in fascia.`:`, media ${Math.abs(d).toFixed(0)}s/km ${d<0?'più veloce':'più lenta'}.`);
+  else if(d<0)v+=`Media ${Math.abs(d).toFixed(0)}s/km più veloce del target (${band}): ${Math.abs(d)<=5?'gamba brillante':'oltre la prescrizione — il rischio è arrivare cotto alle sedute dopo'}.`;
+  else if(d>0)v+=`Media ${d.toFixed(0)}s/km sopra il target (${band}): ${d<=5?'poco sotto ritmo, niente di grave':'la seduta non ha centrato lo stimolo previsto — o era una giornata storta, o il target è troppo ambizioso'}.`;
+  else v+=`Media in fascia (${band}), ma ${R.length-inB} frazioni fuori: esecuzione ballerina.`;
+  // la regolarità si aggiunge solo quando dice qualcosa che il verdetto sopra non dice già
+  if(inB<R.length||spreadPct>3.5)
+    v+=` Scarto tra la più veloce e la più lenta: ${spread.toFixed(0)}s/km (${spreadPct.toFixed(1)}%) — `+
+      (spreadPct<=1.5?'esecuzione da metronomo.':spreadPct<=3?'buona regolarità.':'partenza troppo generosa: meglio conservativo e chiudere in progressione.');
+  return{txt:v,avg,inB,spread,spreadPct,band};
+}
 function rAna(){
   const el=document.getElementById('a-out');
   const key=document.getElementById('a-sel').value;
@@ -2632,7 +2741,17 @@ function rAna(){
   const wMbSim=(()=>{let m=0,b=0;sim.forEach(x=>{if(x.hr){m+=x.km*1000;b+=x.hr*x.sec/60}});return b?m/b:null})();
   const zone=hrZone(r.hr),zmax=hrZone(r.hrmax);
   const vd=vdotOf(r.km,r.sec),cvd=curVdot();
-  const lp0=lapsDB[key];const acts=lp0&&lp0.laps?lp0.laps.filter(l=>l[4]==='act'&&l[0]>0):[];
+  const lp0=lapsDB[key];const allLaps=lp0&&lp0.laps?lp0.laps:[];
+  // sotto i 200 m sono allunghi o resti dell'auto-lap: entravano nell'analisi e diventavano
+  // "la frazione più veloce (4:30/km)" dentro una corsa facile.
+  const acts=allLaps.filter(l=>l[4]==='act'&&l[0]>=200);
+  // cluster delle frazioni uguali: se il .fit non marca riscaldamento e defaticamento questi restano
+  // in mezzo agli 'act' e fanno sembrare i lap non uniformi — si prova a togliere gli estremi.
+  const repCore=(()=>{const uni=a=>a.length>=3&&a.every(l=>Math.abs(l[0]-a[0][0])<100);
+    for(const cnd of [acts,acts.slice(1),acts.slice(0,-1),acts.slice(1,-1)])if(uni(cnd))return cnd;
+    return[];})();
+  const planSess=plannedFor(key),pres=parseWork(planSess&&planSess.work);
+  const mrep=matchReps(pres,allLaps),mblk=matchBlock(pres,allLaps);
   // split prima/seconda parte per DISTANZA (non per numero di lap): con lap eterogenei
   // (es. 10×1km + allunghi da 100m) dividere a metà per conteggio falsa i passi.
   const halfIdx=a=>{const tot=a.reduce((s,l)=>s+l[0],0),mid=tot/2;let cum=0,i=0;
@@ -2647,26 +2766,51 @@ function rAna(){
   const idx=runs.findIndex(x=>x.date===r.date);
   const prev=idx>0?runs[idx-1]:null;
   let ctx=`${CLSN[c]}${stp?' ('+stp+')':''} di ${r.km.toFixed(1)} km, ${DN[dt.getDay()]} ${dt.getHours()<12?'mattina':dt.getHours()<18?'pomeriggio':'sera'}, passo medio ${fmtP(pace(r))}/km, in una settimana da ${wkTot.toFixed(0)} km totali.`;
-  if(prev){const gap=Math.round((dt-day(prev.date))/864e5);
+  // sui GIORNI di calendario: col confronto fra orari una serale seguita da una mattutina due giorni
+  // dopo risultava "il giorno prima" (18 casi in archivio)
+  if(prev){const dOnly=x=>new Date(x.slice(0,10)+'T12:00:00');
+    const gap=Math.round((dOnly(r.date)-dOnly(prev.date))/864e5);
     ctx+=gap<=1?` Arrivavi dalla ${CLSN[cls(prev)].toLowerCase()} del giorno prima (${prev.km.toFixed(1)} km).`
       :` Arrivavi da ${gap-1} giorn${gap-1===1?'o':'i'} di riposo.`}
   PARA.push(ctx);
-  // 2. esecuzione
-  let ex='';
-  const sameDist=acts.length>=3&&acts.every(l=>Math.abs(l[0]-acts[0][0])<100)&&c!=='race';
-  if(sameDist){
-    const pcs=acts.map(l=>l[1]/(l[0]/1000));
-    const avg=pcs.reduce((a,b)=>a+b)/pcs.length,best=Math.min(...pcs),bi=pcs.indexOf(best)+1;
-    const spread=Math.max(...pcs)-Math.min(...pcs);
-    ex=`Hai corso ${acts.length}×${acts[0][0]}m a ${fmtP(avg)}/km di media, con la migliore (${fmtP(best)}) alla ${bi}ª ripetuta. Lo scarto tra la frazione più veloce e la più lenta è di ${spread.toFixed(1)} secondi/km: ${spread<=3?'un esecuzione da metronomo, sapevi esattamente che ritmo tenere':spread<=6?'buona regolarità, con margine per limare ancora':'troppa varianza — meglio partire più conservativo e chiudere in progressione'}.`;
-    const wt=workTarget(plannedFor(r.date));
-    const tgt=wt?wt.mid:(cvd?vAt(acts[0][0]<600?1.07:0.975,cvd):null);
-    if(tgt){const inR=wt?(avg>=wt.lo-3&&avg<=wt.hi+3):((avg-tgt)>=-2&&(avg-tgt)<=3);
-      const d=wt?(avg<wt.lo?avg-wt.lo:avg>wt.hi?avg-wt.hi:0):(avg-tgt);
-      const tt=wt?`${fmtP(wt.lo)}–${fmtP(wt.hi)}/km${wt.zone?' ('+wt.zone+')':''}`:`${fmtP(tgt)}/km dal tuo VDOT`;
-      ex+=inR?` La tua media è in linea col target previsto (${tt}): seduta eseguita come da programma.`
-        :avg<(wt?wt.lo:tgt)?` La tua media è stata più veloce di ${Math.abs(d).toFixed(0)}s/km rispetto al target previsto (${tt}): gamba brillante.`
-        :` La tua media è stata ${d.toFixed(0)}s/km sopra il target previsto (${tt}): non un dramma, ma registra la fatica del periodo.`}
+  // 2. esecuzione — se c'è una prescrizione da confrontare, quella comanda
+  let ex='',repHtml='';
+  if(pres&&mrep&&c!=='race'){
+    const vd2=repVerdict(pres,mrep);
+    const R=mrep.reps,unitD=!!pres.dist;
+    ex=`Previsto: <b>${pres.label} @ ${vd2.band}</b>. ${vd2.txt}`;
+    if(mrep.dedotto)ex+=` <span class="muted">(il .fit non marca riscaldamento e recuperi: ho riconosciuto le frazioni per somiglianza con quelle prescritte)</span>`;
+    const best=Math.min(...R.map(x=>x.pace));
+    repHtml=`<table class="reptab"><thead><tr><th>Frazione</th><th>${unitD?'Tempo':'Distanza'}</th><th>Passo</th><th>Δ target</th>${R.some(x=>x.hr)?'<th>FC</th>':''}</tr></thead><tbody>`+
+      R.map(x=>{const d=x.pace<pres.lo?x.pace-pres.lo:x.pace>pres.hi?x.pace-pres.hi:0;
+        const klass=Math.abs(d)<3?'ok':d<0?'fast':'slow';
+        return `<tr><td>${x.i}ª${x.pace===best?' ★':''}</td><td>${unitD?fmtD(Math.round(x.s)):Math.round(x.m)+' m'}</td><td>${fmtP(x.pace)}</td><td class="${klass}">${Math.abs(d)<3?'in fascia':(d>0?'+':'−')+Math.abs(d).toFixed(0)+'s'}</td>${R.some(y=>y.hr)?`<td>${x.hr||'–'}</td>`:''}</tr>`}).join('')+
+      `</tbody></table>`;
+  }else if(pres&&mblk&&c!=='race'){ // blocco continuo: conta il passo dell'INTERO blocco, non la prima frazione
+    const dr=mblk.pace<pres.lo?mblk.pace-pres.lo:mblk.pace>pres.hi?mblk.pace-pres.hi:0;
+    const d=Math.abs(dr)<3?0:Math.round(dr); // ±3s è la tolleranza dichiarata nelle note del piano
+    const band=fmtP(pres.lo)+'–'+fmtP(pres.hi)+'/km'+(pres.zone?' ('+pres.zone+')':'');
+    ex=`Previsto: <b>${pres.label} @ ${band}</b>. Hai corso ${(mblk.m/1000).toFixed(2)} km di lavoro in ${fmtD(Math.round(mblk.s))} a <b>${fmtP(mblk.pace)}/km</b> — `+
+      (d===0?'dentro la fascia prescritta: blocco centrato.'
+      :d<0?`${Math.abs(d).toFixed(0)}s/km più veloce del target${Math.abs(d)<=5?': gamba brillante.':': sopra la prescrizione — il medio corso a soglia costa più di quanto rende.'}`
+      :`${d.toFixed(0)}s/km più lento del target${d<=5?': in pratica in linea.':': lo stimolo previsto non è stato raggiunto.'}`);
+  }else if(pres&&(pres.kind==='facile'||pres.kind==='prog')&&!mrep){
+    const pc=pace(r),d=pc<pres.lo?pc-pres.lo:pc>pres.hi?pc-pres.hi:0;
+    ex=`Previsto: <b>${pres.label} @ ${fmtP(pres.lo)}–${fmtP(pres.hi)}/km</b>. Passo medio ${fmtP(pc)}/km — `+
+      (d===0?'dentro la fascia prescritta.'
+      :d<0?`${Math.abs(d).toFixed(0)}s/km più veloce del previsto${c==='easy'||c==='long'?': il facile corso forte è il modo più comune di arrivare stanchi alle sedute che contano.':'.'}`
+      :`${d.toFixed(0)}s/km più lento del previsto: giornata pesante, caldo o percorso.`);
+  }else if(c!=='race'&&repCore.length>=3){ // nessuna prescrizione: struttura dedotta dai lap
+    const secs=repCore.map(l=>l[1]),dd=repCore.map(l=>l[0]);
+    const aTempo=(Math.max(...secs)-Math.min(...secs))<=4&&(Math.max(...dd)-Math.min(...dd))/(dd.reduce((a,b)=>a+b,0)/dd.length)>0.012;
+    const et=aTempo?(Math.round(secs[0])>=60&&Math.round(secs[0])%60===0?Math.round(secs[0]/60)+"'":Math.round(secs[0])+'"'):Math.round(repCore[0][0])+'m';
+    const pcs=repCore.map(l=>l[1]/(l[0]/1000));
+    const avg=pcs.reduce((a,b)=>a+b,0)/pcs.length,best=Math.min(...pcs),bi=pcs.indexOf(best)+1;
+    const spread=Math.max(...pcs)-Math.min(...pcs),spPct=spread/avg*100;
+    ex=`Nessuna seduta a piano per questa data, la struttura la deduco dai lap: <b>${repCore.length}×${et}</b> a ${fmtP(avg)}/km di media, migliore la ${bi}ª (${fmtP(best)}). Scarto ${spread.toFixed(0)}s/km (${spPct.toFixed(1)}%): ${spPct<=1.5?'esecuzione da metronomo':spPct<=3?'buona regolarità':'partenza troppo generosa, meglio conservativo e chiudere in progressione'}.`;
+    if(cvd){const pz=paces(cvd);
+      const zz=[['R',pz.R],['I',pz.I],['T',pz.T],['M',pz.M]].reduce((b,z)=>Math.abs(avg-z[1])<Math.abs(avg-b[1])?z:b);
+      ex+=` Il passo tenuto cade nella tua zona <b>${zz[0]}</b> attuale (${fmtP(zz[1])}/km).`}
   }else if(acts.length>=2){
     const si=halfIdx(acts);
     const pAvg=a=>a.reduce((x,l)=>x+l[1],0)/a.reduce((x,l)=>x+l[0]/1000,0);
@@ -2679,9 +2823,10 @@ function rAna(){
       ex=pc<p.E[1]-3?`Il passo è più veloce della tua fascia easy attuale (${fmtP(p.E[1])}–${fmtP(p.E[0])}): l'hai corsa come un medio, e il recupero ne risente.`
         :pc<=p.E[0]+10?`Il passo è dentro la tua fascia easy attuale (${fmtP(p.E[1])}–${fmtP(p.E[0])}): esattamente dove deve stare una corsa di costruzione.`
         :`Passo tranquillo, sotto la fascia easy: perfetto se era un'uscita rigenerante.`;
-    else ex=`Passo medio ${fmtP(pc)}/km sull'intera seduta — senza lap non distinguo lavoro e recuperi: importa il .fit per l'analisi delle frazioni.`;
+    else ex=`Passo medio ${fmtP(pc)}/km sull'intera seduta.`;
   }
   if(ex)PARA.push(ex);
+  if(repHtml)PARA.push({raw:repHtml});
   // 3. risposta cardiaca
   let hrp='';
   if(r.hr){
@@ -2785,8 +2930,11 @@ function rAna(){
   if(plano)PARA.push(plano);
   if(take)PARA.push(take);
   // ---- assemblaggio: beneficio principale in evidenza, poi lettura, poi i dati
+  // 83% dell'archivio viene dal CSV Garmin e non ha i lap: dirlo, invece di far sembrare l'analisi
+  // dello stesso spessore di quella di una seduta importata da .fit
+  const noLapHtml=allLaps.length?'':`<div class="nolap">Questa corsa non ha i lap: è arrivata dall'export CSV, non da un .fit. Posso leggere solo i totali — niente frazioni, niente confronto con il target delle ripetute, niente deriva cardiaca. Importa il .fit dal tab Dati per l'analisi completa.</div>`;
   const benHtml=benefit?`<div class="benefit"><span class="bl">Beneficio principale</span><b>${benefit.name}</b> <small>· zona ${benefit.zone} · lavoro @ ${fmtP(benefit.wp)}/km</small><p>${benefit.desc}</p></div>`:'';
-  let html=`<div class="card"><h2>Lettura della corsa</h2>${benHtml}${PARA.map(x=>`<p style="margin-bottom:10px">${x}</p>`).join('')}</div>`;
+  let html=`<div class="card"><h2>Lettura della corsa</h2>${noLapHtml}${benHtml}${PARA.map(x=>typeof x==='string'?`<p style="margin-bottom:10px">${x}</p>`:x.raw).join('')}</div>`;
   html+=`<div class="card"><h2>${r.title} · ${r.date.slice(0,10)}</h2>
     <p style="margin-bottom:10px"><span class="badge ${c}">${CLSN[c]}</span>${stp?` <span class="badge">${stp}</span>`:''}${r.tm?' <span class="badge">tapis</span>':''}</p>
     <div class="grid3">
