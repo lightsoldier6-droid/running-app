@@ -1528,8 +1528,11 @@ function applyWkEdits(pl){
       const occupA=['Martedì','Giovedì'].map(t=>w.sess.find(x=>x.t===t)).filter(Boolean);
       const victA=occupA.length?occupA.slice().sort((a,b)=>scoreA(a)-scoreA(b))[0]:null;
       let slotA=victA?victA.t:'Martedì',arretrata=false;
-      // il giovedì è a 3 giorni dalla gara: una seduta di carico alto lì compromette la domenica
-      if(keptA&&slotA==='Giovedì'&&sLoad(keptA)>=3){slotA='Martedì';arretrata=true}
+      // Il giovedì dista 3 giorni dalla gara: lì ci può stare solo volume aerobico puro. Un «Lungo con
+      // finale» ha 30' a ritmo maratona dentro e pesa come una qualità pur avendo sLoad 2, quindi il
+      // criterio non è il carico ma la presenza di lavoro a ritmo (tag di zona o freccia del progressivo).
+      const puroAer=keptA&&sysA(keptA)==='endurance'&&!/\((?:M|T|I|R)\)|\(ritmo|→/.test(keptA.d||'');
+      if(keptA&&slotA==='Giovedì'&&!puroAer){slotA='Martedì';arretrata=true}
       const otherA=slotA==='Martedì'?'Giovedì':'Martedì';
       sess=[];
       if(keptA)sess.push({...keptA,t:slotA});
@@ -1548,7 +1551,7 @@ function applyWkEdits(pl){
         const fem=/^lungo/i.test(keptA.n)?'o':'a';
         noteA+=`Tengo «${keptA.n}» spostat${fem} a ${slotA.toLowerCase()}: la gara copre già ${SYSNA[raceSysA]}, quindi la seduta più utile che resta è quella di ${SYSNA[sysA(keptA)]}`;
         noteA+=victA&&victA!==keptA?`, e prende il posto di «${victA.n}», la più sacrificabile fra martedì e giovedì. `:'. ';
-        if(arretrata)noteA+=`L'ho messa al martedì e non al giovedì: è una seduta di carico ${LOADL[sLoad(keptA)]} e il giovedì disterebbe 3 giorni dalla gara. `;
+        if(arretrata)noteA+=`L'ho messa al martedì e non al giovedì: ha del lavoro a ritmo dentro (carico ${LOADL[sLoad(keptA)]}) e il giovedì disterebbe solo 3 giorni dalla gara. `;
       }else noteA+=`Nessuna seduta da salvare: quelle previste allenano lo stesso sistema della gara. `;
       if(dropA.length)noteA+='Tolgo '+dropA.map(x=>`«${x.n}» (${sysA(x)===raceSysA?'stesso sistema della gara':'per non affollare la settimana'})`).join(' e ')+'. ';
       noteA+=otherA==='Giovedì'
