@@ -1503,9 +1503,59 @@ function applyWkEdits(pl){
       sess.forEach(s=>s.km=r2(s.km));
       return {...w,isDeload:false,manual:ov,midRace:true,raceNote:note,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
     }
-    if(add){ // tieni le sedute della settimana, sostituisci la domenica con la gara (seconda seduta di qualità)
-      sess=w.sess.map(s=>s.t==='Domenica'?raceSess:{...s});
-      if(!w.sess.some(s=>s.t==='Domenica'))sess.push(raceSess);
+    if(add){
+      // GARA LA DOMENICA — la settimana si riadatta invece di limitarsi a perdere la domenica.
+      // Prima la gara sostituiva il lungo e basta: il lungo spariva senza dirlo e martedì/giovedì
+      // restavano com'erano, così in fase specifica venivano fuori tre giorni duri (Cruise, Ritmo
+      // gara e gara). Ora vale la stessa logica della gara infrasettimanale: si salva UNA seduta,
+      // la più utile, e la si sposta nello slot della più sacrificabile fra martedì e giovedì.
+      const raceSysA=dist<=5?'vo2':dist<=10?'threshold':'endurance';
+      const SYSNA={vo2:'VO2max/velocità',threshold:'soglia',endurance:'resistenza',easy:'facile'};
+      const sysA=x=>{const t=(x.n+' '+x.d).toLowerCase();
+        if(/lungo|long|simulazione|big workout/.test(t))return 'endurance';
+        if(/cruise|soglia|medio|progress|criss|ritmo gara|tempo run|fartlek/.test(t))return 'threshold';
+        if(/interval|ripetut|richiami/.test(t))return 'vo2';
+        return 'easy';};
+      // Con la gara di domenica lo stimolo che resta scoperto NON è la qualità ma la resistenza:
+      // il lungo pesa più della soglia. La penalità sul sistema della gara fa il resto — con una
+      // mezza è la gara stessa a fare da lungo, e allora vince la qualità.
+      const rankA={endurance:3,threshold:2,vo2:1,easy:0};
+      const scoreA=x=>rankA[sysA(x)]-(sysA(x)===raceSysA?5:0)+sLoad(x)*0.1; // a parità di sistema vince il carico più alto
+      const DIA={'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':7};
+      const hardA=w.sess.filter(x=>sysA(x)!=='easy');
+      const rankedA=hardA.slice().sort((a,b)=>scoreA(b)-scoreA(a));
+      const keptA=(rankedA.length&&scoreA(rankedA[0])>=1)?rankedA[0]:null;
+      const occupA=['Martedì','Giovedì'].map(t=>w.sess.find(x=>x.t===t)).filter(Boolean);
+      const victA=occupA.length?occupA.slice().sort((a,b)=>scoreA(a)-scoreA(b))[0]:null;
+      let slotA=victA?victA.t:'Martedì',arretrata=false;
+      // il giovedì è a 3 giorni dalla gara: una seduta di carico alto lì compromette la domenica
+      if(keptA&&slotA==='Giovedì'&&sLoad(keptA)>=3){slotA='Martedì';arretrata=true}
+      const otherA=slotA==='Martedì'?'Giovedì':'Martedì';
+      sess=[];
+      if(keptA)sess.push({...keptA,t:slotA});
+      // Il giovedì non va sprecato in un taper: davanti a una 5k/10k bastano gambe fresche, non
+      // riposo, quindi resta una corsa vera con allunghi. Solo la mezza merita il pre-gara corto.
+      const preLong=dist>=21;
+      sess.push(otherA==='Giovedì'
+        ?(preLong?{t:'Giovedì',n:'Pre-gara',d:`25' @ ${E} + 4×100m allunghi`,km:kmAt(25,Ea)+0.4}
+                 :{t:'Giovedì',n:'Easy + allunghi',d:`45' @ ${E} + 4×100m allunghi`,km:kmAt(45,Ea)+0.4})
+        :{t:'Martedì',n:'Z2',d:`45' @ ${E} (Z2) — corsa lenta di raccordo`,km:kmAt(45,Ea)});
+      sess.push(raceSess);
+      sess.sort((a,b)=>DIA[a.t]-DIA[b.t]);
+      const dropA=hardA.filter(x=>x!==keptA&&x!==victA); // victA è già nominata come slot ceduto
+      let noteA=`Gara la domenica (${rn}: stimolo di ${SYSNA[raceSysA]}). `;
+      if(keptA){
+        const fem=/^lungo/i.test(keptA.n)?'o':'a';
+        noteA+=`Tengo «${keptA.n}» spostat${fem} a ${slotA.toLowerCase()}: la gara copre già ${SYSNA[raceSysA]}, quindi la seduta più utile che resta è quella di ${SYSNA[sysA(keptA)]}`;
+        noteA+=victA&&victA!==keptA?`, e prende il posto di «${victA.n}», la più sacrificabile fra martedì e giovedì. `:'. ';
+        if(arretrata)noteA+=`L'ho messa al martedì e non al giovedì: è una seduta di carico ${LOADL[sLoad(keptA)]} e il giovedì disterebbe 3 giorni dalla gara. `;
+      }else noteA+=`Nessuna seduta da salvare: quelle previste allenano lo stesso sistema della gara. `;
+      if(dropA.length)noteA+='Tolgo '+dropA.map(x=>`«${x.n}» (${sysA(x)===raceSysA?'stesso sistema della gara':'per non affollare la settimana'})`).join(' e ')+'. ';
+      noteA+=otherA==='Giovedì'
+        ?(preLong?'Giovedì solo pre-gara leggero: alla mezza ci si arriva scarichi.':'Giovedì corsa easy con allunghi: davanti a una gara corta servono gambe fresche, non riposo.')
+        :'Martedì corsa lenta di raccordo.';
+      sess.forEach(x=>x.km=r2(x.km));
+      return {...w,isDeload:false,manual:ov,addRace:true,raceNote:noteA,sess,vol:Math.round(sess.reduce((a,x)=>a+x.km,0))};
     }else{ // settimana dedicata alla gara: mini-scarico + gara
       sess=[
         {t:'Martedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)},
@@ -1654,7 +1704,7 @@ function rPlan(plan){
           ${sO('','Auto')}
           ${sO('deload','Rendi scarico')}
           <optgroup label="Adatta al reale">${sO('real','✔ Riscrivi sulle corse svolte')}</optgroup>
-          <optgroup label="Gara la domenica (resto invariato)">${sO('a5','+ Gara 5k')}${sO('a10','+ Gara 10k')}${sO('a21','+ Gara mezza')}</optgroup>
+          <optgroup label="Gara la domenica (settimana riadattata)">${sO('a5','+ Gara 5k')}${sO('a10','+ Gara 10k')}${sO('a21','+ Gara mezza')}</optgroup>
           <optgroup label="Settimana dedicata (scarico + gara)">${sO('r5','Gara 5k')}${sO('r10','Gara 10k')}${sO('r21','Gara mezza')}</optgroup>
           <optgroup label="Gara infrasettimanale (giovedì)">${sO('w5','Gara 5k giovedì')}${sO('w10','Gara 10k giovedì')}${sO('w21','Gara mezza giovedì')}</optgroup>
         </select>`:'';
