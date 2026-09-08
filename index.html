@@ -1088,6 +1088,28 @@ function genPlan(silent,carry){
   {const el=[];for(let w=baseW+1;w<=endSpeed;w++)if(eligibleW(w))el.push(w);
    const dia=buildDiamond(Math.min(10,el.length));
    el.slice(0,dia.length).forEach((w,i)=>diaByWeek[w]=dia[i]);}
+  // ---- ANCORAGGIO DEL LUNGO AL REALE ----
+  // In fase base la rampa era `70 + w*4`, legata all'INDICE della settimana nel piano: rigenerando a
+  // metà blocco prescriveva 100' a chi nelle ultime sei settimane non era mai uscito oltre i 66'.
+  // (Le altre fasi non hanno il problema: `speed` riparte dall'inizio del proprio blocco, `ispec` è
+  // vincolata al volume della settimana, la `spec` maratona usa già il carry del reale.)
+  // Ora si parte dal lungo più lungo DAVVERO corso di recente e si cresce ~12% per settimana carica.
+  // Le gare sono escluse dal seme: una mezza corsa a settembre non è una seduta ripetibile la domenica dopo.
+  const longSeed=(()=>{
+    const rs=(typeof runs!=='undefined'&&runs)||[];
+    const rec=rs.filter(r=>!r.tm&&daysAgo(r)<=42&&cls(r)!=='race');
+    return rec.length?Math.max(...rec.map(r=>r.sec/60)):null;
+  })();
+  const wNow=(()=>{
+    const _a=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
+    const _r=new Date(dateStr+'T12:00:00'),_rs=_a(_r,(7-_r.getDay())%7);
+    const _t=new Date();_t.setHours(12,0,0,0);const _cs=_a(_t,(7-_t.getDay())%7);
+    return n-Math.round((_rs-_cs)/(7*864e5));
+  })();
+  // quante settimane CARICHE ci sono fra oggi e la settimana w: scarichi, settimane gara e recuperi
+  // non fanno progredire il lungo, quindi non devono consumare uno scalino della rampa
+  const buildIdx=ww=>{let i=0;for(let k=Math.max(1,wNow);k<ww;k++){
+    if(k%4===0&&k!==core)continue;if(raceAt[k]||raceAt[k-1])continue;i++}return i};
   const CR=[[4,8,2],[3,12,3],[5,10,2],[2,20,4]]; // cruise interval @ T: [rip, min, rec]
   const weeks=[];let crx=0;
   for(let w=1;w<=n;w++){
@@ -1201,7 +1223,9 @@ function genPlan(silent,carry){
         sess.push({t:'Giovedì',...q});
       }
       // LUNGO base = seduta chiave dell'endurance: cresce col blocco e vale una quota importante del volume.
-      let lng=Math.round(Math.min(70+w*4,isM?150:isHM?115:95)/5)*5;
+      const capL=isM?150:isHM?115:95;
+      const seedL=longSeed?Math.max(45,longSeed):70; // nessuna corsa recente: si riparte da 70'
+      let lng=Math.round(Math.min(seedL*Math.pow(1.12,buildIdx(w)+1),capL)/5)*5;
       if(summer)lng=Math.min(lng,90);
       let lngKm=kmAt(lng,Ea);
       if(lngKm>vol*0.52){lngKm=vol*0.52;lng=Math.round(lngKm*Ea/60/5)*5}
@@ -1209,7 +1233,9 @@ function genPlan(silent,carry){
       {const upR=nextRaceWithin(w,2);if(upR&&!summer){const aKm=Math.min(upR.dist*0.9,vol*0.55);if(aKm>lngKm){lngKm=aKm;lng=Math.round(lngKm*Ea/60/5)*5;}}}
       // ogni ~3ª settimana (non estate, lungo ≥70') il lungo NON è piatto: finale a ritmo gara/soglia
       // per abituarsi a girare veloci sulle gambe stanche, senza toccare il resto del blocco base.
-      const bStruct=!summer&&lng>=70&&w>=6&&w%3===0;
+      // Durata nuova e ritmo gara nella stessa seduta, subito dopo uno scarico, è il modo classico
+      // per farsi male: il primo lungo qualificato arriva dopo almeno 2 settimane cariche.
+      const bStruct=!summer&&lng>=70&&buildIdx(w)>=2&&w>=6&&w%3===0;
       if(bStruct){
         const fp=(isM||isHM)?M:T,fl=(isM||isHM)?'M':'T',fsp=(isM||isHM)?p.M:p.T;
         const fin=Math.max(15,Math.min(30,Math.round(lng*0.3/5)*5)); // ultima parte a ritmo gara
