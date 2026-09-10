@@ -1852,7 +1852,11 @@ function updatePlan(){
   alert(`Piano ricalibrato: VDOT ${np.vd}, volume di partenza ${document.getElementById('p-base').value} km (dai tuoi dati reali).${old.target?` Obiettivo mantenuto: ${old.target} (${np.mode}).`:` Modalità: ${np.mode}.`} ${np.weeks.length-hist.length} settimane rimanenti aggiornate, ${hist.length} passate conservate. Riesporta il .ics: contiene solo le settimane future.`);
 }
 function exportICS(silent){
-  const pl=LS('rp_plan');if(!pl)return alert('Genera prima un piano');
+  // Il piano va letto CON gli override manuali applicati: leggendo `rp_plan` grezzo il calendario
+  // ignorava scarichi, gare al volo e settimane riscritte sul reale — l'app mostrava «Gara 10k» la
+  // domenica e l'.ics esportava il «Lungo» del piano originale. Vale anche per l'.ics che scarica
+  // "Rigenera il piano dal reale": è la stessa funzione.
+  const pl=applyWkEdits(LS('rp_plan'));if(!pl)return alert('Genera prima un piano');
   const race=new Date(pl.dateStr+'T00:00:00');
   const OFF={'Lunedì':-6,'Martedì':-5,'Mercoledì':-4,'Giovedì':-3,'Venerdì':-2,'Sabato':-1,'Domenica':0};
   const pad=x=>String(x).padStart(2,'0');
@@ -1914,7 +1918,7 @@ function exportICS(silent){
   return ics;
 }
 function copyPlan(){
-  const pl=LS('rp_plan');if(!pl)return;
+  const pl=applyWkEdits(LS('rp_plan'));if(!pl)return;   // come l'.ics: senza override si copia il piano pre-modifiche
   const PH={base:'base',speed:'velocità',ispec:'specifico gara intermedia',spec:'specifico',taper:'taper'};
   let md=`# Piano ${pl.dateStr} — VDOT ${pl.vd}\nObiettivo: ${pl.GT} (${pl.GP}/km)\n\n`;
   pl.weeks.forEach(w=>{md+=`## Settimana ${w.w} — ${PH[w.phase]||''} (~${w.vol} km)${w.isDeload?' — scarico':''}\n`;
@@ -2982,7 +2986,10 @@ function rAna(){
   }
   if(now)PARA.push(now);
   // 7. rispetto al piano
-  const plA=LS('rp_plan');
+  // L'analisi parte dalla PRESCRIZIONE: se la settimana è stata modificata a mano, la prescrizione
+  // vera è quella con l'override, non quella del piano grezzo (una gara messa al volo veniva
+  // confrontata col lungo che il piano prevedeva prima).
+  const plA=applyWkEdits(LS('rp_plan'));
   let plano='';
   if(plA){
     const addD=(x,k)=>{const y=new Date(x);y.setDate(y.getDate()+k);return y};
