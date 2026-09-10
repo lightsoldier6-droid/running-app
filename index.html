@@ -543,7 +543,12 @@ function pushCloud(){
 const fmtP=s=>{if(!s||!isFinite(s))return'–';const t=Math.round(s);return`${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`};
 const fmtD=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`};
 const day=d=>new Date(d.replace(' ','T'));
-const daysAgo=r=>(Date.now()-day(r.date))/864e5;
+// GIORNI INTERI, non ore. Prima era (adesso − ora della corsa)/24h: le finestre "ultimi 7 giorni" e
+// "7 giorni precedenti" scorrevano con l'ora in cui aprivi l'app e con l'ora di partenza della corsa,
+// così un lungo poteva cadere FUORI da entrambe per pochi minuti — un caso reale ha prodotto
+// "+142% (16→39)" con due sole corse nella finestra precedente. Ancorando tutto alla mezzanotte le
+// finestre sono giorni pieni e i numeri non cambiano a seconda dell'ora. 0 = oggi.
+const daysAgo=r=>Math.round((new Date().setHours(0,0,0,0)-day(r.date).setHours(0,0,0,0))/864e5);
 const pace=r=>r.sec/r.km;
 const isoLoc=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; // data locale (no shift UTC)
 const todayISO=()=>isoLoc(new Date());
@@ -576,7 +581,7 @@ const vAt=(f,vd)=>{const c=4.6+f*vd,v=(-0.182258+Math.sqrt(0.182258**2+4*0.00010
 function predict(km,vd){let lo=km*2.2,hi=km*12;for(let i=0;i<60;i++){const m=(lo+hi)/2;vdotOf(km,m*60)>vd?lo=m:hi=m}return lo*60}
 function parseHMS(s){const a=String(s).trim().split(':');if(!a.length||a.some(x=>x===''||isNaN(+x)))return null;const n=a.map(Number);let sec;if(n.length===3)sec=n[0]*3600+n[1]*60+n[2];else if(n.length===2)sec=n[0]*60+n[1];else if(n.length===1)sec=n[0];else return null;return sec>0?sec:null}
 function bestVdot(list){let b=null;for(const r of list){if(r.km<3||r.tm)continue;const v=vdotOf(r.km,r.sec);if(!b||v>b)b=v}return b}
-const curVdot=()=>bestVdot(runs.filter(r=>daysAgo(r)<=90))||bestVdot(runs);
+const curVdot=()=>bestVdot(runs.filter(r=>daysAgo(r)<90))||bestVdot(runs);
 function paces(vd){return{E:[vAt(.62,vd),vAt(.70,vd)],M:vAt(.82,vd),T:vAt(.88,vd),I:vAt(.975,vd),R:vAt(1.07,vd)}}
 // target di una seduta a ripetute preso dalla seduta PIANIFICATA (tag I/R/T/M e range di passo),
 // non indovinato dalla distanza della ripetuta (un 6×2' Interval fa frazioni ~490m ma non è ripetute R).
@@ -681,11 +686,12 @@ function pbs(){
 /* ---------- render dashboard ---------- */
 function rDash(){
   const vd=curVdot();
-  const vPrev=bestVdot(runs.filter(r=>daysAgo(r)>90&&daysAgo(r)<=180));
-  const w7=runs.filter(r=>daysAgo(r)<=7).reduce((s,r)=>s+r.km,0);
-  const w7p=runs.filter(r=>daysAgo(r)>7&&daysAgo(r)<=14).reduce((s,r)=>s+r.km,0);
-  const m28=runs.filter(r=>daysAgo(r)<=28).reduce((s,r)=>s+r.km,0);
-  const m28p=runs.filter(r=>daysAgo(r)>28&&daysAgo(r)<=56).reduce((s,r)=>s+r.km,0);
+  const vPrev=bestVdot(runs.filter(r=>daysAgo(r)>=90&&daysAgo(r)<180));
+  // finestre di giorni pieni: 0..6 = ultimi 7 giorni (oggi compreso), 7..13 = i 7 precedenti
+  const w7=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+r.km,0);
+  const w7p=runs.filter(r=>daysAgo(r)>=7&&daysAgo(r)<14).reduce((s,r)=>s+r.km,0);
+  const m28=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+r.km,0);
+  const m28p=runs.filter(r=>daysAgo(r)>=28&&daysAgo(r)<56).reduce((s,r)=>s+r.km,0);
   const delta=(a,b,u='')=>b?`<span class="${a>=b?'up':'down'}">${a>=b?'▲':'▼'} ${Math.abs(a-b).toFixed(1)}${u}</span>`:'';
   document.getElementById('d-vdot').textContent=vd?vd.toFixed(1):'–';
   document.getElementById('d-vdot-d').innerHTML=delta(vd||0,vPrev,'');
@@ -755,12 +761,16 @@ function rToday(){
 /* ---------- carico e rischio infortuni (acute:chronic) ---------- */
 function rLoad(){
   const el=document.getElementById('d-load');if(!el)return;
-  const acute=runs.filter(r=>daysAgo(r)<=7).reduce((s,r)=>s+r.km,0);
-  const chronic28=runs.filter(r=>daysAgo(r)<=28).reduce((s,r)=>s+r.km,0);
+  const acute=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+r.km,0);
+  const chronic28=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+r.km,0);
   const chronic=chronic28/4;
   if(chronic<1){el.innerHTML='<p class="muted">Servono corse nelle ultime 4 settimane per stimare il carico.</p>';return}
   const ratio=acute/chronic;
-  const lastWk=runs.filter(r=>daysAgo(r)>7&&daysAgo(r)<=14).reduce((s,r)=>s+r.km,0);
+  const lastWk=runs.filter(r=>daysAgo(r)>=7&&daysAgo(r)<14).reduce((s,r)=>s+r.km,0);
+  // le date delle due finestre, scritte in chiaro: sono 7 giorni MOBILI, non la settimana lun-dom,
+  // e senza dirlo il confronto sembra sbagliato a chi ragiona per settimane di calendario
+  const dLbl=k=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-k);return `${d.getDate()}/${d.getMonth()+1}`};
+  const winA=`${dLbl(6)}→${dLbl(0)}`,winP=`${dLbl(13)}→${dLbl(7)}`;
   const ramp=lastWk?((acute-lastWk)/lastWk*100):null;
   let col,verdict;
   if(ratio>1.5){col='red';verdict='<b>Picco di carico.</b> Stai correndo molto più della tua media recente: è la zona di massimo rischio infortunio. Meglio alleggerire nei prossimi giorni.'}
@@ -776,8 +786,8 @@ function rLoad(){
     </div>
     <div class="bar" style="margin-top:10px"><i class="${col}" style="width:${Math.max(3,barPct)}%"></i></div>
     <p style="margin-top:10px">${verdict}</p>
-    ${ramp!=null?`<p class="muted" style="margin-top:4px">Vs settimana scorsa: ${ramp>=0?'+':''}${ramp.toFixed(0)}% km (${lastWk.toFixed(0)}→${acute.toFixed(0)}). Sopra +10% a settimana è il limite prudente.</p>`:''}
-    <p class="muted" style="margin-top:4px">Rapporto tra i km di questi 7 giorni e la media settimanale delle ultime 4 (acute:chronic workload ratio). Fascia consigliata 0.8–1.3.</p>`;
+    ${ramp!=null?`<p class="muted" style="margin-top:4px">Vs i 7 giorni precedenti: ${ramp>=0?'+':''}${ramp.toFixed(0)}% km (${winP} ${lastWk.toFixed(0)} km → ${winA} ${acute.toFixed(0)} km). Sopra +10% è il limite prudente.</p>`:''}
+    <p class="muted" style="margin-top:4px">Sono 7 giorni mobili (${winA}), non la settimana lunedì-domenica: con la settimana ancora a metà il confronto per settimane di calendario direbbe sempre "in calo". Il rapporto è fra i km di questi 7 giorni e la media settimanale delle ultime 4 (acute:chronic workload ratio). Fascia consigliata 0.8–1.3.</p>`;
 }
 
 /* ---------- render progressi ---------- */
@@ -1097,7 +1107,7 @@ function genPlan(silent,carry){
   // Le gare sono escluse dal seme: una mezza corsa a settembre non è una seduta ripetibile la domenica dopo.
   const longSeed=(()=>{
     const rs=(typeof runs!=='undefined'&&runs)||[];
-    const rec=rs.filter(r=>!r.tm&&daysAgo(r)<=42&&cls(r)!=='race');
+    const rec=rs.filter(r=>!r.tm&&daysAgo(r)<42&&cls(r)!=='race');
     return rec.length?Math.max(...rec.map(r=>r.sec/60)):null;
   })();
   const wNow=(()=>{
@@ -2975,7 +2985,7 @@ function rAna(){
   else take='Le corse facili fatte davvero facili sono ciò che ti permette di spingere forte nelle sedute che contano: il volume si costruisce qui, senza pagare interessi.';
   // 6. rispetto a oggi
   let now='';
-  const ago=Math.round(daysAgo(r));
+  const ago=daysAgo(r);   // daysAgo è già in giorni interi
   if(cvd){
     if(ago<=14)now=`È una corsa recente (${ago<=1?'ultimi giorni':ago+' giorni fa'}): pesa direttamente sulla stima attuale della tua forma (VDOT ${cvd.toFixed(1)}).`;
     else{
