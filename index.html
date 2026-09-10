@@ -1419,6 +1419,13 @@ function wkSunISO(pl,wk){
   const refSun=addD(race,(7-race.getDay())%7);
   return iso(addD(refSun,-(pl.weeks.length-wk.w)*7));
 }
+// Tipo di settimana e "riscrivi sulle corse svolte" sono due scelte indipendenti che convivono nella
+// stessa chiave ("a10+real"): prima erano un valore solo, quindi spuntare la riscrittura cancellava la
+// gara appena impostata (e viceversa).
+function wkParts(key){const v=String(wkEdits()[key]||''),p=v.split('+');
+  return {base:p.filter(x=>x&&x!=='real')[0]||'',real:p.includes('real')}}
+function setWkBase(key,val){const o=wkParts(key);o.base=val;setWkEdit(key,[o.base,o.real?'real':''].filter(Boolean).join('+'))}
+function setWkReal(key,on){const o=wkParts(key);o.real=!!on;setWkEdit(key,[o.base,o.real?'real':''].filter(Boolean).join('+'))}
 function setWkEdit(key,val){
   const ed=wkEdits();
   if(!val)delete ed[key];else ed[key]=val;
@@ -1434,29 +1441,29 @@ function applyWkEdits(pl){
   const clone=JSON.parse(JSON.stringify(pl)),nAll=clone.weeks.length;
   clone.weeks=clone.weeks.map(w=>{
     if(w.hist||w.w===nAll)return w; // niente override su settimane passate o sulla gara finale
-    const ov=ed[wkSunISO(clone,w)];
-    if(!ov)return w;
+    // Nella chiave stanno DUE cose indipendenti, separate da '+': il tipo di settimana
+    // (scarico / gara al volo) e la riscrittura sulle corse svolte — es. "a10+real". I valori
+    // vecchi ('real', 'a10', 'deload') restano leggibili.
+    const ovRaw=ed[wkSunISO(clone,w)];
+    if(!ovRaw)return w;
+    const _p=String(ovRaw).split('+');
+    const real=_p.includes('real');
+    const ov=_p.filter(x=>x&&x!=='real')[0]||'';
     const vdW=pl.vd+((pl.vdTarget||pl.vd)-pl.vd)*Math.min(1,w.w/core);
     const p=paces(vdW),Ea=(p.E[0]+p.E[1])/2;
     const E=`${fmtP(p.E[1])}–${fmtP(p.E[0])}`;
-    let sess;
-    if(ov==='deload'){
-      sess=[
-        {t:'Martedì',n:'Scarico',d:`40' @ ${E} + 6 allunghi 80m`,km:kmAt(40,Ea)+0.5},
-        {t:'Giovedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)},
-        {t:'Domenica',n:'Lungo ridotto',d:`60' @ ${E}`,km:kmAt(60,Ea)}];
-      sess.forEach(s=>s.km=r2(s.km));
-      return {...w,isDeload:true,manual:'deload',sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
-    }
-    if(ov==='real'){ // adatta la settimana alle corse DAVVERO fatte (stessa logica della gara al volo:
-      // le sedute svolte entrano al loro giorno, del pianificato resta solo la qualità più utile).
-      const sunISOw=wkSunISO(clone,w);
+    // RISCRITTURA SULLE CORSE SVOLTE. È un modificatore, non un tipo di settimana: si applica SOPRA
+    // la settimana così com'è (normale, scarico o con la gara al volo), che resta quella che è.
+    // Prima era un valore alternativo nella stessa chiave, quindi spuntarla cancellava la gara.
+    const rewriteReal=(w0)=>{
+      let sess;
+      const sunISOw=wkSunISO(clone,w0);
       const addDw=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
       const isoW=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const monISOw=isoW(addDw(new Date(sunISOw+'T12:00:00'),-6));
       const wkRuns=((typeof runs!=='undefined'&&runs)||[]).filter(r=>{const d=r.date.slice(0,10);return d>=monISOw&&d<=sunISOw})
         .slice().sort((a,b)=>a.date<b.date?-1:1);
-      if(!wkRuns.length)return w; // niente da adattare: la settimana resta quella del piano
+      if(!wkRuns.length)return w0; // niente da adattare: la settimana resta quella del piano
       const DN=['','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
       const DI={'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':7};
       const idxOf=ds=>{const g=new Date(ds+'T12:00:00').getDay();return g===0?7:g};
@@ -1476,10 +1483,15 @@ function applyWkEdits(pl){
       const lastQ=doneQ.length?Math.max(...doneQ.map(r=>idxOf(r.date.slice(0,10)))):0;
       const lastAny=Math.max(...wkRuns.map(r=>idxOf(r.date.slice(0,10))));
       // 2) del pianificato tengo UNA sola qualità: il carico più alto che non ripete un sistema già allenato
-      const hard=w.sess.filter(s=>sysOf(s)!=='easy');
+      // Una gara messa a mano non si tocca: resta al suo giorno ed è LEI la qualità della settimana
+      // (se quel giorno hai già corso, la corsa vera prende il suo posto).
+      const isRaceS=s=>s.race||/🏁/.test(s.n||'');
+      const raceS=w0.sess.filter(s=>isRaceS(s)&&!done.some(d=>d.t===s.t));
+      const raceRun=w0.sess.filter(s=>isRaceS(s)&&done.some(d=>d.t===s.t)); // gara nel passato: vale la corsa vera
+      const hard=w0.sess.filter(s=>!raceS.includes(s)&&sysOf(s)!=='easy');
       const scoreOf=s=>sLoad(s)-(doneSys.has(sysOf(s))?5:0);
       const ranked=hard.slice().sort((a,b)=>scoreOf(b)-scoreOf(a));
-      let kept=(doneQ.length<2&&ranked.length&&scoreOf(ranked[0])>=1)?ranked[0]:null,keptI=null;
+      let kept=(!raceS.length&&doneQ.length<2&&ranked.length&&scoreOf(ranked[0])>=1)?ranked[0]:null,keptI=null;
       if(kept){ // carico alto ⇒ sabato (lascia 2 giorni prima del martedì dopo), altrimenti domenica
         keptI=sLoad(kept)>=3?6:7;
         if(keptI<lastQ+2)keptI=lastQ+2;          // almeno 2 giorni pieni dall'ultima qualità svolta
@@ -1487,15 +1499,16 @@ function applyWkEdits(pl){
       }
       const dropped=hard.filter(s=>s!==kept);
       sess=done.slice();
+      raceS.forEach(rs=>sess.push({...rs}));
       const days=+pl.days||3;
-      let room=days-(done.length+(kept?1:0)),addedMid=null;
+      let room=days-(done.length+raceS.length+(kept?1:0)),addedMid=null;
       if(kept){
         // RACCORDO: solo se avanza spazio nelle corse/settimana che fai davvero E se il buco è vero
         // (≥3 giorni di stacco). Prima veniva aggiunto sempre: con 3 corse a settimana, due già svolte
         // e la qualità tenuta, la settimana ne mostrava quattro — la quarta inventata dall'app.
         const midI=Math.floor((Math.max(lastAny,1)+keptI)/2);
         if(room>0&&keptI-lastAny>=4&&midI>lastAny&&midI<keptI){
-          const z2=w.sess.find(s=>sysOf(s)==='easy');
+          const z2=w0.sess.find(s=>sysOf(s)==='easy');
           sess.push(z2?{...z2,t:DN[midI],d:z2.d.replace(/\s*—.*$/,'')+' — raccordo'}
                       :{t:DN[midI],n:'Z2',d:`45' @ ${E} (Z2) — raccordo`,km:kmAt(45,Ea)});
           addedMid=DN[midI];room--;
@@ -1509,12 +1522,30 @@ function applyWkEdits(pl){
         ? `Hai già fatto ${doneQ.map(r=>`«${r.title}» ${DN[idxOf(r.date.slice(0,10))].toLowerCase()} (${SYSN[sysReal(r)]})`).join(' e ')}. `
         : `Finora solo corse facili. `;
       if(kept)note+=`Tengo «${kept.n}» spostata a ${DN[keptI].toLowerCase()}: è il carico più alto rimasto (${LOADL[sLoad(kept)]}) e allena un sistema diverso (${SYSN[sysOf(kept)]}), con ${keptI-lastQ} giorni di stacco da quello che hai già fatto${keptI===6?' e 2 giorni pieni prima del martedì della settimana dopo, che resta intatta':''}. `;
-      if(dropped.length)note+='Tolgo '+dropped.map(s=>`«${s.n}» (${doneSys.has(sysOf(s))?'stesso sistema di quello che hai già allenato':'per non affollare la settimana'})`).join(' e ')+'. ';
+      if(raceS.length)note+=`La gara di ${raceS[0].t.toLowerCase()} resta dov'è: è lei la qualità della settimana. `;
+      if(raceRun.length)note+=`${raceRun[0].t} tengo la corsa che hai fatto davvero al posto della gara prevista. `;
+      if(dropped.length)note+='Tolgo '+dropped.map(s=>`«${s.n}» (${raceS.length?'la gara copre già la qualità':doneSys.has(sysOf(s))?'stesso sistema di quello che hai già allenato':'per non affollare la settimana'})`).join(' e ')+'. ';
       if(addedMid)note+=`Aggiungo una corsa lenta di raccordo ${addedMid.toLowerCase()}: fra l'ultima corsa e ${DN[keptI].toLowerCase()} restavano ${keptI-lastAny-1} giorni vuoti e hai ancora spazio nelle tue ${days} corse a settimana. `;
       else if(kept&&room<=0)note+=`Non aggiungo altro: con ${days} corse a settimana, le ${done.length} già svolte più «${kept.n}» riempiono la settimana. `;
       note+='Gli altri giorni sono riposo.';
-      return {...w,isDeload:false,manual:'real',fromReal:true,raceNote:note,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+      // Della nota della settimana base resta solo la PREMESSA (prima frase): il resto descriveva una
+      // disposizione delle sedute che la riscrittura ha appena cambiato, e le due si contraddicevano
+      // ("Tengo «Lungo» giovedì" seguito da "Tolgo «Lungo»").
+      const head=(w0.raceNote||'').split('. ')[0];
+      // manual resta quello della settimana (gara/scarico): la spunta "dal reale" è un'altra cosa
+      return {...w0,fromReal:true,raceNote:(head?head+'. ':'')+note,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+    };
+    let sess;
+    if(ov==='deload'){
+      sess=[
+        {t:'Martedì',n:'Scarico',d:`40' @ ${E} + 6 allunghi 80m`,km:kmAt(40,Ea)+0.5},
+        {t:'Giovedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)},
+        {t:'Domenica',n:'Lungo ridotto',d:`60' @ ${E}`,km:kmAt(60,Ea)}];
+      sess.forEach(s=>s.km=r2(s.km));
+      const Wd={...w,isDeload:true,manual:'deload',sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+      return real?rewriteReal(Wd):Wd;
     }
+    if(!ov)return real?rewriteReal(w):w;   // solo riscrittura sul reale
     // gara al volo: 'r*' = settimana dedicata (mini-scarico + gara); 'a*' = gara la domenica, resto invariato
     const add=ov[0]==='a',num=ov.slice(1);
     const dist=num==='5'?5:num==='10'?10:21.0975;
@@ -1539,7 +1570,8 @@ function applyWkEdits(pl){
       if(dropped.length)note+='Tolgo '+dropped.map(s=>`«${s.n}» (${sysOf(s)===raceSysW?'stesso sistema della gara':'per non affollare la settimana'}${OFFw[s.t]<-3?', e a ridosso pre-gara':''})`).join(' e ')+'. ';
       note+='Martedì corsa lenta Z2 di raccordo tra i due impegni.';
       sess.forEach(s=>s.km=r2(s.km));
-      return {...w,isDeload:false,manual:ov,midRace:true,raceNote:note,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+      const Ww={...w,isDeload:false,manual:ov,midRace:true,raceNote:note,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+      return real?rewriteReal(Ww):Ww;
     }
     if(add){
       // GARA LA DOMENICA — la settimana si riadatta invece di limitarsi a perdere la domenica.
@@ -1592,7 +1624,8 @@ function applyWkEdits(pl){
         ?(preLong?'Giovedì solo pre-gara leggero: alla mezza ci si arriva scarichi.':'Giovedì corsa easy con allunghi: davanti a una gara corta servono gambe fresche, non riposo.')
         :'Martedì corsa lenta di raccordo.';
       sess.forEach(x=>x.km=r2(x.km));
-      return {...w,isDeload:false,manual:ov,addRace:true,raceNote:noteA,sess,vol:Math.round(sess.reduce((a,x)=>a+x.km,0))};
+      const Wa={...w,isDeload:false,manual:ov,addRace:true,raceNote:noteA,sess,vol:Math.round(sess.reduce((a,x)=>a+x.km,0))};
+      return real?rewriteReal(Wa):Wa;
     }else{ // settimana dedicata alla gara: mini-scarico + gara
       sess=[
         {t:'Martedì',n:'Easy',d:`35' @ ${E}`,km:kmAt(35,Ea)},
@@ -1600,7 +1633,8 @@ function applyWkEdits(pl){
         raceSess];
     }
     sess.forEach(s=>s.km=r2(s.km));
-    return {...w,isDeload:add?w.isDeload:false,manual:ov,addRace:add,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+    const Wr={...w,isDeload:add?w.isDeload:false,manual:ov,addRace:add,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
+    return real?rewriteReal(Wr):Wr;
   });
   return clone;
 }
@@ -1738,14 +1772,14 @@ function rPlan(plan){
       const sunW=addD(refSun,-(nAll-w.w)*7);
       const wkKey=iso(sunW);
       const sO=(v,l)=>`<option value="${v}"${w.manual===v||(!w.manual&&v==='')?' selected':''}>${l}</option>`;
-      const editSel=(!w.hist&&w.w!==nAll)?`<select class="wksel" onchange="setWkEdit('${wkKey}',this.value)">
+      const editSel=(!w.hist&&w.w!==nAll)?`<select class="wksel" onchange="setWkBase('${wkKey}',this.value)">
           ${sO('','Auto')}
           ${sO('deload','Rendi scarico')}
-          <optgroup label="Adatta al reale">${sO('real','✔ Riscrivi sulle corse svolte')}</optgroup>
           <optgroup label="Gara la domenica (settimana riadattata)">${sO('a5','+ Gara 5k')}${sO('a10','+ Gara 10k')}${sO('a21','+ Gara mezza')}</optgroup>
           <optgroup label="Settimana dedicata (scarico + gara)">${sO('r5','Gara 5k')}${sO('r10','Gara 10k')}${sO('r21','Gara mezza')}</optgroup>
           <optgroup label="Gara infrasettimanale (giovedì)">${sO('w5','Gara 5k giovedì')}${sO('w10','Gara 10k giovedì')}${sO('w21','Gara mezza giovedì')}</optgroup>
-        </select>`:'';
+        </select>
+        <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin:7px 0 0;cursor:pointer"><input type="checkbox" ${w.fromReal?'checked':''} onchange="setWkReal('${wkKey}',this.checked)" style="width:15px;height:15px;accent-color:var(--acc2,#2563eb)">✔ Riscrivi sulle corse svolte</label>`:'';
       return `<div class="wk ph-${w.phase||'base'}${w.isDeload?' deload':''}${isCur?' cur':''}${w.manual?' manual':''}"${w.hist?' style="opacity:.55"':''}>
         <div class="wkhead"><div class="wktitle">Settimana ${w.w}${isCur?' <span class="nowb">in corso</span>':''}</div><div class="wkvol">~${w.vol} km</div></div>
         <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.manual&&w.manual!=='deload'&&w.manual!=='real'?`<span class="phb race">🏁 gara${w.addRace?' (dom)':w.midRace?' (gio)':''}</span>`:''}${w.fromReal?'<span class="phb manual">✔ dal reale</span>':''}${w.manual&&!w.fromReal?'<span class="phb manual">✎ a mano</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
