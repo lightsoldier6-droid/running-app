@@ -1461,18 +1461,16 @@ function applyWkEdits(pl){
       const DI={'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':7};
       const idxOf=ds=>{const g=new Date(ds+'T12:00:00').getDay();return g===0?7:g};
       const SYSN={vo2:'VO2max/velocità',threshold:'soglia',endurance:'resistenza',easy:'facile'};
-      const sysOf=s=>{const t=(s.n+' '+s.d).toLowerCase();
-        if(/lungo|long|simulazione|big workout/.test(t))return 'endurance';
-        if(/cruise|soglia|medio|progress|criss|ritmo gara|tempo run|fartlek/.test(t))return 'threshold';
-        if(/interval|ripetut|richiami|[0-9]+\s*[×x]\s*[0-9]|[0-9]{3}\s*m/.test(t))return 'vo2';
-        return 'easy';};
+      const sysOf=sysOfSess;
       const sysReal=r=>{const c=cls(r);
         return c==='int'?'vo2':c==='race'?(r.km<=10?'vo2':'threshold'):c==='qual'?'threshold':c==='long'?'endurance':'easy'};
       // 1) le corse svolte diventano sedute fissate al loro giorno reale
       const done=wkRuns.map(r=>{const sp=r.sec/r.km,m=Math.floor(sp/60),s2=Math.round(sp%60);
         return {t:DN[idxOf(r.date.slice(0,10))],n:r.title||'Corsa',done:true,realDate:r.date.slice(0,10),rcls:cls(r),
           d:`svolta · ${r.km.toFixed(1)} km @ ${m}:${String(s2).padStart(2,'0')}/km${r.hr?` · FC media ${r.hr}`:''}`,
-          km:r.km,load:sLoad({n:r.title||''})}});
+          // il carico veniva dedotto dal TITOLO della corsa: «Z2 - 14k» non somiglia a nessuna seduta
+          // del piano e finiva a carico base anche per un lungo di 14 km. Si prende dalla classe vera.
+          km:r.km,load:({race:4,int:3,qual:2,long:2,easy:1})[cls(r)]||1}});
       const doneQ=wkRuns.filter(r=>['int','qual','race','long'].includes(cls(r)));
       const doneSys=new Set(doneQ.map(sysReal));
       const lastQ=doneQ.length?Math.max(...doneQ.map(r=>idxOf(r.date.slice(0,10)))):0;
@@ -1489,12 +1487,18 @@ function applyWkEdits(pl){
       }
       const dropped=hard.filter(s=>s!==kept);
       sess=done.slice();
+      const days=+pl.days||3;
+      let room=days-(done.length+(kept?1:0)),addedMid=null;
       if(kept){
-        const midI=Math.floor((Math.max(lastAny,1)+keptI)/2); // corsa lenta di raccordo a metà strada
-        if(midI>lastAny&&midI<keptI){
+        // RACCORDO: solo se avanza spazio nelle corse/settimana che fai davvero E se il buco è vero
+        // (≥3 giorni di stacco). Prima veniva aggiunto sempre: con 3 corse a settimana, due già svolte
+        // e la qualità tenuta, la settimana ne mostrava quattro — la quarta inventata dall'app.
+        const midI=Math.floor((Math.max(lastAny,1)+keptI)/2);
+        if(room>0&&keptI-lastAny>=4&&midI>lastAny&&midI<keptI){
           const z2=w.sess.find(s=>sysOf(s)==='easy');
           sess.push(z2?{...z2,t:DN[midI],d:z2.d.replace(/\s*—.*$/,'')+' — raccordo'}
                       :{t:DN[midI],n:'Z2',d:`45' @ ${E} (Z2) — raccordo`,km:kmAt(45,Ea)});
+          addedMid=DN[midI];room--;
         }
         sess.push({...kept,t:DN[keptI]});
       }
@@ -1506,6 +1510,8 @@ function applyWkEdits(pl){
         : `Finora solo corse facili. `;
       if(kept)note+=`Tengo «${kept.n}» spostata a ${DN[keptI].toLowerCase()}: è il carico più alto rimasto (${LOADL[sLoad(kept)]}) e allena un sistema diverso (${SYSN[sysOf(kept)]}), con ${keptI-lastQ} giorni di stacco da quello che hai già fatto${keptI===6?' e 2 giorni pieni prima del martedì della settimana dopo, che resta intatta':''}. `;
       if(dropped.length)note+='Tolgo '+dropped.map(s=>`«${s.n}» (${doneSys.has(sysOf(s))?'stesso sistema di quello che hai già allenato':'per non affollare la settimana'})`).join(' e ')+'. ';
+      if(addedMid)note+=`Aggiungo una corsa lenta di raccordo ${addedMid.toLowerCase()}: fra l'ultima corsa e ${DN[keptI].toLowerCase()} restavano ${keptI-lastAny-1} giorni vuoti e hai ancora spazio nelle tue ${days} corse a settimana. `;
+      else if(kept&&room<=0)note+=`Non aggiungo altro: con ${days} corse a settimana, le ${done.length} già svolte più «${kept.n}» riempiono la settimana. `;
       note+='Gli altri giorni sono riposo.';
       return {...w,isDeload:false,manual:'real',fromReal:true,raceNote:note,sess,vol:Math.round(sess.reduce((a,s)=>a+s.km,0))};
     }
@@ -1517,11 +1523,7 @@ function applyWkEdits(pl){
     if(ov[0]==='w'){ // gara infrasettimanale (giovedì): sostituisce la qualità, sceglie cosa tenere
       const raceSysW=dist<=5?'vo2':dist<=10?'threshold':'endurance';
       const SYSN={vo2:'VO2max/velocità',threshold:'soglia',endurance:'resistenza',easy:'facile'};
-      const sysOf=s=>{const t=(s.n+' '+s.d).toLowerCase();
-        if(/lungo|long|simulazione|big workout/.test(t))return 'endurance';
-        if(/cruise|soglia|medio|progress|criss|ritmo gara|tempo run|fartlek/.test(t))return 'threshold';
-        if(/interval|ripetut|richiami|[0-9]+\s*[×x]\s*[0-9]|[0-9]{3}\s*m/.test(t))return 'vo2';
-        return 'easy';};
+      const sysOf=sysOfSess;
       const OFFw={'Lunedì':-6,'Martedì':-5,'Mercoledì':-4,'Giovedì':-3,'Venerdì':-2,'Sabato':-1,'Domenica':0};
       const rank={threshold:3,endurance:2,vo2:1};
       const hard=w.sess.filter(s=>sysOf(s)!=='easy');
@@ -1547,11 +1549,7 @@ function applyWkEdits(pl){
       // la più utile, e la si sposta nello slot della più sacrificabile fra martedì e giovedì.
       const raceSysA=dist<=5?'vo2':dist<=10?'threshold':'endurance';
       const SYSNA={vo2:'VO2max/velocità',threshold:'soglia',endurance:'resistenza',easy:'facile'};
-      const sysA=x=>{const t=(x.n+' '+x.d).toLowerCase();
-        if(/lungo|long|simulazione|big workout/.test(t))return 'endurance';
-        if(/cruise|soglia|medio|progress|criss|ritmo gara|tempo run|fartlek/.test(t))return 'threshold';
-        if(/interval|ripetut|richiami/.test(t))return 'vo2';
-        return 'easy';};
+      const sysA=sysOfSess;
       // Con la gara di domenica lo stimolo che resta scoperto NON è la qualità ma la resistenza:
       // il lungo pesa più della soglia. La penalità sul sistema della gara fa il resto — con una
       // mezza è la gara stessa a fare da lungo, e allora vince la qualità.
@@ -1693,6 +1691,7 @@ function rPlan(plan){
   const iS=plan.iSpec;
   const iNm=iS?(iS.dist>=42?'maratona':iS.dist>=21?'mezza':iS.dist+'k'):'gara';
   const PH={base:'Base',speed:'Velocità',ispec:`Specifico ${iNm}`,spec:'Specifico',taper:'Taper'};
+  const DCL={int:'ripetute',qual:'qualità',long:'lungo',easy:'facile',race:'gara'}; // etichetta delle sedute svolte
   const PHC={base:'var(--acc)',speed:'var(--red)',ispec:'#8b5cf6',spec:'var(--acc2)',taper:'var(--warn)'};
   // barra della periodizzazione, proporzionale alle settimane di ogni fase
   const ph=plan.ph||{};
@@ -1756,7 +1755,10 @@ function rPlan(plan){
         ${w.sess.map(s=>{const isRaceFinal=s.n.startsWith('GARA'),isr=isRaceFinal||s.race;
           const sd=isRaceFinal?race:addD(sunW,OFF[s.t]??0);
           const L=sLoad(s);
-          return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">carico ${LOADL[L]}</span></div></div></div>`;
+          // Sulle sedute SVOLTE il "carico" era dedotto dal nome che hai dato tu alla corsa: si mostra
+          // invece cosa è stata davvero (la classificazione che l'app calcola dai dati della corsa).
+          const badge=s.done&&s.rcls?(DCL[s.rcls]||'svolta'):`carico ${LOADL[L]}`;
+          return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">${badge}</span></div></div></div>`;
         }).join('')}
       </div>`;
     }).join('')+`</div>`;
@@ -1958,6 +1960,21 @@ function sLoad(s){
 // una seduta è una GARA solo se il nome porta la bandierina (o inizia per "gara", per gli .ics vecchi):
 // "Pre-gara", "Simulazione gara" e "Ritmo gara" sono allenamenti, non gare, e vanno classificati come tali.
 function isRaceName(name){const s=(name||'').trim();return s.includes('🏁')||/^gara\b/i.test(s)}
+// SISTEMA allenato da una seduta PRESCRITTA. Definizione unica: ce n'erano tre copie dentro
+// applyWkEdits e una aveva già preso una strada sua.
+// Gli ALLUNGHI non sono ripetute: «9×20"» e «~100m» nella descrizione di «Easy + allunghi» facevano
+// scattare l'euristica numerica delle ripetute, quindi un easy veniva classificato vo2 — finiva fra le
+// qualità della settimana, veniva "tolto per non affollare" e alla settimana riscritta sul reale non
+// restava nessuna seduta facile da spostare, così ne inventava una generica.
+function sysOfSess(s){
+  const t=(((s&&s.n)||'')+' '+((s&&s.d)||'')).toLowerCase();
+  if(/lungo|long|simulazione|big workout/.test(t))return 'endurance';
+  if(/cruise|soglia|medio|progress|criss|ritmo gara|tempo run|fartlek/.test(t))return 'threshold';
+  if(/interval|ripetut|richiami/.test(t))return 'vo2';        // ripetute dichiarate nel nome
+  if(/allungh|strides/.test(t))return 'easy';                 // easy + allunghi resta easy
+  if(/[0-9]+\s*[×x]\s*[0-9]|[0-9]{3}\s*m/.test(t))return 'vo2'; // ripetute riconosciute dalla struttura
+  return 'easy';
+}
 function planCls(name){ // classifica la seduta pianificata dal suo nome
   const n=(name||'').toLowerCase();
   if(isRaceName(name))return 'race';
