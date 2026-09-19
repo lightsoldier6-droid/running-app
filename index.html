@@ -75,6 +75,11 @@ svg text{fill:var(--dim);font-size:9px}
 .sbody{flex:1;font-size:13px;line-height:1.45}
 .sbody .sn{font-weight:600}
 .smeta{color:var(--dim);font-size:11px;margin-top:2px}
+.skipx{flex:0 0 auto;align-self:center;background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;font-size:12px;line-height:1;padding:4px 6px;cursor:pointer;opacity:.55}
+.skipx:hover{opacity:1;color:var(--red,#c0392b);border-color:currentColor}
+.skiprow{font-size:11px;color:var(--dim);margin:6px 0 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.skiprow button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;font-size:11px;padding:3px 7px;cursor:pointer}
+.skiprow button:hover{color:var(--acc);border-color:currentColor}
 .swork{font-size:12.5px;line-height:1.4;margin-top:1px}
 .ldb{display:inline-block;padding:0 6px;border-radius:999px;font-size:10px;font-weight:600;line-height:15px;background:var(--line);color:var(--dim);vertical-align:1px}
 .ldb.l2{background:#fdf0d0;color:#8a5a00}.ldb.l3{background:#fde0d2;color:#a33f14}.ldb.l4{background:#fbd7dd;color:#a3123a}
@@ -448,7 +453,7 @@ const LS=(k,v)=>{
   // Monitor è più vecchio del piano (cioè se recuperare butterebbe via una ricalibrazione appena fatta)
   if(k==='rp_plan'&&v&&typeof v==='object')v.savedAt=new Date().toISOString();
   localStorage.setItem(k,JSON.stringify(v));
-  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit') pushCloud();
+  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit'||k==='rp_wkskip') pushCloud();
   return v;
 };
 let edits=LS('rp_edits')||{}; // rinomine ed eliminazioni manuali, sopravvivono ai rebuild
@@ -522,6 +527,7 @@ function startCloudSync(uid){
     if(payload.plan!==undefined)localStorage.setItem('rp_plan',JSON.stringify(payload.plan));
     if(payload.ics!==undefined)localStorage.setItem('rp_ics',JSON.stringify(payload.ics));
     if(payload.wkedit!==undefined)localStorage.setItem('rp_wkedit',JSON.stringify(payload.wkedit));
+    if(payload.wkskip!==undefined)localStorage.setItem('rp_wkskip',JSON.stringify(payload.wkskip));
     location.reload();
   },err=>console.warn('cloud sync',err));
 }
@@ -532,7 +538,7 @@ function pushCloud(){
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{
     fbDb.collection('users').doc(fbAuth.currentUser.uid).set({
-      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics'),wkedit:LS('rp_wkedit')}),
+      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics'),wkedit:LS('rp_wkedit'),wkskip:LS('rp_wkskip')}),
       writer:cloudSessionId,
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true}).catch(e=>console.warn('cloud push',e));
@@ -1433,7 +1439,7 @@ function setWkEdit(key,val){
   const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
 }
 // applica gli override a una copia del piano puro: usata da rPlan, rTrack, rToday, planToSessions
-function applyWkEdits(pl){
+function applyWkOv(pl){
   if(!pl||!pl.weeks)return pl;
   const ed=wkEdits();if(!Object.keys(ed).length)return pl;
   const ph=pl.ph||{},core=Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.ispecW||0)+(ph.specW||0));
@@ -1638,6 +1644,40 @@ function applyWkEdits(pl){
   });
   return clone;
 }
+/* ---------- sedute tolte a mano da una settimana ----------
+   Per il caso «questa settimana il lungo non lo faccio»: prima l'unico modo era rigenerare il piano
+   o rendere scarica tutta la settimana. Vive accanto a rp_wkedit ed è chiavato sulla domenica ISO,
+   quindi sopravvive ai rebuild e ai riscritti dal reale. Chiave della seduta: `giorno|nome`. */
+function wkSkips(){return LS('rp_wkskip')||{}}
+function wkSkipKey(s){return `${s.t}|${s.n}`}
+function wkSkipSave(sp){LS('rp_wkskip',sp);const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();if(typeof rToday==='function')rToday()}}
+function wkSkipAdd(key,i){ // i = indice della seduta nella settimana COSÌ COM'È RESA ORA
+  const pl=applyWkEdits(LS('rp_plan'));if(!pl)return;
+  const w=pl.weeks.find(x=>wkSunISO(pl,x)===key);if(!w||!w.sess[i])return;
+  const sk=wkSkipKey(w.sess[i]),sp=wkSkips(),a=sp[key]||[];
+  if(!a.includes(sk))a.push(sk);
+  sp[key]=a;wkSkipSave(sp);
+}
+function wkSkipDel(key,i){
+  const sp=wkSkips(),a=sp[key]||[];
+  a.splice(i,1);
+  if(a.length)sp[key]=a;else delete sp[key];
+  wkSkipSave(sp);
+}
+function applyWkSkips(pl){
+  if(!pl||!pl.weeks)return pl;
+  const sp=wkSkips();if(!Object.keys(sp).length)return pl;
+  const clone=JSON.parse(JSON.stringify(pl)),nAll=clone.weeks.length;
+  clone.weeks=clone.weeks.map(w=>{
+    if(w.hist||w.w===nAll)return w;               // mai sulle passate né sulla settimana di gara
+    const a=sp[wkSunISO(clone,w)];if(!a||!a.length)return w;
+    const sess=w.sess.filter(s=>s.done||!a.includes(wkSkipKey(s))); // le corse svolte non si tolgono
+    if(sess.length===w.sess.length)return w;
+    return {...w,sess,vol:Math.round(sess.reduce((x,s)=>x+s.km,0))};
+  });
+  return clone;
+}
+function applyWkEdits(pl){return applyWkSkips(applyWkOv(pl))}
 /* ---------- allineamento Piano ↔ Monitor ----------
    Il Monitor tiene il calendario VERO: ogni seduta ha la sua data reale. Il tab Piano invece ricalcola
    le settimane a ritroso dalla domenica di gara sul totale `weeks.length`, quindi basta una settimana
@@ -1675,7 +1715,7 @@ function alignPlanToMonitor(){
     return alert('Il Monitor non ha nessun piano caricato: non c’è niente da recuperare.');
   const old=LS('rp_plan');
   if(!old)return alert('Genera prima un piano nel tab Piano.');
-  const nEd=Object.keys(LS('rp_wkedit')||{}).length;
+  const nEd=Object.keys(LS('rp_wkedit')||{}).length+Object.keys(LS('rp_wkskip')||{}).length;
   const dL=x=>new Date(x).toLocaleString('it-IT',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   // Direzione: qui si copia Monitor → Piano. Se il piano è stato toccato DOPO l'ultimo allineamento del
   // Monitor (tipico di "Ricalibra i passi", che aggiorna il piano ma non il Monitor), recuperare da qui
@@ -1711,7 +1751,7 @@ function alignPlanToMonitor(){
   // Tutte le modifiche a mano sono ormai incorporate nelle settimane ricostruite (il Monitor le ha già
   // dentro): se restassero verrebbero riapplicate sopra a sé stesse — gare duplicate, settimane
   // riscritte due volte — e le due viste mostrerebbero titoli diversi a griglia allineata.
-  if(nEd)LS('rp_wkedit',{});
+  if(nEd){LS('rp_wkedit',{});LS('rp_wkskip',{})}
   LS('rp_plan',np);
   monitor.syncedAt=np.savedAt||new Date().toISOString(); // da adesso sono la stessa cosa
   LS('rp_monitor',monitor);
@@ -1786,14 +1826,16 @@ function rPlan(plan){
         ${editSel}
         ${w.raceNote?`<p style="font-size:11px;color:var(--dim);margin:6px 0 0;padding:6px 8px;border-left:3px solid var(--acc2,#2563eb);background:rgba(37,99,235,.07);border-radius:6px;line-height:1.4">🧠 ${w.raceNote}</p>`:''}
         <div class="vbar"><i style="width:${vpct}%;background:${phCol}"></i></div>
-        ${w.sess.map(s=>{const isRaceFinal=s.n.startsWith('GARA'),isr=isRaceFinal||s.race;
+        ${w.sess.map((s,si)=>{const isRaceFinal=s.n.startsWith('GARA'),isr=isRaceFinal||s.race;
           const sd=isRaceFinal?race:addD(sunW,OFF[s.t]??0);
           const L=sLoad(s);
           // Sulle sedute SVOLTE il "carico" era dedotto dal nome che hai dato tu alla corsa: si mostra
           // invece cosa è stata davvero (la classificazione che l'app calcola dai dati della corsa).
           const badge=s.done&&s.rcls?(DCL[s.rcls]||'svolta'):`carico ${LOADL[L]}`;
-          return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">${badge}</span></div></div></div>`;
+          const canSkip=!w.hist&&w.w!==nAll&&!s.done&&!isRaceFinal;
+          return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">${badge}</span></div></div>${canSkip?`<button class="skipx" title="Togli questa seduta dalla settimana" onclick="wkSkipAdd('${wkKey}',${si})">✕</button>`:''}</div>`;
         }).join('')}
+        ${(!w.hist&&w.w!==nAll&&(wkSkips()[wkKey]||[]).length)?`<p class="skiprow"><span>Tolte a mano:</span>${(wkSkips()[wkKey]||[]).map((k,ki)=>`<button onclick="wkSkipDel('${wkKey}',${ki})" title="Rimetti questa seduta">↺ ${k.split('|')[1]} (${k.split('|')[0].slice(0,3).toLowerCase()})</button>`).join('')}</p>`:''}
       </div>`;
     }).join('')+`</div>`;
 }
