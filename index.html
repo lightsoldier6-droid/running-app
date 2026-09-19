@@ -2244,8 +2244,16 @@ function monRecalibrate(){
   // eccezione: le sedute «svolte» delle settimane riscritte sul reale sono nel passato ma vanno tenute,
   // altrimenti la corsa che hai davvero fatto sparisce dal monitor e risulta "extra non a piano"
   const doneDates=new Set(gen.filter(s=>s.done).map(s=>s.date));
+  // settimana IN CORSO: i giorni già passati appartengono al piano che stiamo sostituendo. Le sedute
+  // che quel piano prevedeva e che non hai corso non sono «saltate», sono prescrizioni decadute:
+  // tenerle ti fa misurare contro un piano che non esiste più (es. 5 sedute/sett. quando il nuovo ne
+  // prevede 3). Si tolgono solo qui: nelle settimane già chiuse le mancate restano, sono storia vera.
+  const curWk=weekKey(todayS);
+  const runDates=new Set(((typeof runs!=='undefined'&&runs)||[]).map(r=>r.date.slice(0,10)));
+  let curDropped=0;
   const past=monitor.sessions.filter(s=>{
     if(s.date>=todayS||seenPast.has(s.date)||doneDates.has(s.date))return false;
+    if(weekKey(s.date)===curWk&&!runDates.has(s.date)){curDropped++;return false}
     seenPast.add(s.date);return true;
   });
   // la rigenerazione riparte da OGGI: i giorni già trascorsi della settimana in corso NON vengono
@@ -2267,7 +2275,8 @@ function monRecalibrate(){
   const rTxt=keptRaces.length?`\nGare intermedie conservate: ${keptRaces.map(r=>`${r.dist>=42?'maratona':r.dist>=21?'mezza':r.dist+'k'} il ${r.date}`).join(' · ')}.`:'';
   const gTxt=same?`\nCalendario invariato: stesse settimane, stesse fasi, stessi scarichi — ho aggiornato passi, tipi di seduta e strutture dei lunghi.`
     :`\nPiano ricostruito da capo (il piano in memoria non è di questa gara): le settimane si rinumerano da adesso.`;
-  alert(`Piano rigenerato dal reale.\nGara: ${gname} il ${dateStr} · VDOT ${np.vd} · volume ${baseVol} km/sett · ${days} corse/sett.${gTxt}${rTxt}\n\nIl Monitor è aggiornato (passato conservato, futuro rigenerato) e ho scaricato il nuovo .ics. Importalo nel calendario dedicato "Allenamenti corsa" (Google Calendar → Impostazioni → Importa): gli eventi con la stessa data si aggiornano sul posto e le sedute non più previste vengono rimosse, senza doppioni.`);
+  const dTxt=curDropped?`\nDalla settimana in corso ho tolto ${curDropped} seduta/e dei giorni già passati che il piano precedente prevedeva e non hai svolto: erano prescrizioni del piano appena sostituito, non contano come saltate. Nelle settimane già chiuse le mancate restano.`:'';
+  alert(`Piano rigenerato dal reale.\nGara: ${gname} il ${dateStr} · VDOT ${np.vd} · volume ${baseVol} km/sett · ${days} corse/sett.${gTxt}${rTxt}${dTxt}\n\nIl Monitor è aggiornato (passato conservato, futuro rigenerato) e ho scaricato il nuovo .ics. Importalo nel calendario dedicato "Allenamenti corsa" (Google Calendar → Impostazioni → Importa): gli eventi con la stessa data si aggiornano sul posto e le sedute non più previste vengono rimosse, senza doppioni.`);
 }
 /* ---------- Monitor: passi target vs reale ----------
    Il passo MEDIO di una seduta dura non dice niente: dentro ci sono riscaldamento, recuperi e
