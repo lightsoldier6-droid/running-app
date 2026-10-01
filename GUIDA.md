@@ -17,6 +17,22 @@ Quando aggiorni i dati sul Mac (vedi §6), ritrascina la cartella su Netlify Dro
 
 ---
 
+## 1b. Navigazione (dalla versione v103)
+
+La barra in basso ha 4 voci; quelle con due viste hanno un selettore in alto:
+
+| Voce | Contenuto |
+|---|---|
+| **Oggi** | Card della seduta del giorno (passo, fascia FC colorata, settimana a pallini), riquadri "Come stai" (carico, VDOT, indice aerobico, km), lista **Da tenere d'occhio** (lungo o LT2 mancanti, settimana sotto l'80%, sedute saltate, carico alto, FC mancante, gare da confermare). |
+| **Forma** | **Fitness** (le ex sezioni del tab Fitness) · **Progressi**. |
+| **Piano** | **Settimane** (piano con "sei qui", conto alla rovescia, settimane richiudibili, passate raggruppate) · **Aderenza** (l'ex Monitor). Generazione del piano in una sezione apribile in fondo. |
+| **Corse** | Importazione (.zip Garmin, .fit, .json), **Analisi della corsa** (ex tab Analisi; "Analizza" su ogni corsa dell'archivio la apre direttamente), archivio. |
+| **⚙ in alto** | Impostazioni: FC max/riposo, zone FC (modifica/conferma), test, ripristino dati. |
+
+Colori fissi delle zone in tutta l'app: Z1 grigio-azzurro, Z2 blu, Z3/LT1 verde, Z4/LT2 arancio, Z5 rosso. Le sezioni sotto (§2–§5) descrivono i contenuti con i vecchi nomi dei tab.
+
+---
+
 ## 2. Tab "Oggi" — cosa fare oggi e lo stato di forma
 
 - **Seduta del giorno**: la seduta di oggi presa dal piano che segui (prima il Monitor/.ics, poi il piano generato), coi ritmi già pronti e — per le sedute di qualità — riscaldamento e defaticamento. Se oggi è riposo mostra la **prossima** seduta ("Domani"/"Tra X giorni") e sotto il riepilogo della settimana con ✓ su quelle già fatte. Se non hai un piano attivo, la card lo spiega.

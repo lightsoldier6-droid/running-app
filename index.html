@@ -9,6 +9,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <title>RunPlan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
 <style>
 :root{--bg:#f2f3f5;--card:#ffffff;--line:#e5e7eb;--txt:#1c1c1e;--dim:#8a8a8e;--acc:#1f9d43;--acc2:#0a84ff;--warn:#c76b00;--red:#e5342a}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -254,6 +256,181 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
 .zedit{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px 10px}.zedit label{margin:6px 0 3px}
 .btn.mini{width:auto;margin:0 0 0 4px;padding:4px 9px;font-size:12px}
 @media(min-width:900px){#tab-fit .card{order:10}.card:has(#f-cov){grid-column:1/-1;order:0}.card:has(#f-cap){grid-column:1/-1}.card:has(#p-goalgap){grid-column:1/-1}}
+/* ===================== NUOVA GRAFICA =====================
+   Il colore dice solo l'intensità: Z1 grigio-blu, Z2 blu, Z3 verde, Z4 arancio, Z5 rosso, ovunque.
+   Il resto è inchiostro su fondo chiaro; numeri e titoli in Barlow Condensed. */
+:root{--bg:#f4f6f9;--card:#ffffff;--line:#e1e6ec;--txt:#0f1b2d;--dim:#5b6b7f;--soft:#eef2f7;
+  --z1:#8d9db1;--z2:#2f7fd0;--z3:#259466;--z4:#ec8a12;--z5:#dd3f37;
+  --acc:#2f7fd0;--acc2:#2f7fd0;--warn:#c77700;--red:#d03a32;--ok:#259466;
+  --disp:"Barlow Condensed","Arial Narrow",-apple-system,system-ui,sans-serif;
+  --sans:"Barlow",-apple-system,system-ui,sans-serif}
+body.dark{--bg:#0b1018;--card:#161e2b;--line:#243042;--txt:#e9eef5;--dim:#93a1b3;--soft:#1c2636;
+  --z1:#7e8ea3;--z2:#4f97e3;--z3:#3cb07c;--z4:#f39a2c;--z5:#ec5a50;--acc:#4f97e3;--acc2:#4f97e3;--warn:#f0a43a;--red:#ec5a50;--ok:#3cb07c;color-scheme:dark}
+body{font-family:var(--sans);font-size:15px;line-height:1.45;background:var(--bg)}
+header{padding:calc(12px + env(safe-area-inset-top)) 16px 8px;align-items:flex-end}
+.htit{display:flex;flex-direction:column;gap:0}
+.htit small{font-size:12px;color:var(--dim);font-weight:500}
+header h1#hdr-t{font-family:var(--disp);font-weight:700;font-size:32px;line-height:1;text-transform:uppercase;letter-spacing:.01em;color:var(--txt)}
+.hdr-k{font-size:12px;color:var(--dim)}
+@media(max-width:520px){.hdr-k{display:none}}
+.thmbtn{background:var(--card);border:1px solid var(--line);color:var(--dim)}
+main{padding:0 12px}
+.card{border-radius:16px;box-shadow:none;padding:15px;border-color:var(--line)}
+body.dark .card{box-shadow:none}
+.card h2,.card>summary h2{font-family:var(--disp);font-weight:600;font-size:13.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.stat b{font-family:var(--disp);font-weight:700;font-size:28px;line-height:1.05;font-variant-numeric:tabular-nums}
+.stat span{font-size:11.5px}
+.stat i{font-size:12px}
+.up{color:var(--ok)}.down{color:var(--red)}
+.pace{color:var(--txt);font-weight:700}
+.wkvol,.daychip,td.r{font-variant-numeric:tabular-nums}
+.wktitle{font-family:var(--disp);font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+.wkvol{font-family:var(--disp);font-size:16px;color:var(--txt)}
+button.btn{background:var(--txt);color:var(--card);border-radius:12px;font-family:var(--disp);font-weight:600;font-size:16px;letter-spacing:.05em;text-transform:uppercase}
+button.btn2{background:var(--soft);color:var(--txt)}
+button.btn.mini{font-size:13px;letter-spacing:0}
+input,select{background:var(--soft);border-color:var(--line);border-radius:10px}
+label{font-weight:500}
+svg text{font-size:11px;fill:var(--dim)}
+.pill{border-radius:999px;padding:4px 11px;font-weight:600;background:var(--card)}
+.pill.on{border-color:var(--txt);color:var(--card);background:var(--txt)}
+/* tipi di corsa e fasi: colori delle zone */
+.badge{border-radius:999px;font-weight:600;background:var(--soft);color:var(--dim)}
+.badge.easy{background:color-mix(in srgb,var(--z2) 14%,transparent);color:var(--z2)}
+.badge.long{background:color-mix(in srgb,var(--z3) 15%,transparent);color:var(--z3)}
+.badge.qual{background:color-mix(in srgb,var(--z4) 16%,transparent);color:var(--z4)}
+.badge.int{background:color-mix(in srgb,var(--z5) 14%,transparent);color:var(--z5)}
+.badge.race{background:var(--txt);color:var(--card)}
+body.dark .badge,body.dark .badge.easy,body.dark .badge.long,body.dark .badge.qual,body.dark .badge.int{filter:none}
+body.dark .badge.easy{background:color-mix(in srgb,var(--z2) 22%,transparent);color:var(--z2)}
+body.dark .badge.long{background:color-mix(in srgb,var(--z3) 22%,transparent);color:var(--z3)}
+body.dark .badge.qual{background:color-mix(in srgb,var(--z4) 22%,transparent);color:var(--z4)}
+body.dark .badge.int{background:color-mix(in srgb,var(--z5) 22%,transparent);color:var(--z5)}
+.phb{border-radius:999px}
+.phb.base,body.dark .phb.base{background:color-mix(in srgb,var(--z2) 15%,transparent);color:var(--z2)}
+.phb.ispec,body.dark .phb.ispec{background:color-mix(in srgb,var(--z4) 16%,transparent);color:var(--z4)}
+.phb.speed,body.dark .phb.speed{background:color-mix(in srgb,var(--z5) 14%,transparent);color:var(--z5)}
+.phb.spec,body.dark .phb.spec{background:color-mix(in srgb,var(--z3) 15%,transparent);color:var(--z3)}
+.phb.taper,body.dark .phb.taper{background:color-mix(in srgb,var(--z1) 22%,transparent);color:var(--dim)}
+.phb.deload,.phb.summer,body.dark .phb.deload,body.dark .phb.summer{background:var(--soft);color:var(--dim)}
+.phb.race,body.dark .phb.race{background:var(--txt);color:var(--card)}
+.phb.manual,body.dark .phb.manual{background:var(--soft);color:var(--txt)}
+.wk{background:var(--card);border-radius:14px;border:1px solid var(--line);border-left-width:4px}
+.wk.ph-base{border-left-color:var(--z2)}.wk.ph-ispec{border-left-color:var(--z4)}.wk.ph-speed{border-left-color:var(--z5)}
+.wk.ph-spec{border-left-color:var(--z3)}.wk.ph-taper{border-left-color:var(--z1)}.wk.deload{border-left-color:var(--line)}
+.wk.cur{box-shadow:0 0 0 2px var(--txt)}
+.nowb{background:var(--txt);color:var(--card)}
+.sess.race,body.dark .sess.race{background:var(--soft)}
+.sess.done,body.dark .sess.done{background:color-mix(in srgb,var(--z3) 9%,transparent)}
+.sess.race .daychip,.sess.done .daychip,body.dark .sess.race .daychip,body.dark .sess.done .daychip{background:var(--card);border-color:var(--line)}
+.daychip{background:var(--soft);border:none;border-radius:8px;font-family:var(--disp);font-size:12px;letter-spacing:.04em;color:var(--txt)}
+.ldb{background:var(--soft);color:var(--dim)}
+.ldb.l2,body.dark .ldb.l2{background:color-mix(in srgb,var(--z3) 16%,transparent);color:var(--z3)}
+.ldb.l3,body.dark .ldb.l3{background:color-mix(in srgb,var(--z4) 18%,transparent);color:var(--z4)}
+.ldb.l4,body.dark .ldb.l4{background:color-mix(in srgb,var(--z5) 16%,transparent);color:var(--z5)}
+.hrt{color:var(--txt);background:var(--soft);border:none;font-weight:600}
+.benefit,body.dark .benefit{background:var(--soft);border:none}
+.benefit .bl,body.dark .benefit .bl{color:var(--dim)}
+.bar i{background:var(--z3)}.bar i.warn{background:var(--z4)}.bar i.red{background:var(--z5)}
+.lapc{background:var(--card)}
+.lapc.sel,body.dark .lapc.sel{background:var(--soft);border-color:var(--txt);box-shadow:0 0 0 2px var(--txt)}
+.lapc.best{border-color:var(--z3);box-shadow:inset 0 0 0 1px var(--z3)}
+.lapc b{font-family:var(--disp);font-size:22px}
+.lbar i{background:var(--z2)}
+.stwarn{border-left-color:var(--z4);background:var(--soft)}
+details.pinfo>summary{color:var(--txt)}
+.reptab .ok{color:var(--z3)}.reptab .fast{color:var(--z2)}.reptab .slow{color:var(--z5)}
+.xok{color:var(--z3);font-weight:600}
+/* barra in basso: quattro voci */
+nav{background:color-mix(in srgb,var(--card) 92%,transparent);border-top:1px solid var(--line)}
+body.dark nav{background:color-mix(in srgb,var(--card) 92%,transparent)}
+nav button{font-size:11px;font-weight:600;color:var(--dim)}
+nav button.on{color:var(--txt)}
+nav button.on svg{stroke-width:2.4}
+/* sottosezioni */
+.seg{display:flex;background:var(--soft);border-radius:12px;padding:3px;gap:3px;margin:0 0 12px}
+.seg span{flex:1;text-align:center;font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.06em;text-transform:uppercase;padding:7px 0;border-radius:9px;color:var(--dim);cursor:pointer}
+.seg span.on{background:var(--card);color:var(--txt);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+@media(min-width:900px){.tab.on>.seg{grid-column:1/-1;max-width:420px;margin-bottom:0}}
+/* card richiudibili */
+details.fold>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+details.fold>summary::-webkit-details-marker{display:none}
+details.fold>summary::after{content:'＋';color:var(--dim);font-size:16px}
+details.fold[open]>summary::after{content:'－'}
+details.fold[open]>summary{margin-bottom:10px}
+details.fold>summary h2{margin:0}
+/* Oggi: la card scura è l'azione del momento */
+.card.hero{background:var(--txt);border-color:var(--txt);color:var(--card)}
+.hero .hl{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;opacity:.72}
+.hero .hn{font-family:var(--disp);font-weight:700;font-size:40px;line-height:.98;margin:4px 0 8px;text-wrap:balance}
+.hero .hw{font-size:13.5px;opacity:.85;line-height:1.4}
+.hchips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.hchip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--card) 14%,transparent)}
+.hchip i{width:8px;height:8px;border-radius:50%;display:block}
+.hero .muted{color:inherit;opacity:.7}
+.wstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:14px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--card) 18%,transparent)}
+.wd{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;opacity:.9}
+.wd b{font-family:var(--disp);font-size:13px;font-weight:600}
+.wdot{width:32px;height:32px;border-radius:50%;border:1.5px dashed color-mix(in srgb,var(--card) 35%,transparent);display:grid;place-items:center;font-family:var(--disp);font-size:12px;font-weight:700}
+.wdot.pl{border-style:solid;border-color:color-mix(in srgb,var(--card) 70%,transparent)}
+.wdot.done{border:none;background:var(--z3);color:#fff}
+.wdot.extra{border:none;background:color-mix(in srgb,var(--z3) 60%,transparent);color:#fff}
+.wdot.miss{border-style:solid;border-color:var(--z5);color:var(--z5)}
+.wdot.now{border:none;background:var(--card);color:var(--txt)}
+.tiles4{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:12px 10px}
+.alrt{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.38;padding:10px;border-radius:12px;background:var(--soft);margin-bottom:8px}
+.alrt:last-child{margin-bottom:0}
+.alrt .m{width:4px;align-self:stretch;border-radius:2px;flex:0 0 4px}
+/* Corse: riquadri di import */
+.drops{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.drop{display:flex;flex-direction:column;gap:4px;margin:0;padding:14px;border:1.5px dashed var(--line);border-radius:14px;background:var(--soft);cursor:pointer;color:var(--txt)}
+.drop:hover{border-color:var(--txt)}
+.drop input{display:none}
+.drop b{font-family:var(--disp);font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.drop span{font-size:12.5px;color:var(--dim);line-height:1.35}
+/* Piano: settimane richiudibili */
+details.wkd{margin-bottom:8px}
+details.wkd>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+details.wkd>summary::-webkit-details-marker{display:none}
+details.wkd[open]>summary{display:none}
+.wks-n{font-family:var(--disp);font-weight:700;font-size:19px}
+.wks-t{font-size:13px;line-height:1.3;min-width:0}
+.wks-t small{display:block;color:var(--dim);font-size:11.5px}
+.wks-k{font-family:var(--disp);font-weight:600;font-size:16px;white-space:nowrap}
+.wkd.past>summary{opacity:.62}
+.here{position:relative;height:16px;margin:-4px 0 6px}
+.here span{position:absolute;transform:translateX(-50%);font-family:var(--disp);font-weight:700;font-size:12px;letter-spacing:.05em;white-space:nowrap}
+.cdown{display:flex;gap:18px;flex-wrap:wrap;margin:6px 0 4px}
+.cdown div{display:flex;flex-direction:column}
+.cdown b{font-family:var(--disp);font-weight:700;font-size:26px;line-height:1}
+.cdown span{font-size:11.5px;color:var(--dim)}
+@media(min-width:900px){
+  #tab-dash .card{order:10}
+  .card:has(#d-today){grid-column:1/-1;order:1}
+  .card:has(#d-acwr){order:2}.card:has(#d-alerts){order:3}
+  .card:has(#d-load){order:4}.card:has(#d-pred){order:5}.card:has(#d-paces){order:6}.card:has(#d-recent){grid-column:1/-1;order:7}
+  #tab-runs .card{grid-column:1/-1}
+  #tab-runs .card:has(#dt-manage) #dt-manage{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 24px}
+}
+@media(min-width:1400px){.card:has(#d-today){grid-column:1/-1}.card:has(#d-acwr){grid-column:auto}.card:has(#d-load){grid-column:auto}.card:has(#d-paces){grid-column:auto}}
+.htit{min-width:0;flex:1}
+header h1#hdr-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-r{flex-shrink:0}
+.stat i{display:block;margin-top:1px}
+@media(max-width:899px){
+  #tab-dash.on{display:flex;flex-direction:column}
+  #tab-dash .card{order:10}
+  #tab-dash .card:has(#d-today){order:1}#tab-dash .card:has(#d-acwr){order:2}#tab-dash .card:has(#d-alerts){order:3}
+  #tab-dash .card:has(#d-load){order:4}#tab-dash .card:has(#d-pred){order:5}#tab-dash .card:has(#d-paces){order:6}#tab-dash .card:has(#d-recent){order:7}
+}
+.ggrid{display:grid;grid-template-columns:1fr;gap:16px}.ggrid>div{min-width:0}
+@media(min-width:700px){.ggrid{grid-template-columns:1fr 1fr}}
+details.wkd-past{margin-bottom:8px;grid-column:1/-1}
+details.wkd-past>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;background:var(--soft);font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+details.wkd-past>summary::-webkit-details-marker{display:none}
+details.wkd-past[open]>summary{margin-bottom:8px}
+#p-out .card:first-child .btn2{font-size:14px;padding:9px}
+
 </style>
 </head>
 <body>
@@ -268,7 +445,7 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
     <p id="auth-err" style="color:var(--red);font-size:12px;margin-top:8px"></p>
   </div>
 </div>
-<header><h1>Run<span>Plan</span></h1><div class="hdr-r"><small id="hdr"></small><button id="acct" class="thmbtn" aria-label="Account e sincronizzazione" title="Account / sincronizzazione"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></button><button id="thm" class="thmbtn" aria-label="Tema chiaro/scuro" title="Tema chiaro/scuro">🌙</button></div></header>
+<header><div class="htit"><small id="hdr-sub">RunPlan</small><h1 id="hdr-t">Oggi</h1></div><div class="hdr-r"><small id="hdr" class="hdr-k"></small><button id="gear" class="thmbtn" aria-label="Impostazioni" title="Impostazioni e dati"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></button><button id="acct" class="thmbtn" aria-label="Account e sincronizzazione" title="Account / sincronizzazione"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;margin:auto"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 19a6.5 6.5 0 0 1 13 0"/></svg></button><button id="thm" class="thmbtn" aria-label="Tema chiaro/scuro" title="Tema chiaro/scuro">🌙</button></div></header>
 <div id="acct-pop" class="acctpop" hidden>
   <div style="font-weight:600;margin-bottom:6px">Sincronizzazione</div>
   <div id="cloud-status" class="muted">Verifica in corso…</div>
@@ -277,21 +454,25 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
 <main>
 
 <div class="tab on" id="tab-dash">
-  <div class="card"><h2>Seduta del giorno</h2><div id="d-today"></div></div>
+  <div class="card hero" id="d-hero"><div id="d-today"></div></div>
   <div class="card"><h2>Carico e rischio infortuni</h2><div id="d-load"></div></div>
-  <div class="card"><h2>Forma attuale</h2>
-    <div class="grid3">
-      <div class="stat"><b id="d-vdot">–</b><span>VDOT stimato</span><i id="d-vdot-d"></i></div>
+  <div class="card"><h2>Come stai</h2>
+    <div class="tiles4">
+      <div class="stat"><b id="d-acwr">–</b><span>carico 7g / 28g</span><i id="d-acwr-d"></i></div>
+      <div class="stat"><b id="d-vdot">–</b><span>VDOT da gara</span><i id="d-vdot-d"></i></div>
+      <div class="stat"><b id="d-aero">–</b><span>indice aerobico (FC)</span><i id="d-aero-d"></i></div>
       <div class="stat"><b id="d-wkm">–</b><span>km ultimi 7g</span><i id="d-wkm-d"></i></div>
       <div class="stat"><b id="d-mkm">–</b><span>km ultimi 28g</span><i id="d-mkm-d"></i></div>
     </div>
   </div>
+  <div class="card"><h2>Da tenere d'occhio</h2><div id="d-alerts"></div></div>
   <div class="card"><h2>Tempi previsti (VDOT attuale)</h2><div class="grid2" id="d-pred"></div></div>
   <div class="card"><h2>Passi allenamento</h2><table id="d-paces"></table></div>
   <div class="card"><h2>Ultime corse</h2><table id="d-recent"></table></div>
 </div>
 
 <div class="tab" id="tab-prog">
+  <div class="seg"><span data-p="fit">Fitness</span><span data-p="prog">Progressi</span></div>
   <div class="card"><h2>Periodo</h2>
     <div id="pr-pills"><span class="pill" data-m="3">3 mesi</span><span class="pill" data-m="6">6 mesi</span><span class="pill" data-m="12">12 mesi</span><span class="pill on" data-m="0">Tutto</span></div>
     <div class="grid2" style="margin-top:8px">
@@ -302,10 +483,6 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
   <div class="card"><h2>Bilancio del periodo</h2><div id="c-recap"></div></div>
   <div class="card"><h2>Miglioramento passi di allenamento</h2><div id="c-paces"></div></div>
   <div class="card"><h2>Ultima corsa vs precedente simile</h2><div id="c-cmp"></div></div>
-  <div class="card"><h2>Analisi seduta</h2>
-    <select id="a-sel"></select>
-    <div id="a-out" style="margin-top:10px"></div>
-  </div>
   <div class="card"><h2>VDOT nel tempo (best effort 60g)</h2><div id="c-vdot"></div></div>
   <div class="card"><h2>Volume settimanale (km)</h2><div id="c-vol"></div></div>
   <div class="card"><h2>Passo corse facili (min/km)</h2><div id="c-easy"></div></div>
@@ -325,6 +502,7 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
 </div>
 
 <div class="tab" id="tab-fit">
+  <div class="seg"><span data-p="fit">Fitness</span><span data-p="prog">Progressi</span></div>
   <div class="card"><h2>Fitness dalla frequenza cardiaca</h2><div id="f-cov"></div></div>
   <div class="card"><h2>Zone attuali</h2><div id="f-zones"></div></div>
   <div class="card"><h2>Minuti a settimana per zona</h2><div id="f-win" style="margin-bottom:10px"></div><div id="f-recipe"></div></div>
@@ -342,7 +520,12 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
 </div>
 
 <div class="tab" id="tab-plan">
-  <div class="card"><h2>Genera piano</h2>
+  <div class="seg"><span data-p="plan">Settimane</span><span data-p="mon">Aderenza</span></div>
+  <div id="p-out"></div>
+  <div class="card"><h2>Obiettivo: cosa serve</h2><div id="p-goalgap"></div></div>
+  <div class="card"><h2>Progressione vs piano</h2><div id="p-track"></div></div>
+  <details class="card fold"><summary><h2>Guida alle sedute (ai tuoi ritmi)</h2></summary><div id="p-guide"></div></details>
+  <details class="card fold" id="gen-card"><summary><h2>Genera un nuovo piano</h2></summary>
     <div class="formgrid">
       <div><label>Gara finale (obiettivo)</label>
         <select id="p-goal"><option value="5">5 km</option><option value="10">10 km</option><option value="21.0975">Mezza maratona</option><option value="42.195" selected>Maratona</option></select></div>
@@ -373,21 +556,18 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
     </div>
     <p class="muted" style="margin-top:4px">La modalità stima quanti punti VDOT puoi guadagnare da qui alla gara e ne ricava il tempo obiettivo. Se scrivi un tempo, controllo se è realistico nelle settimane disponibili e ti avviso. I ritmi delle sedute restano tarati sulla forma attuale (metodo Daniels) e si aggiornano a ogni ricalibrazione; il target guida il passo gara e le sedute a ritmo gara.</p>
     <button class="btn" onclick="genPlan()">Genera piano</button>
-  </div>
-  <div class="card"><h2>Guida alle sedute (ai tuoi ritmi)</h2><div id="p-guide"></div></div>
-  <div class="card"><h2>Progressione vs piano</h2><div id="p-track"></div></div>
-  <div class="card"><h2>Obiettivo: cosa serve</h2><div id="p-goalgap"></div></div>
-  <div id="p-out"></div>
+  </details>
 </div>
 
 <div class="tab" id="tab-mon">
+  <div class="seg"><span data-p="plan">Settimane</span><span data-p="mon">Aderenza</span></div>
   <div class="card"><h2>Piano da monitorare (.ics)</h2>
     <p class="muted" id="mon-info"></p>
     <label style="margin-top:12px">Carica il piano .ics (export dal tab Piano)</label>
     <input type="file" id="mon-ics" accept=".ics">
     <button class="btn btn2" id="mon-fromplan" style="margin-top:10px">↺ Aggiorna dal piano corrente</button>
     <p class="muted" style="margin-top:4px">Crea lo snapshot da monitorare direttamente dal tab Piano — incluse le settimane che hai reso scarico, messo a gara a mano o riscritto sulle corse svolte (in quel caso le sedute già fatte entrano qui con la loro data vera). Senza esportare e ricaricare l’.ics.</p>
-    <label style="margin-top:12px">Scegli una corsa già in archivio (importate dal tab Dati)</label>
+    <label style="margin-top:12px">Scegli una corsa già in archivio (importate qui sopra)</label>
     <div style="display:flex;gap:8px">
       <select id="mon-runsel" style="flex:1"></select>
       <button class="btn btn2" id="mon-addrun" style="width:auto;margin:0;padding:10px 14px;white-space:nowrap">+ Aggiungi</button>
@@ -420,21 +600,29 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
   <div class="card"><h2>Seduta per seduta</h2><div id="mon-sess"></div></div>
 </div>
 
+<div class="tab" id="tab-runs">
+  <div class="card"><h2>Importa corse</h2>
+    <div class="drops">
+      <label class="drop"><input type="file" id="dt-zip" accept=".zip,application/zip"><b>Archivio completo .zip</b><span>Export di Garmin («Esporta i tuoi dati») o di Strava, così com'è. FC secondo per secondo per tutto lo storico.</span></label>
+      <label class="drop"><input type="file" id="dt-fit" accept=".fit" multiple><b>File .fit</b><span>Una o più corse scaricate da Garmin Connect: lap, FC e traccia.</span></label>
+      <label class="drop"><input type="file" id="dt-file" accept=".csv"><b>CSV Attività</b><span>Il riepilogo di Garmin Connect: solo medie, niente FC secondo per secondo.</span></label>
+    </div>
+    <p class="muted" id="dt-zipst" style="margin-top:8px">Le corse già presenti vengono completate, quelle mancanti aggiunte. Gli archivi grandi meglio dal computer.</p>
+  </div>
+  <div class="card"><h2>Analisi della corsa</h2>
+    <select id="a-sel"></select>
+    <div id="a-out" style="margin-top:10px"></div>
+  </div>
+  <div class="card"><h2>Archivio</h2>
+    <p class="muted" style="margin-bottom:8px">Rinomina per correggere la categoria (parole chiave: gara, soglia, medio, progressivo, fartlek, 8x200, lungo) — niente da ricaricare.</p>
+    <div id="dt-manage"></div>
+  </div>
+</div>
+
 <div class="tab" id="tab-data">
   <div class="card"><h2>Dati</h2>
     <p class="muted" id="dt-info"></p>
-    <div class="datagrid">
-      <div><label style="margin-top:12px">Importa export Garmin (CSV Attività)</label><input type="file" id="dt-file" accept=".csv"></div>
-      <div><label style="margin-top:12px">Importa file .FIT (lap ripetute + nuove corse)</label><input type="file" id="dt-fit" accept=".fit" multiple></div>
-      <div class="dreset"><button class="btn btn2" onclick="resetData()" style="margin:0;width:100%">Ripristina dati iniziali</button></div>
-    </div>
-    <label style="margin-top:14px">Importa archivio completo (.zip di Garmin «Esporta i tuoi dati» o di Strava): FC secondo per secondo per tutto lo storico</label>
-    <input type="file" id="dt-zip" accept=".zip,application/zip">
-    <p class="muted" id="dt-zipst" style="margin-top:6px">Carica lo .zip così com'è, senza estrarlo. Le corse già presenti vengono completate (FC, lap, traccia), quelle mancanti aggiunte. Meglio dal computer: gli archivi grandi pesano.</p>
-  </div>
-  <div class="card"><h2>Gestisci corse (ultime 12)</h2>
-    <p class="muted" style="margin-bottom:8px">Rinomina per correggere la categoria (parole chiave: gara, soglia, medio, progressivo, fartlek, 8x200, lungo) — niente da ricaricare.</p>
-    <div id="dt-manage"></div>
+    <button class="btn btn2" onclick="resetData()" style="margin-top:10px;width:auto;padding:9px 16px">Ripristina dati iniziali</button>
   </div>
   <div class="card"><h2>Parametri</h2>
     <div id="st-alert"></div>
@@ -460,12 +648,10 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
 
 </main>
 <nav>
-  <button class="on" data-t="dash"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Oggi</button>
-  <button data-t="prog"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Progressi</button>
-  <button data-t="fit"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>Fitness</button>
-  <button data-t="plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>Piano</button>
-  <button data-t="mon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.5"/></svg>Monitor</button>
-  <button data-t="data"><svg viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.2"/><line x1="4" y1="15" x2="20" y2="15"/><circle cx="15" cy="15" r="2.2"/></svg>Dati</button>
+  <button class="on" data-g="oggi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Oggi</button>
+  <button data-g="forma"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>Forma</button>
+  <button data-g="piano"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Piano</button>
+  <button data-g="corse"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Corse</button>
 </nav>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
@@ -651,11 +837,22 @@ function workTarget(sess){
 }
 
 /* ---------- tabs ---------- */
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
-  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on');document.getElementById('tab-'+b.dataset.t).classList.add('on');
-});
+const GROUPS={oggi:['dash'],forma:['fit','prog'],piano:['plan','mon'],corse:['runs'],imp:['data']};
+const PTITLE={dash:'Oggi',fit:'Forma',prog:'Forma',plan:'Piano',mon:'Piano',runs:'Corse',data:'Impostazioni'};
+let curPane='dash';
+function showPane(p){
+  curPane=p;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.id==='tab-'+p));
+  const g=Object.keys(GROUPS).find(k=>GROUPS[k].includes(p));
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.g===g));
+  document.querySelectorAll('.seg span[data-p]').forEach(x=>x.classList.toggle('on',x.dataset.p===p));
+  document.getElementById('hdr-t').textContent=PTITLE[p]||'';
+  if(p==='plan'&&!document.getElementById('p-out').querySelector('.wk')){const pl=LS('rp_plan');if(pl)try{rPlan(pl)}catch(e){console.warn(e)}}
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>showPane(GROUPS[b.dataset.g][0]));
+document.querySelectorAll('.seg span[data-p]').forEach(sp=>sp.onclick=()=>showPane(sp.dataset.p));
+document.getElementById('gear').onclick=()=>showPane('data');
 
 /* ---------- SVG charts ---------- */
 function chart(el,pts,{ylab=v=>v.toFixed(0),color='var(--acc)',bar=false,invertY=false}={}){
@@ -748,6 +945,7 @@ function rDash(){
   document.getElementById('d-mkm').textContent=m28.toFixed(0);
   document.getElementById('d-mkm-d').innerHTML=delta(m28,m28p,' km');
   document.getElementById('hdr').textContent=`${runs.length} corse · ${runs.reduce((s,r)=>s+r.km,0).toFixed(0)} km`;
+  try{rOggiExtra()}catch(e){console.warn('rOggiExtra',e)}
   if(vd){
     document.getElementById('d-pred').innerHTML=[[5,'5 km'],[10,'10 km'],[21.0975,'Mezza'],[42.195,'Maratona']]
       .map(([d,n])=>`<div class="stat"><b style="font-size:17px">${fmtD(predict(d,vd))}</b><span>${n} · ${fmtP(predict(d,vd)/d)}/km</span></div>`).join('');
@@ -764,46 +962,94 @@ function rDash(){
 }
 
 /* ---------- seduta del giorno (dal piano che segui) ---------- */
+/* ---------- seduta del giorno (dal piano che segui): card scura + settimana a pallini ---------- */
+function todaySessions(){
+  if(monitor&&monitor.sessions&&monitor.sessions.length)return monitor.sessions;
+  const pl=LS('rp_plan');return pl?planToSessions(pl):null;
+}
+function sessZone(work,c){
+  const m=String(work||'').match(/\((I|R|T|M|Z2|gara)\)/);
+  if(m)return{Z2:1,M:2,gara:2,T:3,I:4,R:4}[m[1]];
+  return ['easy','long'].includes(c)?1:null;
+}
 function rToday(){
   const el=document.getElementById('d-today');if(!el)return;
-  let sessions=null;
-  if(monitor&&monitor.sessions&&monitor.sessions.length)sessions=monitor.sessions;
-  else{const pl=LS('rp_plan');if(pl)sessions=planToSessions(pl)}
-  if(!sessions||!sessions.length){el.innerHTML='<p class="muted">Nessun piano attivo. Genera un piano nel tab Piano o carica un .ics nel Monitor: qui vedrai la seduta di oggi coi ritmi.</p>';return}
-  const todayS=todayISO();
   const DN=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
+  const now=new Date();
+  const sub=document.getElementById('hdr-sub');if(sub)sub.textContent=`${DN[now.getDay()]} ${now.getDate()} ${['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'][now.getMonth()]}`;
+  const sessions=todaySessions();
+  if(!sessions||!sessions.length){el.innerHTML='<div class="hl">Oggi</div><div class="hn">Nessun piano attivo</div><p class="hw">Genera un piano nel tab Piano: qui vedrai la seduta del giorno con passo e FC.</p>';return}
+  const todayS=todayISO();
   const todayList=sessions.filter(s=>s.date===todayS);
   let target=todayList[0],label='Oggi';
   if(!target){
     const up=sessions.filter(s=>s.date>todayS).sort((a,b)=>a.date<b.date?-1:1)[0];
-    if(!up){el.innerHTML='<p class="muted">Piano concluso: nessuna seduta in programma. Il tab Oggi torna utile quando generi o carichi un nuovo piano.</p>';return}
+    if(!up){el.innerHTML='<div class="hl">Oggi</div><div class="hn">Piano concluso</div><p class="hw">Nessuna seduta in programma: genera o carica un nuovo piano.</p>';return}
     target=up;const gg=Math.round((day(up.date)-day(todayS))/864e5);
     label=gg<=1?'Domani':`Tra ${gg} giorni`;
   }
   const doneToday=todayList.length&&runs.some(r=>r.date.slice(0,10)===todayS);
   const dt=day(target.date),isQ=['int','qual','race'].includes(target.cls);
-  const isRest=!todayList.length;
-  let html=`<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
-      <span style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--acc);font-weight:600">${label} · ${DN[dt.getDay()]} ${dt.getDate()} ${MESI[dt.getMonth()]}</span>
-      ${doneToday?'<span class="up">✓ svolta</span>':''}</div>
-    <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-      <span style="font-size:20px;font-weight:700">${target.name}</span>
-      <span class="badge ${target.cls}">${CLSN[target.cls]}</span>
-      ${target.km?`<span class="muted">≈${target.km} km</span>`:''}</div>
-    ${target.work?`<p style="margin:6px 0 0">${target.work}</p>`:''}
-    ${isQ?`<p class="muted" style="margin-top:6px">Riscaldamento 15-20' easy + 4-5 allunghi · defaticamento 10' easy.</p>`:''}`;
-  if(isRest)html=`<p class="muted" style="margin-bottom:8px">Oggi il piano non prevede corsa: riposo o scarico attivo.</p>`+html;
-  // resto della settimana
-  const wsess=sessions.filter(s=>weekKey(s.date)===weekKey(todayS)).sort((a,b)=>a.date<b.date?-1:1);
-  if(wsess.length>1){
-    html+=`<p class="muted" style="margin:12px 0 4px;text-transform:uppercase;font-size:11px;letter-spacing:.5px">Questa settimana</p>`+
-      wsess.map(s=>{const d=day(s.date),done=runs.some(r=>r.date.slice(0,10)===s.date),isT=s.date===todayS;
-        return `<div style="display:flex;gap:8px;padding:4px 0;${isT?'font-weight:600':''}">
-          <span style="color:var(--dim);min-width:56px">${DN[d.getDay()].slice(0,3)} ${d.getDate()}/${d.getMonth()+1}</span>
-          <span>${done?'✓':'·'} ${s.name}</span>
-          <span class="muted" style="margin-left:auto">${s.km?'≈'+s.km+' km':''}</span></div>`}).join('');
-  }
+  const zi=sessZone(target.work,target.cls),Z=Zcur();
+  const pr=String(target.work||'').match(/(\d:\d\d)\s*[–-]\s*(\d:\d\d)/);
+  const zr=zi!=null?zRange(zi,Z):null;
+  let html=`<div class="hl">${!todayList.length?'Oggi riposo · ':''}${label} · ${DN[dt.getDay()]} ${dt.getDate()} ${MESI[dt.getMonth()]}</div>
+    <div class="hn">${target.name}</div>
+    <div class="hchips">${pr?`<span class="hchip">${pr[1]}–${pr[2]} /km</span>`:''}${zr?`<span class="hchip"><i style="background:var(--z${zi+1})"></i>FC ${zr[1]==null?zr[0]+'+':zr[0]+'–'+zr[1]} · ${ZTAG[zi]}</span>`:''}${target.km?`<span class="hchip">≈ ${target.km} km</span>`:''}${doneToday?'<span class="hchip">✓ svolta</span>':''}</div>
+    ${target.work?`<p class="hw">${target.work}</p>`:''}
+    ${isQ?`<p class="hw" style="margin-top:4px;opacity:.7">Riscaldamento 15-20' easy + 4-5 allunghi · defaticamento 10' easy.</p>`:''}`;
+  // settimana lun-dom a pallini
+  const mon=dOnly(mondayOf(todayS));const cells=[];
+  for(let k=0;k<7;k++){const d=new Date(mon);d.setDate(mon.getDate()+k);const iso=isoLoc(d);
+    const ss=sessions.filter(s=>s.date===iso),rr=runs.filter(r=>r.date.slice(0,10)===iso);
+    const rkm=rr.reduce((a,r)=>a+r.km,0),pkm=ss.reduce((a,s)=>a+(+s.km||0),0);
+    let c='',t='';
+    if(rr.length){c=ss.length?'done':'extra';t=Math.round(rkm)}
+    else if(ss.length&&iso<todayS){c='miss';t=Math.round(pkm)||'·'}
+    else if(iso===todayS&&ss.length){c='now';t=Math.round(pkm)||'·'}
+    else if(ss.length){c='pl';t=Math.round(pkm)||'·'}
+    const nm=ss.length?ss[0].name.split(/[ -]/)[0].toLowerCase():'';
+    cells.push(`<div class="wd">${['Lun','Mar','Mer','Gio','Ven','Sab','Dom'][k]}<div class="wdot ${c}" title="${ss.map(s=>s.name).join(', ')}">${t}</div><b>${iso===todayS?'oggi':nm.slice(0,7)}</b></div>`)}
+  const wPl=sessions.filter(s=>mondayOf(s.date)===mondayOf(todayS)).reduce((a,s)=>a+(+s.km||0),0);
+  const wDo=runs.filter(r=>mondayOf(r.date)===mondayOf(todayS)).reduce((a,r)=>a+r.km,0);
+  html+=`<div class="wstrip">${cells.join('')}</div><p class="hw" style="margin-top:8px;opacity:.7">${wDo.toFixed(0)} di ${wPl.toFixed(0)} km previsti questa settimana</p>`;
   el.innerHTML=html;
+}
+function rOggiExtra(){
+  const acute=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+r.km,0),chr=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+r.km,0)/4;
+  const a=document.getElementById('d-acwr');
+  if(a){if(chr>=1){const q=acute/chr;a.textContent=q.toFixed(2);a.style.color=q>1.5?'var(--z5)':q>1.3||q<.8?'var(--warn)':'';
+      document.getElementById('d-acwr-d').innerHTML=`<span class="muted">${q>1.5?'picco':q>1.3?'alto':q>=.8?'ottimale':q>=.5?'in calo':'molto basso'}</span>`}else a.textContent='–'}
+  const e=document.getElementById('d-aero');
+  if(e){const ser=aeroSeries(2).filter(o=>o.v!=null),mv=aeroMoved();
+    if(ser.length){e.textContent=ser[ser.length-1].v.toFixed(1);e.style.color='var(--z2)';
+      document.getElementById('d-aero-d').innerHTML=mv.total!=null?`<span class="${mv.total>=0?'up':'down'}">${mv.total>=0?'▲':'▼'} ${Math.abs(mv.total).toFixed(1)} in 7 gg</span>`:''}
+    else{e.textContent='–';document.getElementById('d-aero-d').innerHTML='<span class="muted">serve la FC dei .fit</span>'}}
+}
+/* ---------- avvisi: lacune, aderenza, carico, dati ---------- */
+function rAlerts(){
+  const el=document.getElementById('d-alerts');if(!el)return;
+  const out=[];const add=(lvl,h)=>out.push({lvl,h});
+  const todayS=todayISO();
+  try{
+    const ex=exposure();
+    const lg=ex[0];if(lg.days==null)add('bad','<b>Nessun lungo registrato.</b> Per la maratona è il mattone principale.');else if(lg.days>28)add(lg.days>60?'bad':'warn',`<b>Lungo: ${lg.days} giorni fa.</b> L'ultimo oltre i 90' o i 18 km è del ${lg.r.date.slice(8,10)}/${lg.r.date.slice(5,7)}.`);
+    const t2=ex[1];if(t2.days!=null&&t2.days>21)add('warn',`<b>Nessun lavoro a LT2 da ${t2.days} giorni</b> (almeno 10' con la FC in zona).`);
+  }catch(e){}
+  const ss=todaySessions()||[];
+  const lastMon=addDaysISO(mondayOf(todayS),-7);
+  const pl=ss.filter(s=>mondayOf(s.date)===lastMon).reduce((a,s)=>a+(+s.km||0),0);
+  const dn=runs.filter(r=>mondayOf(r.date)===lastMon).reduce((a,r)=>a+r.km,0);
+  if(pl>0&&dn/pl<.8)add('warn',`<b>Settimana scorsa al ${Math.round(dn/pl*100)}%</b> dei km previsti (${dn.toFixed(0)} di ${pl.toFixed(0)}).`);
+  const miss=ss.filter(s=>mondayOf(s.date)===mondayOf(todayS)&&s.date<todayS&&!runs.some(r=>r.date.slice(0,10)===s.date));
+  miss.forEach(s=>{const d=day(s.date);add('warn',`<b>${s.name} di ${['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'][d.getDay()]} non registrata.</b> Se l'hai fatta, importa il .fit in Corse.`)});
+  const acute=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+r.km,0),chr=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+r.km,0)/4;
+  if(chr>=1&&acute/chr>1.3)add(acute/chr>1.5?'bad':'warn',`<b>Carico alto:</b> ${acute.toFixed(0)} km negli ultimi 7 giorni contro una media di ${chr.toFixed(0)}.`);
+  const r12=runs.filter(r=>daysAgo(r)<84&&!r.tm),x12=r12.filter(r=>X[r.date]&&X[r.date].hist).length;
+  if(r12.length&&x12/r12.length<.6)add('info',`<b>FC secondo per secondo su ${x12} delle ${r12.length} corse recenti.</b> Importa l'archivio .zip in Corse per completare le analisi.`);
+  try{const unc=raceCands().filter(o=>o.state==='?'&&daysAgo(o.r)<60);if(unc.length)add('info',`<b>${unc.length} ${unc.length===1?'corsa sembra':'corse sembrano'} una gara</b> (${unc.map(o=>o.r.date.slice(8,10)+'/'+o.r.date.slice(5,7)).join(', ')}): confermale in Forma › Gare riconosciute.`)}catch(e){}
+  const C={bad:'var(--z5)',warn:'var(--z4)',info:'var(--z2)'};
+  el.innerHTML=out.length?out.map(o=>`<div class="alrt"><span class="m" style="background:${C[o.lvl]}"></span><span>${o.h}</span></div>`).join(''):'<p class="muted">Tutto in ordine: nessuna lacuna o anomalia.</p>';
 }
 
 /* ---------- carico e rischio infortuni (acute:chronic) ---------- */
@@ -835,7 +1081,7 @@ function rLoad(){
     <div class="bar" style="margin-top:10px"><i class="${col}" style="width:${Math.max(3,barPct)}%"></i></div>
     <p style="margin-top:10px">${verdict}</p>
     ${ramp!=null?`<p class="muted" style="margin-top:4px">Vs i 7 giorni precedenti: ${ramp>=0?'+':''}${ramp.toFixed(0)}% km (${winP} ${lastWk.toFixed(0)} km → ${winA} ${acute.toFixed(0)} km). Sopra +10% è il limite prudente.</p>`:''}
-    <p class="muted" style="margin-top:4px">Sono 7 giorni mobili (${winA}), non la settimana lunedì-domenica: con la settimana ancora a metà il confronto per settimane di calendario direbbe sempre "in calo". Il rapporto è fra i km di questi 7 giorni e la media settimanale delle ultime 4 (acute:chronic workload ratio). Fascia consigliata 0.8–1.3.</p>`;
+    <details class="pinfo"><summary>Come si calcola</summary><p class="muted" style="margin-top:4px">Sono 7 giorni mobili (${winA}), non la settimana lunedì-domenica: con la settimana ancora a metà il confronto per settimane di calendario direbbe sempre "in calo". Il rapporto è fra i km di questi 7 giorni e la media settimanale delle ultime 4 (acute:chronic workload ratio). Fascia consigliata 0.8–1.3.</p></details>`;
 }
 
 /* ---------- render progressi ---------- */
@@ -1011,7 +1257,7 @@ function genPlan(silent,carry){
   const vd=+document.getElementById('p-vdot').value||curVdot();
   const base=+document.getElementById('p-base').value||30;
   if(!dateStr)return alert('Inserisci la data della gara');
-  if(!vd)return alert('Non riesco a stimare il VDOT dalle tue corse: importane qualcuna dal tab Dati, oppure scrivi il VDOT a mano nel campo del tab Piano.');
+  if(!vd)return alert('Non riesco a stimare il VDOT dalle tue corse: importane qualcuna dal tab Corse, oppure scrivi il VDOT a mano nel campo del tab Piano.');
   // Numero di settimane: si contano le settimane di CALENDARIO (lun-dom) dalla settimana in corso a
   // quella della gara, inclusa. Con il vecchio conteggio (giorni-alla-gara/7 arrotondato) rigenerare a
   // metà settimana poteva produrre una settimana in meno: siccome il tab Piano ricalcola le date a
@@ -1763,7 +2009,7 @@ function alignPlanToMonitor(){
   // Monitor (tipico di "Ricalibra i passi", che aggiorna il piano ma non il Monitor), recuperare da qui
   // butterebbe via la ricalibrazione: la direzione giusta sarebbe l'opposta.
   const stale=old.savedAt&&monitor.syncedAt&&old.savedAt>monitor.syncedAt;
-  const warn=stale?`\n\n⚠️ Il piano qui è più recente del Monitor (piano ${dL(old.savedAt)}, Monitor ${dL(monitor.syncedAt)}). Se hai appena premuto “Ricalibra i passi” e vuoi portare quei passi nel Monitor, annulla e usa invece “↺ Aggiorna dal piano corrente” nel tab Monitor.`:'';
+  const warn=stale?`\n\n⚠️ Il piano qui è più recente del Monitor (piano ${dL(old.savedAt)}, Monitor ${dL(monitor.syncedAt)}). Se hai appena premuto “Ricalibra i passi” e vuoi portare quei passi nel Monitor, annulla e usa invece “↺ Aggiorna dal piano corrente” in Piano › Aderenza.`:'';
   const edTxt=nEd?`\nLe ${nEd} modifiche manuali alle settimane (scarico / riscrivi sul reale) vengono azzerate: sono già dentro le sedute del Monitor, e riapplicarle sopra le duplicherebbe.`:'';
   if(!confirm(`Riscrivo le settimane del tab Piano usando il calendario e le sedute del Monitor: le due viste torneranno identiche.${edTxt}${warn}\n\nProcedo?`))return;
   const DN=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
@@ -1808,10 +2054,10 @@ function rPlan(plan){
   const iNm=iS?(iS.dist>=42?'maratona':iS.dist>=21?'mezza':iS.dist+'k'):'gara';
   const PH={base:'Base',speed:'Velocità',ispec:`Specifico ${iNm}`,spec:'Specifico',taper:'Taper'};
   const DCL={int:'ripetute',qual:'qualità',long:'lungo',easy:'facile',race:'gara'}; // etichetta delle sedute svolte
-  const PHC={base:'var(--acc)',speed:'var(--red)',ispec:'#8b5cf6',spec:'var(--acc2)',taper:'var(--warn)'};
+  const PHC={base:'var(--z2)',speed:'var(--z5)',ispec:'var(--z4)',spec:'var(--z3)',taper:'var(--z1)'};
   // barra della periodizzazione, proporzionale alle settimane di ogni fase
   const ph=plan.ph||{};
-  const segs=[['Base',ph.baseW,'var(--acc)'],[`Specifico ${iNm}`,ph.ispecW,'#8b5cf6'],['Velocità',ph.speedW,'var(--red)'],['Specifico',ph.specW,'var(--acc2)'],['Taper',ph.taper,'var(--warn)']].filter(s=>s[1]>0);
+  const segs=[['Base',ph.baseW,'var(--z2)'],[`Specifico ${iNm}`,ph.ispecW,'var(--z4)'],['Velocità',ph.speedW,'var(--z5)'],['Specifico',ph.specW,'var(--z3)'],['Taper',ph.taper,'var(--z1)']].filter(s=>s[1]>0);
   const totW=segs.reduce((a,s)=>a+s[1],0)||1;
   const phaseBar=segs.length?`<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin:10px 0 8px">${segs.map(s=>`<div style="width:${(s[1]/totW*100).toFixed(1)}%;background:${s[2]}"></div>`).join('')}</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--dim);margin-bottom:2px">${segs.map(s=>`<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${s[2]};vertical-align:middle;margin-right:5px"></span>${s[0]} · ${s[1]} sett.</span>`).join('')}</div>`:'';
@@ -1833,9 +2079,10 @@ function rPlan(plan){
     : '';
   document.getElementById('p-out').innerHTML=`<div class="card">
     <h2>${gn} · ${plan.dateStr} · VDOT ${plan.vd}${plan.vdTarget&&plan.vdTarget!==plan.vd?` → ${plan.vdTarget}`:''}</h2>
-    <p style="margin-bottom:2px">Obiettivo: <b class="pace">${plan.GT}</b> (${plan.GP}/km).${plan.mode?` <span class="muted">· Modalità: <b>${plan.mode}</b>${plan.targetSet?' (tempo scelto da te)':''}</span>`:''}<br>
-    <span class="muted">È un range, non un numero: dove cadi dentro dipende da meteo, percorso e giornata. Entrambi gli estremi sono un buon risultato.${plan.vdTarget&&plan.vdTarget>plan.vd?` I ritmi delle sedute progrediscono nel blocco: partono dal VDOT ${plan.vd} attuale e salgono fino al VDOT ${plan.vdTarget} previsto in gara, così le settimane finali mostrano il passo che punti a raggiungere. Rigenera dal reale per ricalibrarli su/giù coi tuoi dati.`:''}</span></p>
+    <div style="margin-bottom:2px">Obiettivo: <b class="pace">${plan.GT}</b> (${plan.GP}/km).${plan.mode?` <span class="muted">· Modalità: <b>${plan.mode}</b>${plan.targetSet?' (tempo scelto da te)':''}</span>`:''}<br>
+    <details class="pinfo"><summary>Come leggere obiettivo e ritmi</summary><span class="muted">È un range, non un numero: dove cadi dentro dipende da meteo, percorso e giornata. Entrambi gli estremi sono un buon risultato.${plan.vdTarget&&plan.vdTarget>plan.vd?` I ritmi delle sedute progrediscono nel blocco: partono dal VDOT ${plan.vd} attuale e salgono fino al VDOT ${plan.vdTarget} previsto in gara, così le settimane finali mostrano il passo che punti a raggiungere. Rigenera dal reale per ricalibrarli su/giù coi tuoi dati.`:''}</span></details></div>
     ${phaseBar}
+    ${hereMarker(plan,curWeek,nAll,race)}
     ${misAlign}
     ${plan.readiness?`<p class="muted" style="margin:6px 0;padding:8px 10px;border-left:3px solid var(--warn,#e0a800);background:rgba(224,168,0,.08);border-radius:6px">⚠️ <b>Base leggera</b> — ${plan.readiness.text} ${plan.readiness.advice} Il piano parte comunque nei limiti di sicurezza, ma le prime settimane saranno più impegnative.</p>`:''}
     ${plan.interRaces&&plan.interRaces.length?`<p class="muted" style="margin:6px 0">🏁 Gare intermedie (tune-up): ${plan.interRaces.map(r=>`${r.dist>=42?'Maratona':r.dist>=21?'Mezza':r.dist+'k'} il ${new Date(r.date).toLocaleDateString('it-IT',{day:'numeric',month:'short'})}`).join(' · ')}. Mini-scarico prima, la gara sostituisce la qualità, poi recupero. Il blocco a diamante è collocato fuori dagli scarichi gara.${plan.iSpec?` <b>La prima</b> ha davanti ${plan.iSpec.len} settimane di <b>fase specifica ${iNm}</b> (viola): soglia al martedì e lungo con finale a ritmo gara, perché a quella distanza vale la pena arrivarci preparati — e la soglia guadagnata resta per la gara obiettivo. Le successive restano tune-up.`:''}</p>`:''}
@@ -1844,8 +2091,8 @@ function rPlan(plan){
       <button class="btn btn2" style="margin:0;flex:1 1 44%" onclick="copyPlan()">Copia (markdown)</button>
       <button class="btn btn2" style="margin:0;flex:1 1 44%" onclick="exportICS()">Esporta .ics</button>
       ${monMon?`<button class="btn btn2" style="margin:0;flex:1 1 100%" onclick="alignPlanToMonitor()">↺ Recupera dal Monitor</button>`:''}</div>
-    ${monMon?`<p class="muted" style="margin:6px 0 0"><b>↺ Recupera dal Monitor</b> riscrive le settimane qui sotto con le date e le sedute che vedi nel Monitor: premilo dopo aver ricalibrato o rigenerato il piano da lì, così le due viste coincidono. La direzione opposta è <b>↺ Aggiorna dal piano corrente</b>, nel tab Monitor.</p>`:''}
-    <p class="muted" style="margin:12px 0 2px"><b>Note operative</b> — Riscaldamento interval/cruise: 15-20' easy progressivo + 4-5 allunghi 80m (inclusi nei km). Defaticamento: 10' easy. Tolleranza sui passi: ±3s (già nei range). I km indicati sono ≈ totali di seduta. Tra due sedute dure c'è sempre una corsa lenta (Z2/base) per non sovraccaricare le gambe. D'estate: due sedute veloci corte e intense separate da Z2 (es. martedì interval, giovedì Z2, weekend qualità), niente lungo lento.</p></div>`+(()=>{try{return doseCard(plan,refSun,nAll)}catch(e){console.warn('doseCard',e);return''}})()+
+    ${monMon?`<p class="muted" style="margin:6px 0 0"><b>↺ Recupera dal Monitor</b> riscrive le settimane qui sotto con le date e le sedute che vedi nel Monitor: premilo dopo aver ricalibrato o rigenerato il piano da lì, così le due viste coincidono. La direzione opposta è <b>↺ Aggiorna dal piano corrente</b>, in Piano › Aderenza.</p>`:''}
+    <details class="pinfo"><summary>Note operative</summary><p class="muted" style="margin:6px 0 2px"><b>Note operative</b> — Riscaldamento interval/cruise: 15-20' easy progressivo + 4-5 allunghi 80m (inclusi nei km). Defaticamento: 10' easy. Tolleranza sui passi: ±3s (già nei range). I km indicati sono ≈ totali di seduta. Tra due sedute dure c'è sempre una corsa lenta (Z2/base) per non sovraccaricare le gambe. D'estate: due sedute veloci corte e intense separate da Z2 (es. martedì interval, giovedì Z2, weekend qualità), niente lungo lento.</p></details></div>`+(()=>{try{return doseCard(plan,refSun,nAll)}catch(e){console.warn('doseCard',e);return''}})()+
     `<div class="card">`+
     plan.weeks.map(w=>{
       const isCur=!w.hist&&curWeek===w.w;
@@ -1862,7 +2109,7 @@ function rPlan(plan){
           <optgroup label="Gara infrasettimanale (giovedì)">${sO('w5','Gara 5k giovedì')}${sO('w10','Gara 10k giovedì')}${sO('w21','Gara mezza giovedì')}</optgroup>
         </select>
         <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin:7px 0 0;cursor:pointer"><input type="checkbox" ${w.fromReal?'checked':''} onchange="setWkReal('${wkKey}',this.checked)" style="width:15px;height:15px;accent-color:var(--acc2,#2563eb)">✔ Riscrivi sulle corse svolte</label>`:'';
-      return `<div class="wk ph-${w.phase||'base'}${w.isDeload?' deload':''}${isCur?' cur':''}${w.manual?' manual':''}"${w.hist?' style="opacity:.55"':''}>
+      return wkWrap(w,isCur,sunW,curWeek,`<div class="wk ph-${w.phase||'base'}${w.isDeload?' deload':''}${isCur?' cur':''}${w.manual?' manual':''}"${w.hist?' style="opacity:.55"':''}>
         <div class="wkhead"><div class="wktitle">Settimana ${w.w}${isCur?' <span class="nowb">in corso</span>':''}</div><div class="wkvol">~${w.vol} km</div></div>
         <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.manual&&w.manual!=='deload'&&w.manual!=='real'?`<span class="phb race">🏁 gara${w.addRace?' (dom)':w.midRace?' (gio)':''}</span>`:''}${w.fromReal?'<span class="phb manual">✔ dal reale</span>':''}${w.manual&&!w.fromReal?'<span class="phb manual">✎ a mano</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
         ${editSel}
@@ -1878,8 +2125,9 @@ function rPlan(plan){
           return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.done?s.d:hrTag(s.d)}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">${badge}</span></div></div>${canSkip?`<button class="skipx" title="Togli questa seduta dalla settimana" onclick="wkSkipAdd('${wkKey}',${si})">✕</button>`:''}</div>`;
         }).join('')}
         ${(!w.hist&&w.w!==nAll&&(wkSkips()[wkKey]||[]).length)?`<p class="skiprow"><span>Tolte a mano:</span>${(wkSkips()[wkKey]||[]).map((k,ki)=>`<button onclick="wkSkipDel('${wkKey}',${ki})" title="Rimetti questa seduta">↺ ${k.split('|')[1]} (${k.split('|')[0].slice(0,3).toLowerCase()})</button>`).join('')}</p>`:''}
-      </div>`;
+      </div>`);
     }).join('')+`</div>`;
+  try{groupPast()}catch(e){console.warn(e)}
 }
 /* ---------- progressione vs piano ---------- */
 function rTrack(){
@@ -2760,9 +3008,10 @@ function renderStAlert(){
 function saveSettings(){st={...st,hrmax:+document.getElementById('st-hrmax').value||188,hrrest:+document.getElementById('st-hrrest').value||53,updated:new Date().toISOString().slice(0,10)};LS('rp_st',st);zCache=null;refresh();alert('Salvato')}
 function resetData(){if(confirm('Tornare ai dati iniziali? Import manuali, rinomine ed eliminazioni verranno persi.')){edits={};LS('rp_edits',edits);runs=SEED_RUNS.slice().sort((a,b)=>a.date<b.date?-1:1);LS('rp_runs',[]);refresh()}}
 function rManage(){
-  document.getElementById('dt-manage').innerHTML=runs.slice(-12).reverse().map(r=>{const k=r.date+'|'+r.km;
+  document.getElementById('dt-manage').innerHTML=runs.slice(-40).reverse().map(r=>{const k=r.date+'|'+r.km;
     return `<div class="shoecard"><div style="flex:1"><b>${r.title}</b> <span class="badge ${cls(r)}">${CLSN[cls(r)]}</span><br>
-      <span class="muted">${r.date.slice(0,10)} · ${r.km.toFixed(1)} km</span></div>
+      <span class="muted">${r.date.slice(0,10)} · ${r.km.toFixed(1)} km · ${fmtP(pace(r))}/km${r.hr?' · FC '+r.hr:''}${X[r.date]&&X[r.date].hist?' · <b class="xok">FC 1s</b>':''}</span></div>
+      <button class="btn btn2" style="width:auto;margin:0 0 0 8px;padding:8px 10px;font-size:12px" onclick="anaOpen('${r.date}')">Analizza</button>
       <button class="btn btn2" style="width:auto;margin:0 0 0 8px;padding:8px 10px;font-size:12px" onclick="renameRun('${k}')">✎</button>
       <button class="btn btn2" style="width:auto;margin:0 0 0 6px;padding:8px 10px;font-size:12px" onclick="delRun('${k}')">✕</button></div>`}).join('');
 }
@@ -3175,7 +3424,7 @@ function rAna(){
   // ---- assemblaggio: beneficio principale in evidenza, poi lettura, poi i dati
   // 83% dell'archivio viene dal CSV Garmin e non ha i lap: dirlo, invece di far sembrare l'analisi
   // dello stesso spessore di quella di una seduta importata da .fit
-  const noLapHtml=allLaps.length?'':`<div class="nolap">Questa corsa non ha i lap: è arrivata dall'export CSV, non da un .fit. Posso leggere solo i totali — niente frazioni, niente confronto con il target delle ripetute, niente deriva cardiaca. Importa il .fit dal tab Dati per l'analisi completa.</div>`;
+  const noLapHtml=allLaps.length?'':`<div class="nolap">Questa corsa non ha i lap: è arrivata dall'export CSV, non da un .fit. Posso leggere solo i totali — niente frazioni, niente confronto con il target delle ripetute, niente deriva cardiaca. Importa il .fit dal tab Corse per l'analisi completa.</div>`;
   const benHtml=benefit?`<div class="benefit"><span class="bl">Beneficio principale</span><b>${benefit.name}</b> <small>· zona ${benefit.zone} · lavoro @ ${fmtP(benefit.wp)}/km</small><p>${benefit.desc}</p></div>`:'';
   let html=`<div class="card"><h2>Lettura della corsa</h2>${noLapHtml}${benHtml}${PARA.map(x=>typeof x==='string'?`<p style="margin-bottom:10px">${x}</p>`:x.raw).join('')}</div>`;
   html+=`<div class="card"><h2>${r.title} · ${r.date.slice(0,10)}</h2>
@@ -3825,7 +4074,7 @@ function rFit(){
   const zp=[0,1,2,3,4].map(i=>zonePaceWin(i));const vd=curVdot(),pc=vd?paces(vd):null;
   const dan=pc?[`>${fmtP(pc.E[0])}`,`${fmtP(pc.E[1])}–${fmtP(pc.E[0])}`,`M ${fmtP(pc.M)}`,`T ${fmtP(pc.T)}`,`I ${fmtP(pc.I)}`]:['','','','',''];
   const src=Z.src==='confermate'?`<span class="phb race">confermate${Z.date?' il '+Z.date:''}</span>`:Z.src==='stima'?`<span class="phb ispec">stimate</span> <span class="muted">dalla ${Z.anchor.r.title} del ${Z.anchor.r.date.slice(0,10)} (${Z.anchor.min}', FC media ${Z.anchor.hr})</span>`:`<span class="phb deload">da formula</span> <span class="muted">nessuna gara con FC: uso la riserva cardiaca</span>`;
-  set('f-zones',`<p style="margin-bottom:8px">${src}</p><table><tr><th>Zona</th><th class="r">FC</th><th class="r">Passo osservato</th><th class="r">Passo Daniels</th></tr>${[0,1,2,3,4].map(i=>`<tr><td><span class="zdot" style="background:${zcol(i)}"></span>${ZN[i]} <span class="muted">${ZTAG[i]}</span></td><td class="r">${zLab(i,Z)}</td><td class="r">${zp[i]?fmtP(zp[i])+'/km':'<span class="muted">–</span>'}</td><td class="r muted">${dan[i]}</td></tr>`).join('')}</table><p class="muted" style="margin-top:6px">Passo osservato = quello che hai davvero tenuto in quella fascia di FC negli ultimi 40 giorni (almeno 10'). Le zone si correggono nel tab Dati.</p>`);
+  set('f-zones',`<p style="margin-bottom:8px">${src}</p><table><tr><th>Zona</th><th class="r">FC</th><th class="r">Passo osservato</th><th class="r">Passo Daniels</th></tr>${[0,1,2,3,4].map(i=>`<tr><td><span class="zdot" style="background:${zcol(i)}"></span>${ZN[i]} <span class="muted">${ZTAG[i]}</span></td><td class="r">${zLab(i,Z)}</td><td class="r">${zp[i]?fmtP(zp[i])+'/km':'<span class="muted">–</span>'}</td><td class="r muted">${dan[i]}</td></tr>`).join('')}</table><p class="muted" style="margin-top:6px">Passo osservato = quello che hai davvero tenuto in quella fascia di FC negli ultimi 40 giorni (almeno 10'). Le zone si correggono in Impostazioni (⚙).</p>`);
   // 2. ricetta
   pillset('f-win',[[1,'1 sett'],[4,'4 sett'],[8,'8 sett']],fitWin,v=>{fitWin=v;rFit()});
   const rc=recipe(fitWin*7);const tot=rc.perWk.reduce((a,b)=>a+b,0);
@@ -3971,7 +4220,7 @@ function rGoal(){
   const fmtDay=d=>d.getDate()+' '+MESI[d.getMonth()];
   const today=new Date();
   const eq=[[5,'5 km'],[10,'10 km'],[21.0975,'Mezza'],[42.195,'Maratona']];
-  el.innerHTML=`<div class="grid2" style="align-items:start"><div>
+  el.innerHTML=`<div class="ggrid"><div>
     <p style="margin-bottom:6px">Obiettivo <b class="pace">${fmtD(g.sec)}</b> · ${g.km>=42?'maratona':g.km>=21?'mezza':g.km+' km'} del ${g.date} <span class="muted">(${st.goalT?'scelto da te':'dal piano'})</span></p>
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="text" id="g-t" placeholder="es. 2:59:59" value="${st.goalT?fmtD(st.goalT):''}" style="flex:1"><button class="btn btn2" style="width:auto;margin:0;padding:9px 12px" onclick="const v=parseHMS(document.getElementById('g-t').value);if(v)st.goalT=v;else delete st.goalT;LS('rp_st',st);rGoal()">Confronta</button></div>
     <table><tr><th></th><th class="r">Oggi</th><th class="r">Serve</th><th class="r">Δ</th></tr>
@@ -4024,6 +4273,35 @@ document.getElementById('dt-zip').addEventListener('change',async e=>{
   }catch(err){stEl.textContent='Errore: '+err.message}
 });
 
+/* ---------- Piano: settimane richiudibili e "sei qui" ---------- */
+function wkWrap(w,isCur,sunW,curWeek,html){
+  const open=isCur||(curWeek&&w.w===curWeek+1);
+  const mon=new Date(sunW);mon.setDate(mon.getDate()-6);
+  const dl=d=>d.getDate()+' '+MESI[d.getMonth()];
+  const PHN={base:'Base',speed:'Velocità',ispec:'Specifico mezza',spec:'Specifico',taper:'Taper'};
+  const key=(w.sess||[]).filter(s=>/^GARA|🏁/.test(s.n)||s.race||(typeof sLoad==='function'&&sLoad(s)>=3)).map(s=>s.n.replace(/^🏁\s*/,'🏁 ')).slice(0,2).join(' · ')
+    ||(w.sess||[]).map(s=>s.n).slice(0,2).join(' · ');
+  const past=w.hist||(curWeek&&w.w<curWeek);
+  return `<details class="wkd${past?' past':''}"${open?' open':''}><summary><span class="wks-n">S${w.w}</span><span class="wks-t">${key}<small>${dl(mon)}–${dl(sunW)} · ${PHN[w.phase]||''}${w.isDeload?' · scarico':''}${past?' · passata':''}</small></span><span class="wks-k">${w.vol} km</span></summary>${html}</details>`;
+}
+function hereMarker(plan,curWeek,nAll,race){
+  const days=Math.round((dOnly(plan.dateStr)-dOnly(todayISO()))/864e5);
+  const pos=curWeek?((curWeek-.5)/nAll*100):null;
+  return `${pos!=null?`<div class="here"><span style="left:${Math.min(92,Math.max(8,pos)).toFixed(1)}%">▲ S${curWeek} · sei qui</span></div>`:''}
+    <div class="cdown"><div><b>${days>=0?days:'–'}</b><span>giorni alla gara</span></div><div><b>${curWeek||'–'}/${nAll}</b><span>settimana</span></div></div>`;
+}
+/* ---------- Corse: apri l'analisi di una corsa ---------- */
+function anaOpen(date){
+  showPane('runs');const sel=document.getElementById('a-sel');sel.value=date;rAna();
+  const c=sel.closest('.card');if(c)setTimeout(()=>c.scrollIntoView({behavior:'smooth',block:'start'}),50);
+}
+function groupPast(){
+  const past=[...document.querySelectorAll('#p-out details.wkd.past')];if(past.length<2)return;
+  const d=document.createElement('details');d.className='wkd-past';
+  d.innerHTML=`<summary><span>Settimane passate</span><b>${past.length}</b></summary>`;
+  past[0].before(d);past.forEach(p=>d.appendChild(p));
+}
+
 /* ---------- init ---------- */
 /* ---------- guida alle sedute (dizionario, ai ritmi attuali) ---------- */
 function rGuide(){
@@ -4060,6 +4338,9 @@ function refresh(){zCache=null;rDash();rLoad();rProg();rData();rManage();rAnaSel
   rTrack();rMonitor();
   try{rGoal()}catch(e){console.warn('rGoal',e)}
   try{rFit()}catch(e){console.warn('rFit',e)}
+  try{rAlerts()}catch(e){console.warn('rAlerts',e)}
+  const gc=document.getElementById('gen-card');if(gc)gc.open=!LS('rp_plan');
+  if(curPane==='plan'&&savedPlan)try{rPlan(savedPlan)}catch(e){console.warn(e)}
   lastRenderDay=todayISO();
 }
 /* Tutto ciò che è "oggi" viene calcolato durante il rendering, e il rendering avviene una volta sola
