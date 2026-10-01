@@ -3638,7 +3638,7 @@ function capacity(){
     if(act>=6)means.push({end:sl[7].w,v:mean(sl.map(x=>x.km))})}
   const last12=means.filter(o=>daysBetween(o.end,todayISO())<=365);
   const best8=means.length?means.reduce((a,b)=>b.v>a.v?b:a):null;
-  const rep=median(last12.map(o=>o.v))||mean(done.slice(-8).map(x=>x.km));
+  const lv=last12.map(o=>o.v).sort((a,b)=>a-b);const rep=lv.length?lv[Math.floor(lv.length*.75)]:mean(done.slice(-8).map(x=>x.km)); // superato in 1 blocco su 4 dell'ultimo anno
   const curB=mean(done.slice(-4).map(x=>x.km));
   return{big,best8,rep,cur:curB,safe:[rep*.73,rep*.9],ceil:[rep*1.26,rep*1.4]};
 }
@@ -3875,7 +3875,7 @@ function rFit(){
   const cp=capacity(),ex=exposure(),eg=enduranceGap(),du=durability();
   set('f-cap',(cp?`<table><tr><td>Settimana più alta</td><td class="r"><b>${Math.round(cp.big.km)} km</b> <span class="muted">${labDay(cp.big.w)}</span></td></tr>
     <tr><td>Miglior blocco di 8 settimane</td><td class="r"><b>${cp.best8?Math.round(cp.best8.v):'–'} km/sett</b> <span class="muted">${cp.best8?'fino al '+labDay(cp.best8.end):''}</span></td></tr>
-    <tr><td>Livello ripetibile (12 mesi)</td><td class="r"><b>${Math.round(cp.rep)} km/sett</b></td></tr>
+    <tr><td>Livello ripetibile (12 mesi)<br><span class="muted">tenuto in 1 blocco di 8 sett. su 4</span></td><td class="r"><b>${Math.round(cp.rep)} km/sett</b></td></tr>
     <tr><td>Ultime 4 settimane</td><td class="r"><b>${Math.round(cp.cur)} km/sett</b> <span class="muted">${Math.round(cp.cur/cp.rep*100)}% del ripetibile</span></td></tr></table>
     <p style="margin-top:8px;font-size:13px">Ripartenza sicura <b>${Math.round(cp.safe[0])}–${Math.round(cp.safe[1])} km</b>, tetto di crescita del blocco <b>${Math.round(cp.ceil[0])}–${Math.round(cp.ceil[1])} km</b>.</p>`:'')+
     `<h3 class="fh">Da quanto non fai…</h3><table>${ex.map(e=>`<tr><td>${e.n}</td><td class="r ${e.days==null||e.days>28?'down':e.days>14?'':'up'}">${e.days==null?'mai (con FC)':e.days===0?'oggi':e.days+' giorni'}</td><td class="r muted">${e.r?e.r.date.slice(0,10):''}</td></tr>`).join('')}</table>`+
