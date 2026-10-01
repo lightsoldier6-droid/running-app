@@ -54,6 +54,23 @@ Scegli qualsiasi corsa dall'archivio (menu in alto) e ottieni:
 - **Lap completi** (se la corsa viene da un .fit): tabella con passo e FC di ogni frazione.
 - **Giudizio testuale**: posizionamento storico ("più veloce di X delle tue Y simili"), intensità corretta o no per la tipologia (per le sedute veloci guarda i picchi FC, non la media), efficienza vs il tuo standard, costanza delle frazioni, deriva cardiaca, e per le gare il VDOT con le proiezioni.
 
+## 3c. Tab "Fitness" — la forma letta dalla frequenza cardiaca
+
+Funziona sulle corse importate da **.fit** o da **archivio .zip** (vedi §5): da ognuna l'app conserva la FC secondo per secondo, ripulita da picchi e dall'aggancio alla cadenza nei recuperi. Le corse arrivate dal CSV hanno solo le medie e qui non contano.
+
+- **Zone attuali**: 5 fasce di FC — Recupero (Z1), Steady (Z2), LT1 (Z3), LT2 (Z4), Alta intensità (Z5). Sono **stimate** dalla tua gara più recente con FC (la FC media di uno sforzo di 35–75' sta appena sopra il tetto di LT2; un 5k 4-5 bpm più su, una mezza 3 bpm più giù), oppure **confermate** se le inserisci nel tab Dati. Accanto: il passo che tieni davvero in ogni fascia e il passo Daniels equivalente. Le stesse zone valgono in tutta l'app (analisi seduta, piano).
+- **Minuti a settimana per zona** (1/4/8 settimane) e **minuti di soglia** LT1/LT2 settimana per settimana.
+- **Indice aerobico**: stima del VDOT dalla velocità tenuta a parità di FC in 4 fasce di 8 bpm sotto il tetto di LT2 (finestra 28 giorni). Si confronta col VDOT da gara: se coincidono la forma è coerente; la tabella dice quale fascia ha mosso l'indice nell'ultima settimana.
+- **Passo a ogni FC**: curva passo-FC per bande di 5 bpm (solo dove almeno 3 corse la sostengono), ultimi 40 giorni contro la miglior finestra degli ultimi 18 mesi.
+- **Dove passi il tempo**: tratti continui ≥5/10/15' nella stessa banda di 5 bpm.
+- **Quanto costa ogni passo**: per fascia di 20", minuti a settimana e FC media.
+- **Passo accumulato**: i minuti più veloci della settimana sommati fra tutte le corse, su 3/5/10 km.
+- **Migliori tratti** dentro le corse (1 km → mezza), ultime 4 settimane e storico.
+- **Piramide** degli ultimi 56 giorni (un mattone = 60' Recupero, 45' Steady, 30' LT1, 25' LT2, 15' Alta).
+- **Capacità e lacune**: settimana più alta, miglior blocco di 8 settimane, livello ripetibile, ripartenza sicura e tetto di crescita; da quanti giorni non fai un lungo, un lavoro a LT2, un'alta intensità, una gara 5–10 km; **divario di resistenza** (VDOT gara breve contro gara lunga); deriva cardiaca nei lunghi facili.
+- **Gare riconosciute**: le corse che sembrano gare (titolo, distanza standard, sforzo vicino al tuo massimo). ✓ conferma, ✕ scarta: le scartate non contano più per il VDOT, le confermate ancorano le zone.
+- **Qualità del segnale**: corse con FC poco affidabile, escluse dalle analisi FC (puoi riammetterle).
+
 ## 4. Tab "Piano" — generare e seguire il piano
 
 **Generare**: scegli gara, data, corse/settimana. VDOT e volume di partenza si compilano da soli dai tuoi dati (modificabili). Da 6 a 52 settimane.
@@ -79,6 +96,12 @@ Scegli qualsiasi corsa dall'archivio (menu in alto) e ottieni:
 - *Scarico* ogni 4ª settimana (mai l'ultima prima del taper).
 - *Estate (giu-ago)* ☀️: volume -15%, sedute base max 90', la fase base diventa lavori di velocità (200/300/400 @ R). Lunghi presto al mattino.
 - *Colori per fase*: verde = base, rosso = velocità, blu = specifico, arancio = taper, grigio = scarico.
+
+**FC accanto ai passi**: ogni seduta mostra anche la fascia di FC della zona (T → LT2, M → LT1, I → Alta intensità, Z2 → Steady).
+
+**Dose di intensità per settimana**: minuti di lavoro LT1/LT2/alta intensità previsti dalle sedute, e per le settimane passate i minuti registrati con la FC in LT1+LT2.
+
+**Obiettivo: cosa serve**: VDOT e passi che il tempo obiettivo richiede contro quelli attuali (puoi scrivere un tempo diverso da quello del piano), cosa chiede quella gara (quota di lavoro per tipo), le sedute prova con la finestra di settimane in cui farle e gli errori da evitare.
 
 **Progressione vs piano**: settimana per settimana, km fatti/pianificati, corse completate, qualità e lungo spuntati. Verdetti: ✅ a target (≥85% km + qualità + lungo), 🟡 parziale, 🔴 saltata, ⏳ in corso. In testa: aderenza complessiva.
 
@@ -115,9 +138,10 @@ L'abbinamento è **settimanale**: ogni seduta pianificata viene agganciata alla 
 ## 5. Tab "Dati" — importare le corse
 
 - **Import .FIT** (consigliato): aggiunge corsa, dinamiche di corsa e lap. Più file insieme.
+- **Import archivio .zip** (consigliato per lo storico): l'export completo di Garmin («Esporta i tuoi dati» dalla gestione account) o l'archivio di Strava, caricato così com'è senza estrarlo. Le corse già presenti vengono completate con FC secondo per secondo, lap e traccia; quelle mancanti aggiunte. Meglio dal computer.
 - **Import CSV** (export "Attività" di Garmin Connect): per caricare tanti riepiloghi in blocco, senza lap.
 - I duplicati vengono sempre scartati: reimportare non fa danni.
-- **Parametri**: FC max e riposo per le zone Karvonen.
+- **Parametri**: FC max e riposo. Sotto, le **zone FC** in uso: stimate dall'app o, se le inserisci e salvi, **confermate** (per esempio quelle di un coach o di un test).
 
 **Come nominare i .fit** (il nome file diventa il titolo, e il titolo decide la classificazione):
 

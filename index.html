@@ -234,6 +234,26 @@ details.pinfo .pinfo-body p{margin:7px 0}
 @media(min-width:900px){#tab-data .card:has(#dt-file){order:1;grid-column:1/-1}#tab-data .card:has(#st-hrmax){order:2;grid-column:1/-1}#tab-data .card:has(#dt-manage){order:3;grid-column:1/-1}#dt-manage{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0 24px}.datagrid{grid-template-columns:1fr 1fr auto}}
 .paramrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 14px;margin-top:6px}.pfield{flex:0 0 120px}.pfield label{margin:0 0 4px}.pbtn{width:auto;margin:0;padding:10px 24px;align-self:flex-end}.zoner{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.znote{flex:1 0 100%;font-size:11px;color:var(--dim);margin-bottom:2px}.zchip{flex:1 1 88px;min-width:82px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center}.zchip b{display:block;font-size:11px;color:var(--dim);font-weight:600}.zchip span{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}.datagrid{display:grid;gap:12px 16px}.dreset{display:flex;align-items:flex-end}
 .clg{white-space:nowrap}.clg i{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;margin:0 3px 0 8px}
+
+:root{--z1:#9ec5f4;--z2:#6da7ec;--z3:#3987e5;--z4:#256abf;--z5:#104281}
+body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
+.hb{display:flex;flex-direction:column;gap:7px}
+.hbr{display:grid;grid-template-columns:minmax(92px,32%) 1fr auto;gap:8px;align-items:center;font-size:12.5px}
+.hbl{line-height:1.25;min-width:0}.hbl small{display:block;color:var(--dim);font-size:10.5px}
+.hbt{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}.hbt i{display:block;height:100%;border-radius:5px}
+.hbv{font-variant-numeric:tabular-nums;font-weight:600;font-size:12px;white-space:nowrap;text-align:right}
+.lgd{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--dim);margin-top:6px}
+.lgd i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.zdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:0}
+.zstack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:10px;background:var(--bg)}.zstack i{display:block;height:100%}
+.pyr{display:flex;flex-direction:column;gap:5px}.pyrr{display:grid;grid-template-columns:96px 1fr 44px;gap:8px;align-items:center;font-size:12px}
+.pyb{display:flex;flex-wrap:wrap;gap:2px;align-items:center}.pyb i{width:14px;height:10px;border-radius:2px;display:block}.pyb em{font-style:normal;color:var(--dim);font-size:11px;margin-left:3px}
+.pyv{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.fh{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--dim);margin:14px 0 6px}
+.hrt{display:inline-block;font-size:10px;font-weight:600;color:var(--red);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-left:3px;white-space:nowrap}
+.zedit{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px 10px}.zedit label{margin:6px 0 3px}
+.btn.mini{width:auto;margin:0 0 0 4px;padding:4px 9px;font-size:12px}
+@media(min-width:900px){#tab-fit .card{order:10}.card:has(#f-cov){grid-column:1/-1;order:0}.card:has(#f-cap){grid-column:1/-1}.card:has(#p-goalgap){grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -304,6 +324,22 @@ details.pinfo .pinfo-body p{margin:7px 0}
   <div class="card"><h2>Record personali</h2><table id="c-pb"></table></div>
 </div>
 
+<div class="tab" id="tab-fit">
+  <div class="card"><h2>Fitness dalla frequenza cardiaca</h2><div id="f-cov"></div></div>
+  <div class="card"><h2>Zone attuali</h2><div id="f-zones"></div></div>
+  <div class="card"><h2>Minuti a settimana per zona</h2><div id="f-win" style="margin-bottom:10px"></div><div id="f-recipe"></div></div>
+  <div class="card"><h2>Minuti di soglia per settimana</h2><div id="f-thr"></div><p class="muted" id="f-thr-n" style="margin-top:6px"></p></div>
+  <div class="card"><h2>Indice aerobico (VDOT dalla FC)</h2><div id="f-aero"></div><div id="f-aero-c" style="margin-top:10px"></div></div>
+  <div class="card"><h2>Passo a ogni FC</h2><div id="f-curve"></div><p class="muted" id="f-curve-n" style="margin-top:6px"></p></div>
+  <div class="card"><h2>Dove passi il tempo</h2><div id="f-holdp" style="margin-bottom:10px"></div><div id="f-holds"></div></div>
+  <div class="card"><h2>Quanto costa ogni passo</h2><div id="f-cost"></div><p class="muted" style="margin-top:6px">Minuti a settimana e FC media per fascia di passo, ultime 4 settimane.</p></div>
+  <div class="card"><h2>Passo accumulato</h2><div id="f-acc"></div><div id="f-acc-c" style="margin-top:8px"></div></div>
+  <div class="card"><h2>Migliori tratti</h2><div id="f-best"></div></div>
+  <div class="card"><h2>Piramide del tempo in zona</h2><div id="f-pyr"></div></div>
+  <div class="card"><h2>Capacità, lacune e resistenza</h2><div id="f-cap"></div></div>
+  <div class="card"><h2>Gare riconosciute</h2><div id="f-races"></div></div>
+  <div class="card"><h2>Qualità del segnale FC</h2><div id="f-qual"></div></div>
+</div>
 
 <div class="tab" id="tab-plan">
   <div class="card"><h2>Genera piano</h2>
@@ -340,6 +376,7 @@ details.pinfo .pinfo-body p{margin:7px 0}
   </div>
   <div class="card"><h2>Guida alle sedute (ai tuoi ritmi)</h2><div id="p-guide"></div></div>
   <div class="card"><h2>Progressione vs piano</h2><div id="p-track"></div></div>
+  <div class="card"><h2>Obiettivo: cosa serve</h2><div id="p-goalgap"></div></div>
   <div id="p-out"></div>
 </div>
 
@@ -391,6 +428,9 @@ details.pinfo .pinfo-body p{margin:7px 0}
       <div><label style="margin-top:12px">Importa file .FIT (lap ripetute + nuove corse)</label><input type="file" id="dt-fit" accept=".fit" multiple></div>
       <div class="dreset"><button class="btn btn2" onclick="resetData()" style="margin:0;width:100%">Ripristina dati iniziali</button></div>
     </div>
+    <label style="margin-top:14px">Importa archivio completo (.zip di Garmin «Esporta i tuoi dati» o di Strava): FC secondo per secondo per tutto lo storico</label>
+    <input type="file" id="dt-zip" accept=".zip,application/zip">
+    <p class="muted" id="dt-zipst" style="margin-top:6px">Carica lo .zip così com'è, senza estrarlo. Le corse già presenti vengono completate (FC, lap, traccia), quelle mancanti aggiunte. Meglio dal computer: gli archivi grandi pesano.</p>
   </div>
   <div class="card"><h2>Gestisci corse (ultime 12)</h2>
     <p class="muted" style="margin-bottom:8px">Rinomina per correggere la categoria (parole chiave: gara, soglia, medio, progressivo, fartlek, 8x200, lungo) — niente da ricaricare.</p>
@@ -422,6 +462,7 @@ details.pinfo .pinfo-body p{margin:7px 0}
 <nav>
   <button class="on" data-t="dash"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Oggi</button>
   <button data-t="prog"><svg viewBox="0 0 24 24"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/></svg>Progressi</button>
+  <button data-t="fit"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>Fitness</button>
   <button data-t="plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/></svg>Piano</button>
   <button data-t="mon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.5"/></svg>Monitor</button>
   <button data-t="data"><svg viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.2"/><line x1="4" y1="15" x2="20" y2="15"/><circle cx="15" cy="15" r="2.2"/></svg>Dati</button>
@@ -512,6 +553,7 @@ function startCloudSync(uid){
     if(doc.metadata.hasPendingWrites)return;
     const d=doc.data();
     cloudReady=true;
+    try{cloudXIn(d)}catch(e){console.warn('cloud hrx',e)}
     if(!d){pushCloud();return} // primo accesso in assoluto: nessun dato cloud, pubblico quello che ho in locale
     const remoteV=d.updatedAt&&d.updatedAt.toMillis?d.updatedAt.toMillis():0;
     const localV=+(localStorage.getItem('rp_cloud_v')||0);
@@ -586,7 +628,7 @@ const vdotOf=(km,sec)=>{const t=sec/60,v=km*1000/t;return vo2(v)/pct(t)};
 const vAt=(f,vd)=>{const c=4.6+f*vd,v=(-0.182258+Math.sqrt(0.182258**2+4*0.000104*c))/(2*0.000104);return 60000/v};
 function predict(km,vd){let lo=km*2.2,hi=km*12;for(let i=0;i<60;i++){const m=(lo+hi)/2;vdotOf(km,m*60)>vd?lo=m:hi=m}return lo*60}
 function parseHMS(s){const a=String(s).trim().split(':');if(!a.length||a.some(x=>x===''||isNaN(+x)))return null;const n=a.map(Number);let sec;if(n.length===3)sec=n[0]*3600+n[1]*60+n[2];else if(n.length===2)sec=n[0]*60+n[1];else if(n.length===1)sec=n[0];else return null;return sec>0?sec:null}
-function bestVdot(list){let b=null;for(const r of list){if(r.km<3||r.tm)continue;const v=vdotOf(r.km,r.sec);if(!b||v>b)b=v}return b}
+function bestVdot(list){let b=null;for(const r of list){if(r.km<3||r.tm)continue;if(typeof st!=='undefined'&&st&&st.races&&st.races[r.date]==='n')continue;const v=vdotOf(r.km,r.sec);if(!b||v>b)b=v}return b}
 const curVdot=()=>bestVdot(runs.filter(r=>daysAgo(r)<90))||bestVdot(runs);
 function paces(vd){return{E:[vAt(.62,vd),vAt(.70,vd)],M:vAt(.82,vd),T:vAt(.88,vd),I:vAt(.975,vd),R:vAt(1.07,vd)}}
 // target di una seduta a ripetute preso dalla seduta PIANIFICATA (tag I/R/T/M e range di passo),
@@ -1803,7 +1845,7 @@ function rPlan(plan){
       <button class="btn btn2" style="margin:0;flex:1 1 44%" onclick="exportICS()">Esporta .ics</button>
       ${monMon?`<button class="btn btn2" style="margin:0;flex:1 1 100%" onclick="alignPlanToMonitor()">↺ Recupera dal Monitor</button>`:''}</div>
     ${monMon?`<p class="muted" style="margin:6px 0 0"><b>↺ Recupera dal Monitor</b> riscrive le settimane qui sotto con le date e le sedute che vedi nel Monitor: premilo dopo aver ricalibrato o rigenerato il piano da lì, così le due viste coincidono. La direzione opposta è <b>↺ Aggiorna dal piano corrente</b>, nel tab Monitor.</p>`:''}
-    <p class="muted" style="margin:12px 0 2px"><b>Note operative</b> — Riscaldamento interval/cruise: 15-20' easy progressivo + 4-5 allunghi 80m (inclusi nei km). Defaticamento: 10' easy. Tolleranza sui passi: ±3s (già nei range). I km indicati sono ≈ totali di seduta. Tra due sedute dure c'è sempre una corsa lenta (Z2/base) per non sovraccaricare le gambe. D'estate: due sedute veloci corte e intense separate da Z2 (es. martedì interval, giovedì Z2, weekend qualità), niente lungo lento.</p></div>`+
+    <p class="muted" style="margin:12px 0 2px"><b>Note operative</b> — Riscaldamento interval/cruise: 15-20' easy progressivo + 4-5 allunghi 80m (inclusi nei km). Defaticamento: 10' easy. Tolleranza sui passi: ±3s (già nei range). I km indicati sono ≈ totali di seduta. Tra due sedute dure c'è sempre una corsa lenta (Z2/base) per non sovraccaricare le gambe. D'estate: due sedute veloci corte e intense separate da Z2 (es. martedì interval, giovedì Z2, weekend qualità), niente lungo lento.</p></div>`+(()=>{try{return doseCard(plan,refSun,nAll)}catch(e){console.warn('doseCard',e);return''}})()+
     `<div class="card">`+
     plan.weeks.map(w=>{
       const isCur=!w.hist&&curWeek===w.w;
@@ -1833,7 +1875,7 @@ function rPlan(plan){
           // invece cosa è stata davvero (la classificazione che l'app calcola dai dati della corsa).
           const badge=s.done&&s.rcls?(DCL[s.rcls]||'svolta'):`carico ${LOADL[L]}`;
           const canSkip=!w.hist&&w.w!==nAll&&!s.done&&!isRaceFinal;
-          return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.d}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">${badge}</span></div></div>${canSkip?`<button class="skipx" title="Togli questa seduta dalla settimana" onclick="wkSkipAdd('${wkKey}',${si})">✕</button>`:''}</div>`;
+          return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.done?s.d:hrTag(s.d)}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">${badge}</span></div></div>${canSkip?`<button class="skipx" title="Togli questa seduta dalla settimana" onclick="wkSkipAdd('${wkKey}',${si})">✕</button>`:''}</div>`;
         }).join('')}
         ${(!w.hist&&w.w!==nAll&&(wkSkips()[wkKey]||[]).length)?`<p class="skiprow"><span>Tolte a mano:</span>${(wkSkips()[wkKey]||[]).map((k,ki)=>`<button onclick="wkSkipDel('${wkKey}',${ki})" title="Rimetti questa seduta">↺ ${k.split('|')[1]} (${k.split('|')[0].slice(0,3).toLowerCase()})</button>`).join('')}</p>`:''}
       </div>`;
@@ -2669,10 +2711,7 @@ function rMonitor(){
 function rData(){
   document.getElementById('dt-info').textContent=`${runs.length} corse in archivio (${runs[0].date.slice(0,10)} → ${runs[runs.length-1].date.slice(0,10)}). I dati restano sul tuo telefono.`;
   document.getElementById('st-hrmax').value=st.hrmax;document.getElementById('st-hrrest').value=st.hrrest;
-  const z=[['Z1',.5,.6],['Z2',.6,.7],['Z3',.7,.8],['Z4',.8,.9],['Z5',.9,1]];
-  const k=f=>Math.round(st.hrrest+f*(st.hrmax-st.hrrest));
-  document.getElementById('st-zones').innerHTML='<div class="znote">Zone FC (Karvonen)</div>'+
-    z.map(([n,a,b])=>`<div class="zchip"><b>${n}</b><span>${k(a)}–${k(b)}</span></div>`).join('');
+  rZoneEd();
   renderStAlert();
   renderFcTest();
 }
@@ -2718,7 +2757,7 @@ function renderStAlert(){
   const lu=document.getElementById('st-lastupd');
   if(lu)lu.textContent=st.updated?`Ultimo aggiornamento parametri: ${st.updated}.`:'Parametri mai aggiornati manualmente.';
 }
-function saveSettings(){st={hrmax:+document.getElementById('st-hrmax').value||188,hrrest:+document.getElementById('st-hrrest').value||53,updated:new Date().toISOString().slice(0,10)};LS('rp_st',st);rData();alert('Salvato')}
+function saveSettings(){st={...st,hrmax:+document.getElementById('st-hrmax').value||188,hrrest:+document.getElementById('st-hrrest').value||53,updated:new Date().toISOString().slice(0,10)};LS('rp_st',st);zCache=null;refresh();alert('Salvato')}
 function resetData(){if(confirm('Tornare ai dati iniziali? Import manuali, rinomine ed eliminazioni verranno persi.')){edits={};LS('rp_edits',edits);runs=SEED_RUNS.slice().sort((a,b)=>a.date<b.date?-1:1);LS('rp_runs',[]);refresh()}}
 function rManage(){
   document.getElementById('dt-manage').innerHTML=runs.slice(-12).reverse().map(r=>{const k=r.date+'|'+r.km;
@@ -2787,7 +2826,7 @@ function parseGarmin(text){
   return added}
 
 /* ---------- analisi approfondita di una corsa ---------- */
-function hrZone(h){if(!h)return null;const f=(h-st.hrrest)/(st.hrmax-st.hrrest);return f<0.6?'Z1':f<0.7?'Z2':f<0.8?'Z3':f<0.9?'Z4':'Z5'}
+function hrZone(h){if(!h)return null;try{return ZTAG[zIdx(h)]}catch(e){const f=(h-st.hrrest)/(st.hrmax-st.hrrest);return f<0.6?'Z1':f<0.7?'Z2':f<0.8?'Z3':f<0.9?'Z4':'Z5'}} // zone da evidenza (o confermate): vedi Zcur()
 let anaActs=null; // lap della corsa analizzata (per il dettaglio cliccabile)
 function lapSel(i){
   if(!anaActs)return;
@@ -3181,23 +3220,26 @@ function rAna(){
     const distL=l=>l[0]>=950?(l[0]/1000).toFixed(l[0]%1000?2:0)+' km':l[0]+' m';
     const chips=acts.map((l,i)=>{const pc=pcs[i];
       const w=worst>best?Math.min(100,Math.max(10,Math.round(15+85*(worst-pc)/(worst-best)))):100;
-      return`<div class="lapc${pc===best&&l[0]>=200?' best':''}" onclick="lapSel(${i})"><span class="ln">Lap ${i+1}</span><b>${fmtP(pc)}</b><span class="lu">/km</span><div class="lbar"><i style="width:${w}%"></i></div><span class="lm">${distL(l)} · ${fmtD(l[1])}</span>${l[2]?`<span class="lm">FC ${l[2]}→${l[3]??'–'}</span>`:''}${l[5]?`<span class="lm">${l[5]} spm</span>`:''}</div>`}).join('');
+      return`<div class="lapc${pc===best&&l[0]>=200?' best':''}" onclick="lapSel(${i})"><span class="ln">Lap ${i+1}</span><b>${fmtP(pc)}</b><span class="lu">/km</span><div class="lbar"><i style="width:${w}%"></i></div><span class="lm">${distL(l)} · ${fmtD(l[1])}</span>${l[2]?`<span class="lm">FC ${l[2]}→${l[3]??'–'} · ${hrZone(l[2])}</span>`:''}${l[5]?`<span class="lm">${l[5]} spm</span>`:''}</div>`}).join('');
     const hrsL=acts.map(l=>l[2]).filter(Boolean),spms=acts.map(l=>l[5]).filter(Boolean);
     const sum=[`media lavoro <b class="pace">${fmtP(avgW)}/km</b>`,`migliore ${fmtP(best)} (lap ${bi})`,`scarto ${(worst-best).toFixed(0)}s/km`];
     if(hrsL.length)sum.push(`FC media lap ${Math.round(hrsL.reduce((a,b)=>a+b)/hrsL.length)} bpm`);
     if(spms.length)sum.push(`cadenza media ${Math.round(spms.reduce((a,b)=>a+b)/spms.length)} spm`);
     html+=`<div class="card lapcard"><h2>Lap <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· tocca un lap per i dettagli</span></h2><div class="laprow">${chips}</div><div id="lap-detail"></div><p class="muted" style="margin-top:8px">${sum.join(' · ')}</p></div>`;
   }
+  try{html+=anaXCard(r)}catch(e){console.warn('anaXCard',e)}
   el.innerHTML=html;
 }
+/* ===== FIT: lettura completa (sessione, lap, record secondo per secondo) ===== */
 function parseFit(buf){
   const dv=new DataView(buf);
   const hdr=dv.getUint8(0);
   const dataSize=dv.getUint32(4,true);
-  const end=hdr+dataSize;
-  const defs={};let sess=null;const laps=[];
+  const end=Math.min(hdr+dataSize,buf.byteLength);
+  const defs={};let sess=null,sport=null;const laps=[],recs=[];
   const INVALID={1:0xFF,2:0xFFFF,4:0xFFFFFFFF};
-  function readData(d,p,collect){
+  let lastTs=null;
+  function readData(d,p,cts){
     const vals={};
     for(const f of d.fields){
       let v=null;
@@ -3208,13 +3250,22 @@ function parseFit(buf){
       vals[f.n]=v;p+=f.s;
     }
     p+=d.dev;
-    if(collect){if(d.gn===19)laps.push(vals);else if(d.gn===18&&!sess)sess=vals;}
+    if(vals[253]!=null)lastTs=vals[253];
+    else if(cts!=null&&d.gn===20)vals[253]=cts;
+    if(d.gn===20)recs.push(vals);
+    else if(d.gn===19)laps.push(vals);
+    else if(d.gn===18&&!sess)sess=vals;
+    else if(d.gn===12&&!sport)sport=vals;
     return p;
   }
   let p=hdr;
   while(p<end){
     const h=dv.getUint8(p++);
-    if(h&0x80){const d=defs[(h>>5)&3];if(!d)throw new Error('FIT non supportato');p=readData(d,p,true);continue}
+    if(h&0x80){ // intestazione a timestamp compresso
+      const d=defs[(h>>5)&3];if(!d)throw new Error('FIT non supportato');
+      let cts=null;
+      if(lastTs!=null){const off=h&0x1F;cts=(lastTs&~0x1F)+off;if(off<(lastTs&0x1F))cts+=0x20;lastTs=cts}
+      p=readData(d,p,cts);continue}
     const lt=h&0xF;
     if(h&0x40){
       p++;const arch=dv.getUint8(p++),le=arch===0;
@@ -3226,13 +3277,109 @@ function parseFit(buf){
       defs[lt]={gn,fields,le,dev};
     }else{
       const d=defs[lt];if(!d)throw new Error('FIT malformato');
-      p=readData(d,p,true);
+      p=readData(d,p,null);
     }
   }
-  return{sess,laps};
+  return{sess,laps,recs,sport};
+}
+
+/* ===== metriche per corsa dai record (calcolate una volta all'import) =====
+   x = {v, mov, dist, cov, art, hmax, hist:{h0,s,m}, holds:[[banda,sec,m]], best:{m:sec},
+        fast:[m/min…], dec:{v,cv,hr,min}, tr:{p,h,a,d}}                                      */
+const X_VER=1;
+const X_BEST=[400,1000,3000,5000,10000,15000,21097,42195];
+function fitX(recs,o){
+  o=o||{};const hrmax=o.hrmax||200;
+  // 1) serie pulita: solo record con tempo e distanza
+  const S=[];
+  for(const r of recs){
+    const ts=r[253],d=r[5];if(ts==null||d==null)continue;
+    const spd=r[73]!=null?r[73]/1000:(r[6]!=null?r[6]/1000:null);
+    const alt=r[78]!=null?r[78]/5-500:(r[2]!=null?r[2]/5-500:null);
+    let cad=r[4];if(cad!=null&&r[53]!=null)cad+=r[53]/128;
+    S.push({ts,d:d/100,hr:r[3]??null,spd,alt,cad:cad!=null?cad*2:null});
+  }
+  if(S.length<30)return null;
+  S.sort((a,b)=>a.ts-b.ts);
+  // 2) segmenti in movimento: dt<=30s e velocità >= 1.2 m/s (sotto = fermo o camminata lenta)
+  const n=S.length,mv=new Array(n).fill(0),dt=new Array(n).fill(0),dd=new Array(n).fill(0);
+  for(let i=1;i<n;i++){
+    const t=S[i].ts-S[i-1].ts,x=S[i].d-S[i-1].d;
+    if(t>0&&t<=30&&x>=0){const v=x/t;if(v>=1.2&&v<8){mv[i]=1;dt[i]=t;dd[i]=x}}
+  }
+  // 3) FC: valori fuori scala, picchi isolati e aggancio alla cadenza nei recuperi
+  const runV=[];for(let i=1;i<n;i++)if(mv[i])runV.push(dd[i]/dt[i]);
+  runV.sort((a,b)=>a-b);const vMed=runV.length?runV[runV.length>>1]:0;
+  const hrOk=new Array(n).fill(false);
+  for(let i=0;i<n;i++){const h=S[i].hr;hrOk[i]=h!=null&&h>=50&&h<=hrmax+5}
+  const W=15;let art=0;
+  for(let i=0;i<n;i++){
+    if(!hrOk[i])continue;
+    const win=[];for(let j=Math.max(0,i-W);j<=Math.min(n-1,i+W);j++)if(hrOk[j])win.push(S[j].hr);
+    win.sort((a,b)=>a-b);const med=win[win.length>>1];
+    const v=mv[i]?dd[i]/dt[i]:0,c=S[i].cad;
+    const spike=Math.abs(S[i].hr-med)>18;
+    const cadLock=c!=null&&Math.abs(S[i].hr-c)<=3&&S[i].hr>=.85*hrmax&&v>0&&v<.8*vMed;
+    if(spike||cadLock){hrOk[i]=false;if(mv[i])art+=dt[i]}
+  }
+  // 4) totali, istogramma FC (secondi e metri per battito)
+  let mov=0,dist=0,hrSec=0,hmax=0;const hs={},hm={};
+  for(let i=1;i<n;i++){if(!mv[i])continue;mov+=dt[i];dist+=dd[i];
+    if(hrOk[i]){const h=S[i].hr;hrSec+=dt[i];hs[h]=(hs[h]||0)+dt[i];hm[h]=(hm[h]||0)+dd[i];if(h>hmax)hmax=h}}
+  if(mov<300)return null;
+  const hk=Object.keys(hs).map(Number).sort((a,b)=>a-b);
+  const hist=hk.length?{h0:hk[0],s:[],m:[]}:null;
+  if(hist)for(let h=hk[0];h<=hk[hk.length-1];h++){hist.s.push(Math.round(hs[h]||0));hist.m.push(Math.round(hm[h]||0))}
+  // 5) linea del tempo in movimento (secondi cumulati) per finestre e tratti
+  const T=new Array(n).fill(0),D=new Array(n).fill(0);
+  for(let i=1;i<n;i++){T[i]=T[i-1]+(mv[i]?dt[i]:0);D[i]=D[i-1]+(mv[i]?dd[i]:0)}
+  // FC lisciata (media 30s sulle sole FC valide) per le tenute
+  const sm=new Array(n).fill(null);{let a=0,q=[],sum=0;
+    for(let i=0;i<n;i++){if(hrOk[i]&&mv[i]){q.push(i);sum+=S[i].hr}
+      while(q.length&&T[i]-T[q[0]]>60){sum-=S[q[0]].hr;q.shift()}
+      sm[i]=q.length>=10?sum/q.length:null}}
+  // 6) tenute: tratti continui >=5' con FC lisciata (60s) nella stessa banda di 5 bpm (uscite <=45s tollerate)
+  const holds=[];{let band=null,st=null,lastIn=null;
+    const close=i=>{if(band!=null&&st!=null&&lastIn!=null){const sec=T[lastIn]-T[st];if(sec>=300)holds.push([band,Math.round(sec),Math.round(D[lastIn]-D[st])])}};
+    for(let i=0;i<n;i++){if(!mv[i]||sm[i]==null)continue;const b=Math.floor(sm[i]/5)*5;
+      if(b===band){lastIn=i;continue}
+      if(band!=null&&lastIn!=null&&T[i]-T[lastIn]<=45)continue;
+      close(i);band=b;st=i;lastIn=i}
+    close(n-1)}
+  // 7) migliori tratti su distanza (tempo in movimento)
+  const best={};
+  for(const L of X_BEST){if(D[n-1]<L)break;let j=0,b=Infinity;
+    for(let i=0;i<n;i++){while(j<n&&D[j]-D[i]<L)j++;if(j>=n)break;
+      const over=D[j]-D[i],tj=T[j]-(over-L)/Math.max(.1,(D[j]-D[j-1])/Math.max(1,T[j]-T[j-1]));
+      const t=tj-T[i];if(t>0&&t<b)b=t}
+    if(isFinite(b))best[L]=Math.round(b)}
+  // 8) minuti veloci: metri per minuto (media mobile 2') dei minuti in movimento, i 60 migliori
+  const mins=[];{let k=1;for(let i=0;i<n;i++){if(T[i]>=k*60){mins.push(D[i]);k++}}}
+  const per=[];for(let k=0;k<mins.length;k++)per.push(mins[k]-(k?mins[k-1]:0));
+  const two=per.map((v,k)=>k+1<per.length?(v+per[k+1])/2:(k?(v+per[k-1])/2:v));
+  const fast=two.slice().sort((a,b)=>b-a).slice(0,60).map(Math.round);
+  // 9) deriva cardiaca (Pa:HR) dopo i primi 10', metà contro metà
+  let dec=null;
+  if(mov>=45*60&&hrSec>=.8*mov){
+    const t0=600,tm=(mov+t0)/2;let a=[0,0,0],b=[0,0,0];const sp=[];
+    for(let i=1;i<n;i++){if(!mv[i]||!hrOk[i]||T[i]<t0)continue;const g=T[i]<tm?a:b;g[0]+=dd[i];g[1]+=dt[i];g[2]+=S[i].hr*dt[i]}
+    if(a[1]>300&&b[1]>300){const e1=(a[0]/a[1])/(a[2]/a[1]),e2=(b[0]/b[1])/(b[2]/b[1]);
+      const pm=per.slice(10);const mu=pm.reduce((x,y)=>x+y,0)/Math.max(1,pm.length);
+      const cv=pm.length>3?Math.sqrt(pm.reduce((x,y)=>x+(y-mu)**2,0)/pm.length)/mu:1;
+      dec={v:+((e1-e2)/e1*100).toFixed(1),cv:+cv.toFixed(3),hr:Math.round((a[2]+b[2])/(a[1]+b[1])),min:Math.round(mov/60)}}
+  }
+  // 10) traccia ogni 30s: passo s/km, FC, quota, km
+  const tr={p:[],h:[],a:[],d:[]};{let k=1,i0=0;
+    for(let i=0;i<n;i++){if(T[i]>=k*30||i===n-1){
+      const ddx=D[i]-D[i0],tt=T[i]-T[i0];let hsum=0,hw=0,as=0,aw=0;
+      for(let j=i0+1;j<=i;j++){if(mv[j]&&hrOk[j]){hsum+=S[j].hr*dt[j];hw+=dt[j]}if(S[j].alt!=null){as+=S[j].alt;aw++}}
+      if(tt>0){tr.p.push(ddx>5?Math.round(tt/(ddx/1000)):0);tr.h.push(hw?Math.round(hsum/hw):0);tr.a.push(aw?Math.round(as/aw):0);tr.d.push(Math.round(D[i]/10))}
+      i0=i;k++}}}
+  return{v:X_VER,mov:Math.round(mov),dist:Math.round(dist),cov:+(hrSec/mov).toFixed(2),art:Math.round(art),hmax,hist,holds,best,fast,dec,tr};
 }
 /* nome file generico (es. 23989492515_ACTIVITY): meglio dedurre il titolo dai lap */
 function genericFitName(n){
+  if(/\d{6,}|@/.test(String(n)))return true;
   const w=String(n).toLowerCase().replace(/[\d_\-.]+/g,' ').match(/[a-zà-ù]{3,}/g)||[];
   return w.every(x=>['activity','activities','record','workout','running','run','corsa','garmin','untitled'].includes(x));
 }
@@ -3262,51 +3409,619 @@ function fitTitle(rows,km,key){
   if(n)return n+' - '+kmT(km);
   return (km>=15?'Lungo - ':'Easy - ')+kmT(km);
 }
-async function importFit(files){
-  let nf=0,nr=0,nu=0;
-  const INT={0:'act',1:'rest',2:'wu',3:'cd',4:'rec'};
-  for(const f of files){
-    try{
-      const{sess,laps}=parseFit(await f.arrayBuffer());
-      if(!sess)throw new Error('nessuna sessione nel file');
-      if(sess[5]!==1&&sess[5]!==undefined){alert(f.name+': non è una corsa');continue}
-      const dt=new Date((sess[2]+631065600)*1000);
-      const pad=n=>String(n).padStart(2,'0');
-      const key=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-      const rows=laps.filter(l=>(l[9]||0)>0).map(l=>[Math.round(l[9]/100),+(l[8]/1000).toFixed(1),l[15]??null,l[16]??null,INT[l[23]]||'act',l[17]!=null?Math.round(l[17]*2):null]);
-      lapsDB[key]={laps:rows};
-      nf++;
-      const base=f.name.replace(/\.fit$/i,''),km=+(sess[9]/100000).toFixed(2);
-      const title=genericFitName(base)?fitTitle(rows,km,key):base;
-      const old=runs.find(r=>r.date===key);
-      if(!old&&sess[9]&&sess[8]){
-        runs.push({date:key,title,km,
-          sec:Math.round(sess[8]/1000),hr:sess[16]??null,hrmax:sess[17]??null,
-          cad:sess[18]!=null?Math.round((sess[18]+(sess[92]??0)/128)*2):null,
-          stl:sess[134]!=null?+(sess[134]/10000).toFixed(2):null,
-          vr:sess[132]!=null?+(sess[132]/100).toFixed(2):null,
-          vo:sess[89]!=null?+(sess[89]/100).toFixed(2):null,
-          gct:sess[91]!=null?Math.round(sess[91]/10):null,
-          asc:0,tm:0});
-        runs.sort((a,b)=>a.date<b.date?-1:1);nr++;
-      }else{
-        if(old&&genericFitName(old.title))old.title=title; // rinomina i vecchi import col nome file grezzo
-        nu++;
-      }
-    }catch(err){alert(f.name+': '+err.message)}
-  }
-  try{LS('rp_lapsdb',lapsDB);LS('rp_runs',runs);refresh()}
-  catch(err){alert('Dati importati, ma errore nell\'aggiornamento schermata: '+err.message)}
-  return{nf,nr,nu};
-}
 document.getElementById('dt-fit').addEventListener('change',async e=>{
   const files=[...e.target.files];
   e.target.value=''; // senza reset, riselezionare lo stesso file non emette 'change' e non succede nulla
   if(!files.length)return;
   try{
-    const{nf,nr,nu}=await importFit(files);
-    alert(nf?`${nf} file .FIT elaborati · ${nr} nuove corse${nu?` · ${nu} già presenti (lap aggiornati)`:''}`:'Nessun file .FIT elaborato');
+    const{nf,nr,nu,nx}=await importFit(files);
+    alert(nf?`${nf} file .FIT elaborati · ${nr} nuove corse${nu?` · ${nu} già presenti (aggiornate)`:''} · FC secondo per secondo su ${nx}`:'Nessun file .FIT elaborato');
   }catch(err){alert('Errore import .FIT: '+err.message)}
+});
+
+/* ---------- fitness da FC (engine + interfaccia) ---------- */
+/* =====================================================================================
+   FITNESS DA FREQUENZA CARDIACA (zone da evidenza, minuti per zona, indice aerobico)
+   Ogni corsa importata da .fit/.zip porta con sé X[chiave] = metriche secondo per secondo
+   (istogramma FC, tenute, migliori tratti, minuti veloci, deriva, traccia). Da lì:
+   zone da evidenza, minuti per zona, indice aerobico, curva passo-FC, capacità e lacune.
+   ===================================================================================== */
+let X=(()=>{try{return JSON.parse(localStorage.getItem('rp_hrx')||'{}')||{}}catch(e){return{}}})();
+let xCloudTimer=null;
+function saveX(){
+  try{localStorage.setItem('rp_hrx',JSON.stringify(X))}catch(e){ // spazio pieno: via le tracce più vecchie
+    const ks=Object.keys(X).sort();for(const k of ks.slice(0,Math.ceil(ks.length/2)))if(X[k])delete X[k].tr;
+    try{localStorage.setItem('rp_hrx',JSON.stringify(X))}catch(e2){console.warn('rp_hrx',e2)}}
+  pushCloudX();
+}
+// Le metriche FC viaggiano nello stesso documento cloud delle corse, in un campo a parte (hrx) scritto
+// con merge: non tocca updatedAt, quindi non fa ricaricare gli altri dispositivi. Le tracce restano locali
+// (pesano e il documento ha un limite di 1 MB).
+function pushCloudX(){
+  if(typeof cloudReady==='undefined'||!cloudReady||!fbAuth.currentUser)return;
+  clearTimeout(xCloudTimer);
+  xCloudTimer=setTimeout(()=>{
+    const c={};for(const k in X){const{tr,...rest}=X[k];c[k]=rest}
+    fbDb.collection('users').doc(fbAuth.currentUser.uid).set({
+      hrx:JSON.stringify(c),hrxWriter:cloudSessionId,hrxAt:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true}).catch(e=>console.warn('cloud hrx',e));
+  },2000);
+}
+function cloudXIn(d){
+  if(!d)return;
+  if(!d.hrx){if(Object.keys(X).length)pushCloudX();return}
+  const rv=d.hrxAt&&d.hrxAt.toMillis?d.hrxAt.toMillis():0,lv=+(localStorage.getItem('rp_hrx_v')||0);
+  if(rv&&rv<=lv)return;localStorage.setItem('rp_hrx_v',rv);
+  if(d.hrxWriter===cloudSessionId)return;
+  let inc={};try{inc=JSON.parse(d.hrx||'{}')}catch(e){return}
+  for(const k in inc){const loc=X[k];X[k]=inc[k];if(loc&&loc.tr&&!inc[k].tr)X[k].tr=loc.tr}
+  try{localStorage.setItem('rp_hrx',JSON.stringify(X))}catch(e){}
+  zCache=null;try{rFit();rAna()}catch(e){}
+}
+
+/* ---------- utilità ---------- */
+const dOnly=s=>new Date(s.slice(0,10)+'T12:00:00');
+const daysBetween=(a,b)=>Math.round((dOnly(b)-dOnly(a))/864e5); // b - a
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const median=a=>{if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y);return s[s.length>>1]};
+function xFlag(r,x){
+  if(!x||!x.hist)return 'nessun dato FC secondo per secondo';
+  if(x.cov<.7)return 'FC presente solo nel '+Math.round(x.cov*100)+'% della corsa';
+  if(x.art>.12*x.mov)return Math.round(x.art/60)+' min di FC scartati (picchi o aggancio alla cadenza)';
+  return null}
+function xOf(r){const x=X[r.date];if(!x||!x.hist||r.tm)return null;
+  if(xFlag(r,x)&&!(st.hrok&&st.hrok[r.date]))return null;return x}
+// corse con dati FC in una finestra di giorni che termina in 'end' (ISO, default oggi)
+function xRuns(days,end){end=end||todayISO();
+  return runs.filter(r=>{const g=daysBetween(r.date,end);return g>=0&&g<days&&xOf(r)})}
+function histSum(x,a,b){ // secondi e metri con FC in [a,b)
+  const h=x.hist;let s=0,m=0;if(!h)return[0,0];
+  for(let i=Math.max(0,a-h.h0);i<h.s.length&&h.h0+i<b;i++){s+=h.s[i];m+=h.m[i]}return[s,m]}
+function histAvg(x){const h=x.hist;let s=0,w=0;h.s.forEach((v,i)=>{s+=(h.h0+i)*v;w+=v});return w?s/w:null}
+const fmtMin=s=>Math.round(s/60)+"'";
+
+/* ---------- gare: riconosciute e confermate ---------- */
+const RACE_D=[5,10,15,21.0975,42.195];
+function raceState(r){return st.races&&st.races[r.date]}
+function raceCands(){
+  const yr=runs.filter(r=>daysAgo(r)<540&&!r.tm&&r.km>=3);
+  const out=[];
+  yr.forEach(r=>{
+    const s=raceState(r);
+    const vd=vdotOf(r.km,r.sec);
+    const ref=bestVdot(runs.filter(q=>Math.abs(daysBetween(q.date,r.date))<120&&raceState(q)!=='n'))||vd;
+    const near=RACE_D.some(d=>Math.abs(r.km-d)/d<.035);
+    const byTitle=cls(r)==='race';
+    const x=X[r.date];
+    const hr=x&&x.hist?histAvg(x):r.hr;
+    const hard=vd>=ref*.93&&(!hr||hr>=(st.hrrest+.8*(st.hrmax-st.hrrest)));
+    if(s==='y'||byTitle||(near&&hard)||(hard&&vd>=ref*.97&&r.km>=5))out.push({r,vd,hr,state:s||(byTitle?'t':'?'),near});
+  });
+  return out.sort((a,b)=>a.r.date<b.r.date?1:-1);
+}
+function setRace(key,v){st.races=st.races||{};if(v)st.races[key]=v;else delete st.races[key];LS('rp_st',st);zCache=null;refresh()}
+
+/* ---------- zone: stima da evidenza o confermate ---------- */
+const ZN=['Recupero','Steady','LT1','LT2','Alta intensità'];
+const ZTAG=['Z1','Z2','Z3','Z4','Z5'];
+let zCache=null;
+function zoneAnchor(){
+  // sforzi da gara (titolo "gara" o confermati) degli ultimi 180 giorni con FC affidabile:
+  // la FC media di uno sforzo di 35-75' sta appena sopra il tetto di LT2; di 18-35' (5k) ~4-5 bpm sopra;
+  // di 75-130' (mezza) ~3 bpm sotto. Si prende la stima più alta degli ultimi 120 giorni (forma attuale).
+  const out=[];
+  runs.forEach(r=>{
+    if(r.tm||daysAgo(r)>180)return;
+    const s=raceState(r);if(s==='n')return;
+    if(!(s==='y'||cls(r)==='race'))return;
+    const x=X[r.date];let hr=null,min=r.sec/60;
+    if(x&&x.hist&&x.cov>=.85){hr=histAvg(x);min=x.mov/60}else if(r.hr)hr=r.hr;
+    if(!hr||min<18||min>135)return;
+    const top=min<35?hr-5:min<75?hr-1:hr+3;
+    out.push({r,hr:Math.round(hr),min:Math.round(min),top:Math.round(top),age:daysAgo(r)});
+  });
+  const rec=out.filter(o=>o.age<=120);const pool=rec.length?rec:out;
+  if(!pool.length)return null;
+  return pool.reduce((a,b)=>b.top>a.top?b:a);
+}
+function zonesFromTop(top,src,anchor){
+  const floor=Math.round(st.hrrest+.42*(st.hrmax-st.hrrest));
+  const c2=top-18,c=[c2-25,c2,top-7,top+1];
+  return{c,floor,top,src,anchor};
+}
+function Zcur(){
+  if(zCache)return zCache;
+  const a=zoneAnchor();
+  const prop=a?zonesFromTop(a.top,'stima',a):zonesFromTop(Math.round(st.hrrest+.85*(st.hrmax-st.hrrest)),'formula',null);
+  zCache=st.zones&&st.zones.c?{c:st.zones.c.slice(),floor:st.zones.floor||prop.floor,top:st.zones.c[3]-1,src:'confermate',date:st.zones.date,prop}:{...prop,prop};
+  return zCache;
+}
+function zIdx(h,Z){Z=Z||Zcur();const c=Z.c;return h<c[0]?0:h<c[1]?1:h<c[2]?2:h<c[3]?3:4}
+function zRange(i,Z){Z=Z||Zcur();const c=Z.c;return i===0?[Z.floor,c[0]-1]:i===4?[c[3],null]:[c[i-1],c[i]-1]}
+const zLab=(i,Z)=>{const r=zRange(i,Z);return r[1]==null?r[0]+'+':r[0]+'–'+r[1]};
+function zSecs(x,Z){Z=Z||Zcur();const s=[0,0,0,0,0],m=[0,0,0,0,0];const h=x.hist;if(!h)return{s,m};
+  h.s.forEach((v,i)=>{const k=zIdx(h.h0+i,Z);s[k]+=v;m[k]+=h.m[i]});return{s,m}}
+
+/* ---------- settimane ---------- */
+function mondayOf(iso){const d=dOnly(iso);d.setDate(d.getDate()-((d.getDay()+6)%7));return isoLoc(d)}
+function weeksBack(n){const out=[];let m=dOnly(mondayOf(todayISO()));for(let i=0;i<n;i++){out.unshift(isoLoc(m));m.setDate(m.getDate()-7)}return out}
+const addDaysISO=(iso,k)=>{const d=dOnly(iso);d.setDate(d.getDate()+k);return isoLoc(d)};
+
+/* ---------- 1. ricetta: minuti a settimana per zona ---------- */
+function recipe(days,end){
+  const rs=xRuns(days,end),Z=Zcur(),s=[0,0,0,0,0],m=[0,0,0,0,0];
+  rs.forEach(r=>{const z=zSecs(X[r.date],Z);z.s.forEach((v,i)=>{s[i]+=v;m[i]+=z.m[i]})});
+  const all=runs.filter(r=>{const g=daysBetween(r.date,end||todayISO());return g>=0&&g<days&&!r.tm}).length;
+  return{perWk:s.map(v=>v/60/(days/7)),pace:s.map((v,i)=>m[i]>200?v/(m[i]/1000):null),n:rs.length,all};
+}
+/* ---------- 2. minuti di soglia per settimana ---------- */
+function weekZones(n){
+  const ws=weeksBack(n),Z=Zcur();
+  return ws.map(w=>{const s=[0,0,0,0,0];let nx=0,nr=0;
+    runs.forEach(r=>{if(mondayOf(r.date)!==w||r.tm)return;nr++;const x=xOf(r);if(!x)return;nx++;zSecs(x,Z).s.forEach((v,i)=>s[i]+=v)});
+    return{w,min:s.map(v=>v/60),nx,nr}});
+}
+/* ---------- 3. indice aerobico (VDOT stimato dalla FC) ----------
+   Per 4 bande di 8 bpm sotto il tetto di LT2: velocità tenuta → costo in O2 (formula di Daniels),
+   frazione di riserva cardiaca → VO2max equivalente. Media delle bande valide (≥10' e ≥2 corse). */
+function aeroBands(Z){Z=Z||Zcur();const t=Z.c[3];return[[t-32,t-24],[t-24,t-16],[t-16,t-8],[t-8,t]]}
+function bandEst(sec,m,hm){const v=m/(sec/60),f=(hm-st.hrrest)/(st.hrmax-st.hrrest);if(f<=.3)return null;return(vo2(v)-3.5)/f+3.5}
+function aeroWin(end,days){
+  days=days||28;const rs=xRuns(days,end),B=aeroBands();
+  return B.map(([a,b])=>{let s=0,m=0,nr=0;rs.forEach(r=>{const[ss,mm]=histSum(X[r.date],a,b);if(ss>=60)nr++;s+=ss;m+=mm});
+    const ok=s>=600&&nr>=2;return{a,b,s,m,nr,ok,pace:m>0?s/(m/1000):null,est:ok?bandEst(s,m,(a+b)/2):null}});
+}
+const aeroIdx=bs=>{const v=bs.filter(b=>b.ok);return v.length>=3?mean(v.map(b=>b.est)):null};
+function aeroSeries(n){
+  const out=[];const ws=weeksBack(n);
+  ws.forEach((w,i)=>{const end=i===ws.length-1?todayISO():addDaysISO(w,6);const v=aeroIdx(aeroWin(end));out.push({w,end,v})});
+  return out;
+}
+function aeroMoved(){
+  const now=aeroWin(todayISO()),prev=aeroWin(addDaysISO(todayISO(),-7));
+  const rows=now.map((b,i)=>({...b,prev:prev[i]}));const common=rows.filter(r=>r.ok&&r.prev.ok);
+  rows.forEach(r=>{r.contrib=r.ok&&r.prev.ok?(r.est-r.prev.est)/Math.max(3,common.length):null});
+  return{rows,ok:common.length>=3,total:common.length>=3?common.reduce((s,r)=>s+r.contrib,0):null};
+}
+/* ---------- 4. curva passo-FC (bande di 5 bpm, ≥3 corse) ---------- */
+function curveWin(end){
+  end=end||todayISO();let days=40,rs=xRuns(days,end);
+  const tot=()=>rs.reduce((s,r)=>s+X[r.date].hist.s.reduce((a,b)=>a+b,0),0);
+  while(tot()<60000&&days<120){days+=7;rs=xRuns(days,end)}
+  const pts=[];
+  for(let a=100;a<200;a+=5){let s=0,m=0,nr=0;rs.forEach(r=>{const[ss,mm]=histSum(X[r.date],a,a+5);if(ss>=90)nr++;s+=ss;m+=mm});
+    if(nr>=3&&s>=300&&m>0)pts.push({a,pace:s/(m/1000),s,nr})}
+  return{days,pts,min:Math.round(tot()/60)};
+}
+function curveBest(){ // finestre di 40 giorni negli ultimi 18 mesi, a passi di 2 settimane
+  const best={};for(let k=0;k<39;k++){const end=addDaysISO(todayISO(),-14*k);const c=curveWin(end);
+    c.pts.forEach(p=>{if(!best[p.a]||p.pace<best[p.a].pace)best[p.a]={pace:p.pace,end}})}
+  return best;
+}
+function zonePaceWin(i,end){const Z=Zcur(),[a,b]=zRange(i,Z);const c=curveWin(end);let s=0,m=0;
+  xRuns(c.days,end).forEach(r=>{const[ss,mm]=histSum(X[r.date],a,b==null?250:b+1);s+=ss;m+=mm});
+  return s>=600&&m>0?s/(m/1000):null}
+/* ---------- 5. tenute: tratti continui nella stessa banda di 5 bpm ---------- */
+function holdsWin(days,minSec){
+  const rs=xRuns(days),byB={};
+  rs.forEach(r=>(X[r.date].holds||[]).forEach(([b,s,m])=>{if(s<minSec)return;const o=byB[b]=byB[b]||{n:0,s:0,m:0};o.n++;o.s+=s;o.m+=m}));
+  return Object.entries(byB).map(([b,o])=>({b:+b,...o,pace:o.m?o.s/(o.m/1000):null})).sort((a,b)=>a.b-b.b);
+}
+/* ---------- 6. quanto costa ogni passo (bande di 20s, dalla traccia ogni 30s) ---------- */
+function paceCost(days){
+  const rs=xRuns(days),bk={};
+  rs.forEach(r=>{const t=X[r.date].tr;if(!t)return;t.p.forEach((p,i)=>{if(!p||p<180||p>480)return;const b=Math.floor(p/20)*20;
+    const o=bk[b]=bk[b]||{n:0,h:0,hn:0};o.n++;if(t.h[i]){o.h+=t.h[i];o.hn++}})});
+  return Object.entries(bk).map(([b,o])=>({b:+b,min:o.n*.5/(days/7),hr:o.hn?o.h/o.hn:null})).filter(o=>o.min>=1).sort((a,b)=>a.b-b.b);
+}
+/* ---------- 7. passo accumulato: i minuti più veloci della settimana, sommati ---------- */
+function accWeek(w){
+  const ms=[];runs.forEach(r=>{if(mondayOf(r.date)!==w||r.tm)return;const x=X[r.date];if(x&&x.fast)ms.push(...x.fast)});
+  ms.sort((a,b)=>b-a);const out={};
+  for(const L of[3000,5000,10000]){let d=0,t=0;for(const v of ms){if(d+v>=L){t+=(L-d)/v;d=L;break}d+=v;t++}
+    out[L]=d>=L?t*60/(L/1000):null}
+  return out;
+}
+/* ---------- 8. migliori tratti ---------- */
+function bestIn(days){const o={};runs.forEach(r=>{if(days&&daysAgo(r)>=days)return;const x=X[r.date];if(!x||!x.best||r.tm)return;
+  for(const k in x.best)if(!o[k]||x.best[k]<o[k].s)o[k]={s:x.best[k],r}});return o}
+/* ---------- 9. capacità ripetibile, guardrail, esposizione, divario di resistenza ---------- */
+function weeklySeries(){
+  if(!runs.length)return[];const m={};runs.forEach(r=>{const k=mondayOf(r.date);m[k]=(m[k]||0)+r.km});
+  const out=[];let w=mondayOf(runs[0].date);const cur=mondayOf(todayISO());
+  while(w<=cur){out.push({w,km:m[w]||0});w=addDaysISO(w,7)}return out;
+}
+function capacity(){
+  const ws=weeklySeries();const done=ws.slice(0,-1);if(done.length<8)return null;
+  const big=done.reduce((a,b)=>b.km>a.km?b:a);
+  const means=[];for(let i=8;i<=done.length;i++){const sl=done.slice(i-8,i);const act=sl.filter(x=>x.km>0).length;
+    if(act>=6)means.push({end:sl[7].w,v:mean(sl.map(x=>x.km))})}
+  const last12=means.filter(o=>daysBetween(o.end,todayISO())<=365);
+  const best8=means.length?means.reduce((a,b)=>b.v>a.v?b:a):null;
+  const rep=median(last12.map(o=>o.v))||mean(done.slice(-8).map(x=>x.km));
+  const curB=mean(done.slice(-4).map(x=>x.km));
+  return{big,best8,rep,cur:curB,safe:[rep*.73,rep*.9],ceil:[rep*1.26,rep*1.4]};
+}
+function exposure(){
+  const Z=Zcur();const last=f=>{for(let i=runs.length-1;i>=0;i--){if(f(runs[i]))return runs[i]}return null};
+  const zmin=(r,k)=>{const x=xOf(r);return x?zSecs(x,Z).s[k]/60:0};
+  return[
+    ['Lungo (≥90\' o ≥18 km)',last(r=>!r.tm&&(r.sec>=5400||r.km>=18))],
+    ['Lavoro a LT2 (≥10\' in zona)',last(r=>zmin(r,3)>=10)],
+    ['Alta intensità (≥6\' in zona)',last(r=>zmin(r,4)>=6)],
+    ['Gara o test 5–10 km',last(r=>r.km>=4.5&&r.km<=10.6&&(raceState(r)==='y'||(cls(r)==='race'&&raceState(r)!=='n')))],
+  ].map(([n,r])=>({n,r,days:r?daysAgo(r):null}));
+}
+function enduranceGap(){
+  const isRace=r=>raceState(r)==='y'||(cls(r)==='race'&&raceState(r)!=='n')||(r.km>=40&&raceState(r)!=='n');
+  const short=runs.filter(r=>isRace(r)&&r.km>=4.5&&r.km<=10.6&&daysAgo(r)<365).map(r=>({r,v:vdotOf(r.km,r.sec)}));
+  const long=runs.filter(r=>isRace(r)&&r.km>=20&&daysAgo(r)<540).map(r=>({r,v:vdotOf(r.km,r.sec)}));
+  const bs=short.length?short.reduce((a,b)=>b.v>a.v?b:a):null,bl=long.length?long.reduce((a,b)=>b.v>a.v?b:a):null;
+  return{bs,bl,gap:bs&&bl?bs.v-bl.v:null};
+}
+function durability(){
+  const Z=Zcur();return xRuns(84).map(r=>({r,d:X[r.date].dec})).filter(o=>o.d&&o.d.cv<.08&&o.d.min>=45&&zIdx(o.d.hr,Z)<=2);
+}
+/* ---------- 10. obiettivo: cosa chiede la gara e quanto manca ---------- */
+function demand(goalKm,tSec){
+  const min=tSec/60;
+  if(goalKm>=42){
+    const band=min<=180?'≤3:00':min<=210?'3:00–3:30':min<=255?'3:30–4:15':'oltre 4:15';
+    const fast=min<=210;
+    return{band,dur:`${Math.round(min)} minuti di gara`,
+      text:fast?'A questo livello la gara si corre per lo più tra LT1 alto e LT2 basso: decide la capacità di tenere quel ritmo quando la fatica si accumula dopo il 25-30° km, più che la velocità pura.':'A questo livello la gara si corre intorno o sotto LT1: decidono volume aerobico, durata dei lunghi e gestione di carboidrati e passo.',
+      emph:fast?[['Specifico ritmo maratona',25],['Tenuta (soglia bassa lunga)',23],['LT2 / soglia',16],['LT1 di raccordo',15],['Economia (allunghi, salite brevi)',11],['Potenza aerobica',6],['VO2max',4]]:
+                [['Volume aerobico e lunghi',32],['Specifico ritmo maratona',22],['LT1 di raccordo',18],['LT2 / soglia',12],['Economia',10],['Potenza aerobica',6]],
+      proofs:[['LT1 di raccordo',"60–75' continui a LT1, oppure lungo con 2×25–30' a LT1",14,10],
+              ['Tenuta',"2×25' o 3×15' a LT2 basso dentro un medio-lungo",12,8],
+              ['Specifico',"3×5 km a ritmo maratona con breve recupero corsa",10,7],
+              ['Specifico',"lungo con gli ultimi 8–14 km (35–60') a ritmo maratona",8,5],
+              ['Specifico',"2×8–10 km a ritmo maratona",7,4],
+              ['Economia',"6 allunghi in piano dopo un medio-lungo, tutto l'anno; meno negli ultimi 10 giorni",52,1]],
+      errors:['Allenarsi coi carichi di un atleta molto più veloce senza averne il recupero','Trasformare ogni medio-lungo in una corsa "steady" dura','Ripetere troppo spesso lavori da 20 km e più a ritmo gara','Sopravvalutare le sedute VO2 perché 5k e 10k migliorano in fretta','Trascurare il lavoro a LT1']};
+  }
+  if(goalKm>=21)return{band:min<=90?'≤1:30':min<=110?'1:30–1:50':'oltre 1:50',dur:`${Math.round(min)} minuti di gara`,
+    text:'La mezza si corre intorno a LT2 (più vicino al tetto se dura meno di 80\'): servono soglia lunga e tenuta.',
+    emph:[['LT2 / soglia',30],['Specifico ritmo mezza',22],['Volume e lunghi',20],['Potenza aerobica',12],['LT1',10],['Economia',6]],
+    proofs:[['Soglia',"3×10–12' a LT2",10,6],['Specifico',"3×4 km a ritmo mezza",6,3],['Tenuta',"lungo con finale di 20–30' a ritmo mezza",7,3]],
+    errors:['Fare tutto il lavoro di qualità sopra soglia','Nessun lungo oltre i 18 km']};
+  return{band:goalKm>=10?'10 km':'5 km',dur:`${Math.round(min)} minuti di gara`,
+    text:'Sulle distanze brevi la gara si corre sopra LT2: contano potenza aerobica e VO2, sostenuti da un buon volume facile.',
+    emph:[['Potenza aerobica / VO2',30],['LT2 / soglia',25],['Volume facile',25],['Economia e velocità',20]],
+    proofs:[['VO2',"5×1000 m al ritmo gara o poco più veloce",6,2],['Soglia',"20–25' a LT2",8,3]],errors:['Correre gli easy troppo forte']};
+}
+function goalTarget(){
+  const pl=LS('rp_plan');if(!pl)return null;
+  let t=st.goalT||null;
+  if(!t&&pl.target)t=parseHMS(pl.target);
+  if(!t&&pl.GT){const m=String(pl.GT).split('–').map(parseHMS).filter(Boolean);if(m.length)t=mean(m)}
+  return t?{km:+pl.goal,sec:t,date:pl.dateStr,pl}:null;
+}
+/* ---------- 11. dose di intensità prevista nelle sedute del piano ---------- */
+function planDose(txt,goalKm){
+  const o=[0,0,0];if(!txt)return o; // [LT1, LT2, alta]
+  const Z={M:0,gara:goalKm>=42?0:1,'ritmo mezza':1,T:1,I:2,R:2};
+  let t=String(txt);
+  t=t.replace(/(\d+)×(\d+)' alternando (\d+)' @ [^()]*\((M|gara)\) \/ (\d+)' @ [^()]*\(T\)/g,(_,n,_m,a,z,b)=>{o[Z[z]]+=n*a;o[1]+=n*b;return''});
+  t=t.replace(/(\d+)×(\d+)' alternando (\d+)' @ [\d:]+ \(poco sopra M\)/g,(_,n,mm)=>{o[0]+=n*mm;return''});
+  t=t.replace(/([\d.]+) km @ (\d:\d\d)(?:–(\d:\d\d))?\/km/g,(_,k,a,b)=>{const p=(toSec(a)+toSec(b||a))/2,mm=k*p/60;o[k<12?2:k<30?1:0]+=mm;return''});
+  t=t.replace(/(\d+)×\((\d+)'(?:\d+")? @ [^()]*\((I|R)\)/g,(_,n,mm)=>{o[2]+=n*mm;return''});
+  t=t.replace(/(\d+)×(\d+)(?:"|'(?:(\d+)")?) @ [^()+]*\((I|R|T|M|gara)\)/g,(s,n,mm,ss,z)=>{
+    const isSec=/^\d+×\d+"/.test(s);const per=isSec?mm/60:(+mm+(ss?ss/60:0));o[Z[z]]+=n*per;return''});
+  t=t.replace(/(\d+)×(\d+)m @ (\d:\d\d)(?:–(\d:\d\d))? \((I|R|T|M|gara)\)/g,(_,n,d,a,b,z)=>{const p=(toSec(a)+toSec(b||a))/2;o[Z[z]]+=n*d/1000*p/60;return''});
+  t.replace(/(\d+)' @ [^()+']*\((T|M|I|R|gara|ritmo mezza)\)/g,(_,mm,z)=>{o[Z[z]]+=+mm;return''});
+  t.replace(/(\d+)' continui da [\d:]+ a [\d:]+ \(E→(T|M)\)/g,(_,mm,z)=>{o[z==='T'?1:0]+=mm/3;return''});
+  return o.map(v=>Math.round(v));
+}
+/* ---------- 12. FC suggerita accanto ai passi del piano ---------- */
+function hrTag(txt){
+  if(!txt)return txt;try{const Z=Zcur();const lab=i=>{const r=zRange(i,Z);return r[1]==null?'FC '+r[0]+'+':'FC '+r[0]+'–'+r[1]};
+  return String(txt).replace(/\((I|R|T|M|Z2|gara)\)/g,(s,z)=>{const i={Z2:1,M:2,gara:2,T:3,I:4,R:4}[z];
+    return z==='R'?s:`${s}<span class="hrt">${lab(i)}</span>`});
+  }catch(e){console.warn('hrTag',e);return txt}
+}
+
+/* ---------- import: un .fit (da file singolo o da archivio) ---------- */
+async function ingestFitBuf(buf,name,ctx){
+  const INT={0:'act',1:'rest',2:'wu',3:'cd',4:'rec'};
+  const{sess,laps,recs}=parseFit(buf);
+  if(!sess)throw new Error('nessuna sessione nel file');
+  if(sess[5]!==1&&sess[5]!=null){ctx.skip++;return}
+  const dt=new Date((sess[2]+631065600)*1000);
+  const pad=n=>String(n).padStart(2,'0');
+  const key=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  const km=+((sess[9]||0)/100000).toFixed(2);
+  const rows=laps.filter(l=>(l[9]||0)>0).map(l=>[Math.round(l[9]/100),+(l[8]/1000).toFixed(1),l[15]??null,l[16]??null,INT[l[23]]||'act',l[17]!=null?Math.round(l[17]*2):null]);
+  // stessa corsa già in archivio (es. dal CSV): stesso giorno, partenza entro 5', km simili
+  let old=runs.find(r=>r.date===key);
+  if(!old){const t=dt.getTime();old=runs.find(r=>r.date.slice(0,10)===key.slice(0,10)&&Math.abs(day(r.date).getTime()-t)<=5*60000&&Math.abs(r.km-km)<=Math.max(.3,km*.03))}
+  const k=old?old.date:key;
+  if(rows.length)lapsDB[k]={laps:rows};
+  const x=fitX(recs,{hrmax:st.hrmax});if(x){X[k]=x;ctx.nx++}
+  const base=String(name||'').replace(/\.fit$/i,'');
+  const title=genericFitName(base)?fitTitle(rows,km,k):base;
+  if(!old){
+    if(!sess[9]||!sess[8])return;
+    runs.push({date:key,title,km,sec:Math.round(sess[8]/1000),hr:sess[16]??null,hrmax:sess[17]??null,
+      cad:sess[18]!=null?Math.round((sess[18]+(sess[92]??0)/128)*2):null,
+      stl:sess[134]!=null?+(sess[134]/10000).toFixed(2):null,vr:sess[132]!=null?+(sess[132]/100).toFixed(2):null,
+      vo:sess[89]!=null?+(sess[89]/100).toFixed(2):null,gct:sess[91]!=null?Math.round(sess[91]/10):null,
+      asc:sess[22]??0,tm:sess[6]===1?1:0});
+    ctx.nr++;
+  }else{if(genericFitName(old.title))old.title=title;ctx.nu++}
+}
+async function importFit(files){
+  const ctx={nr:0,nu:0,nx:0,skip:0,nf:0};
+  for(const f of files){try{await ingestFitBuf(await f.arrayBuffer(),f.name,ctx);ctx.nf++}catch(err){alert(f.name+': '+err.message)}}
+  runs.sort((a,b)=>a.date<b.date?-1:1);
+  try{LS('rp_lapsdb',lapsDB);LS('rp_runs',runs);saveX();zCache=null;refresh()}
+  catch(err){alert('Dati importati, ma errore nell\'aggiornamento schermata: '+err.message)}
+  return ctx;
+}
+function loadJSZip(){
+  if(window.JSZip)return Promise.resolve(window.JSZip);
+  return new Promise((res,rej)=>{const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload=()=>res(window.JSZip);s.onerror=()=>rej(new Error('non riesco a caricare il lettore ZIP: serve la connessione'));document.head.appendChild(s)});
+}
+async function gunzipBuf(buf){
+  if(typeof DecompressionStream==='undefined')throw new Error('browser senza supporto gzip');
+  return await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+}
+async function importZip(file,onProg){
+  const JSZip=await loadJSZip();
+  const ctx={nr:0,nu:0,nx:0,skip:0,nf:0,err:0};const queue=[];
+  async function walk(zip,depth){
+    for(const e of Object.values(zip.files)){if(e.dir)continue;const n=e.name.toLowerCase();
+      if(n.endsWith('.zip')&&depth<3){try{await walk(await JSZip.loadAsync(await e.async('arraybuffer')),depth+1)}catch(err){ctx.err++}}
+      else if(n.endsWith('.fit')||n.endsWith('.fit.gz'))queue.push(e)}
+  }
+  onProg&&onProg(0,0,'Apro l\'archivio…');
+  await walk(await JSZip.loadAsync(file),0);
+  for(let i=0;i<queue.length;i++){const e=queue[i];
+    try{let b=await e.async('arraybuffer');if(e.name.toLowerCase().endsWith('.gz'))b=await gunzipBuf(b);
+      await ingestFitBuf(b,e.name.split('/').pop().replace(/\.gz$/i,''),ctx);ctx.nf++}catch(err){ctx.err++}
+    if(i%8===0){onProg&&onProg(i+1,queue.length);await new Promise(r=>setTimeout(r,0))}}
+  runs.sort((a,b)=>a.date<b.date?-1:1);
+  LS('rp_lapsdb',lapsDB);LS('rp_runs',runs);saveX();zCache=null;refresh();
+  return{...ctx,total:queue.length};
+}
+
+/* ---------- grafici piccoli ---------- */
+const zcol=i=>`var(--z${i+1})`;
+function hbars(rows,unit){
+  const mx=Math.max(1e-9,...rows.map(r=>r.v||0));
+  return `<div class="hb">${rows.map(r=>`<div class="hbr"><div class="hbl">${r.l}${r.sub?`<small>${r.sub}</small>`:''}</div><div class="hbt"><i style="width:${Math.max(r.v?2:0,100*(r.v||0)/mx).toFixed(1)}%;background:${r.c||'var(--acc)'}"></i></div><div class="hbv">${r.txt!=null?r.txt:Math.round(r.v||0)+(unit||'')}</div></div>`).join('')}</div>`;
+}
+function gbars(el,labels,series,fmt){ // barre affiancate per settimana
+  const host=document.getElementById(el);if(!host)return;
+  const W=520,H=170,P={l:30,r:6,t:8,b:22};
+  const mx=Math.max(1,...series.flatMap(s=>s.v.map(v=>v||0)));
+  const step=Math.max(5,Math.ceil(mx/4/5)*5),top=step*Math.ceil(mx/step);
+  const n=labels.length,gw=(W-P.l-P.r)/n,bw=Math.max(2,(gw-4)/series.length-1);
+  const Y=v=>H-P.b-(v/top)*(H-P.t-P.b);
+  let s='';for(let g=0;g<=top;g+=step)s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--line)"/><text x="${P.l-4}" y="${Y(g)+3}" text-anchor="end">${g}</text>`;
+  labels.forEach((lb,i)=>{series.forEach((se,j)=>{const v=se.v[i];if(v==null)return;const x=P.l+i*gw+2+j*(bw+1),y=Y(v);
+      s+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,H-P.b-y).toFixed(1)}" rx="1.5" fill="${se.c}" fill-opacity="${se.o||1}"><title>${lb} · ${se.n}: ${fmt?fmt(v):Math.round(v)}</title></rect>`});
+    if(i%Math.ceil(n/7)===0||i===n-1)s+=`<text x="${(P.l+i*gw+gw/2).toFixed(1)}" y="${H-6}" text-anchor="middle">${lb}</text>`});
+  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%">${s}</svg><div class="lgd">${series.map(se=>`<span><i style="background:${se.c};opacity:${se.o||1}"></i>${se.n}</span>`).join('')}</div>`;
+}
+function pillset(id,opts,cur,cb){const el=document.getElementById(id);if(!el)return;
+  el.innerHTML=opts.map(([v,l])=>`<span class="pill${v===cur?' on':''}" data-v="${v}">${l}</span>`).join('');
+  el.querySelectorAll('.pill').forEach(p=>p.onclick=()=>cb(+p.dataset.v));}
+
+/* ---------- tab Fitness ---------- */
+let fitWin=4,fitHold=10;
+function rFit(){
+  const host=document.getElementById('tab-fit');if(!host)return;
+  const nX=runs.filter(r=>X[r.date]&&X[r.date].hist).length;
+  const rec12=runs.filter(r=>daysAgo(r)<84&&!r.tm),rec12x=rec12.filter(r=>xOf(r)).length;
+  const Z=Zcur();
+  const set=(id,h)=>{const e=document.getElementById(id);if(e)e.innerHTML=h};
+  // copertura dati
+  set('f-cov',nX?`<p class="muted">FC secondo per secondo su <b>${nX}</b> corse (${rec12x}/${rec12.length} delle ultime 12 settimane).${rec12x<rec12.length?` Per completare lo storico importa l'archivio Garmin o Strava (.zip) nel tab <b>Dati</b>.`:''}</p>`
+    :`<div class="stwarn">Qui servono le corse con la FC secondo per secondo: importa l'<b>archivio .zip</b> di Garmin o Strava (o i singoli .fit) dal tab <b>Dati</b>. Le corse arrivate dal CSV hanno solo le medie.</div>`);
+  // 1. zone attuali
+  const zp=[0,1,2,3,4].map(i=>zonePaceWin(i));const vd=curVdot(),pc=vd?paces(vd):null;
+  const dan=pc?[`>${fmtP(pc.E[0])}`,`${fmtP(pc.E[1])}–${fmtP(pc.E[0])}`,`M ${fmtP(pc.M)}`,`T ${fmtP(pc.T)}`,`I ${fmtP(pc.I)}`]:['','','','',''];
+  const src=Z.src==='confermate'?`<span class="phb race">confermate${Z.date?' il '+Z.date:''}</span>`:Z.src==='stima'?`<span class="phb ispec">stimate</span> <span class="muted">dalla ${Z.anchor.r.title} del ${Z.anchor.r.date.slice(0,10)} (${Z.anchor.min}', FC media ${Z.anchor.hr})</span>`:`<span class="phb deload">da formula</span> <span class="muted">nessuna gara con FC: uso la riserva cardiaca</span>`;
+  set('f-zones',`<p style="margin-bottom:8px">${src}</p><table><tr><th>Zona</th><th class="r">FC</th><th class="r">Passo osservato</th><th class="r">Passo Daniels</th></tr>${[0,1,2,3,4].map(i=>`<tr><td><span class="zdot" style="background:${zcol(i)}"></span>${ZN[i]} <span class="muted">${ZTAG[i]}</span></td><td class="r">${zLab(i,Z)}</td><td class="r">${zp[i]?fmtP(zp[i])+'/km':'<span class="muted">–</span>'}</td><td class="r muted">${dan[i]}</td></tr>`).join('')}</table><p class="muted" style="margin-top:6px">Passo osservato = quello che hai davvero tenuto in quella fascia di FC negli ultimi 40 giorni (almeno 10'). Le zone si correggono nel tab Dati.</p>`);
+  // 2. ricetta
+  pillset('f-win',[[1,'1 sett'],[4,'4 sett'],[8,'8 sett']],fitWin,v=>{fitWin=v;rFit()});
+  const rc=recipe(fitWin*7);const tot=rc.perWk.reduce((a,b)=>a+b,0);
+  const hard=rc.perWk[2]+rc.perWk[3]+rc.perWk[4];
+  set('f-recipe',rc.n?hbars(rc.perWk.map((v,i)=>({l:ZN[i],sub:zLab(i,Z)+' bpm'+(rc.pace[i]?' · '+fmtP(rc.pace[i])+'/km':''),v,c:zcol(i),txt:Math.round(v)+"'/sett"})))+
+    `<p class="muted" style="margin-top:8px">${Math.round(tot)}' a settimana con FC registrata (${rc.n} di ${rc.all} corse). Sopra LT1: <b>${Math.round(hard)}'</b> (${tot?Math.round(hard/tot*100):0}%). È la composizione di quello che hai fatto, non un programma da copiare.</p>`:'<p class="muted">Nessuna corsa con FC nella finestra.</p>');
+  // 3. minuti di soglia
+  const wz=weekZones(12);const lab=wz.map(o=>labDay(o.w));
+  gbars('f-thr',lab,[{n:'LT1',c:zcol(2),v:wz.map(o=>o.nx?o.min[2]:null)},{n:'LT2',c:zcol(3),v:wz.map(o=>o.nx?o.min[3]:null)},{n:'Alta int.',c:zcol(4),v:wz.map(o=>o.nx?o.min[4]:null)}],v=>Math.round(v)+"'");
+  const done=wz.slice(0,-1).filter(o=>o.nx);
+  set('f-thr-n',done.length?`Media settimane concluse: LT1 <b>${Math.round(mean(done.map(o=>o.min[2])))}'</b> · LT2 <b>${Math.round(mean(done.map(o=>o.min[3])))}'</b> · alta intensità <b>${Math.round(mean(done.map(o=>o.min[4])))}'</b>. Sono minuti con la FC dentro la fascia, riscaldamento e recuperi compresi se la FC c'era.`:'');
+  // 4. indice aerobico
+  const ser=aeroSeries(26).filter(o=>o.v!=null);const mv=aeroMoved();const cur=ser.length?ser[ser.length-1]:null;
+  if(ser.length>=2)chart('f-aero-c',ser.map(o=>({x:labDay(o.w),y:+o.v.toFixed(1)})),{ylab:v=>v.toFixed(1),color:'var(--acc2)'});else set('f-aero-c','');
+  const bestA=ser.length?ser.reduce((a,b)=>b.v>a.v?b:a):null;
+  set('f-aero',cur?`<div class="grid3"><div class="stat"><b>${cur.v.toFixed(1)}</b><span>indice aerobico</span>${mv.total!=null?`<i style="display:block" class="${mv.total>=0?'up':'down'}">${mv.total>=0?'▲':'▼'} ${Math.abs(mv.total).toFixed(1)} vs 7 giorni fa</i>`:''}</div>
+      <div class="stat"><b>${vd?vd.toFixed(1):'–'}</b><span>VDOT da gara</span><i style="display:block" class="muted">${vd&&cur?(vd-cur.v>=0?'+':'')+(vd-cur.v).toFixed(1)+' sull\'indice':''}</i></div>
+      <div class="stat"><b>${bestA.v.toFixed(1)}</b><span>migliore 6 mesi</span><i style="display:block" class="muted">${labDay(bestA.w)}</i></div></div>
+      <table style="margin-top:10px"><tr><th>Fascia FC</th><th class="r">Passo ora</th><th class="r">7 gg fa</th><th class="r">Min</th><th class="r">Effetto</th></tr>
+      ${mv.rows.map(b=>`<tr><td>${b.a}–${b.b-1}</td><td class="r">${b.pace&&b.ok?fmtP(b.pace):'–'}</td><td class="r muted">${b.prev.pace&&b.prev.ok?fmtP(b.prev.pace):'–'}</td><td class="r muted">${Math.round(b.s/60)}</td><td class="r ${b.contrib==null?'':b.contrib>=0?'up':'down'}">${b.contrib==null?'–':(b.contrib>=0?'+':'')+b.contrib.toFixed(2)}</td></tr>`).join('')}</table>
+      <p class="muted" style="margin-top:6px">Stima del VDOT dalla velocità che tieni a parità di FC, finestra di 28 giorni, almeno 3 fasce su 4 con ≥10'. ${vd&&cur&&vd-cur.v>2?'Il VDOT da gara è più alto: in gara rendi più di quanto dica la FC in allenamento (buona capacità di soffrire, o FC alta per caldo e fatica).':vd&&cur&&cur.v-vd>2?'L\'indice supera il VDOT da gara: la forma aerobica è avanti rispetto all\'ultima gara, un test la confermerebbe.':'I due metodi concordano.'}</p>`
+    :'<p class="muted">Servono almeno 3 fasce di FC con 10\' ciascuna nelle ultime 4 settimane.</p>');
+  // 5. curva passo-FC
+  const cw=curveWin(),cb=curveBest();rCurve('f-curve',cw,cb,Z);
+  const lt2=zonePaceWin(3),bestLt2=(()=>{let b=null;for(let k=0;k<39;k++){const e=addDaysISO(todayISO(),-14*k);const p=zonePaceWin(3,e);if(p&&(!b||p<b.p))b={p,e}}return b})();
+  set('f-curve-n',`Ultimi ${cw.days} giorni · ${cw.min}' di FC · punti solo dove almeno 3 corse sostengono la fascia. Passo a LT2 ora <b>${lt2?fmtP(lt2):'–'}/km</b>${bestLt2?`, migliore 18 mesi <b>${fmtP(bestLt2.p)}</b> (finestra al ${labDay(bestLt2.e)})`:''}.`);
+  // 6. tenute
+  pillset('f-holdp',[[5,"5'"],[10,"10'"],[15,"15'"]],fitHold,v=>{fitHold=v;rFit()});
+  const hd=holdsWin(28,fitHold*60);
+  set('f-holds',hd.length?hbars(hd.map(o=>({l:`${o.b}–${o.b+5}`,sub:`${fmtP(o.pace)}/km · ${ZN[zIdx(o.b+2,Z)]}`,v:o.n,c:zcol(zIdx(o.b+2,Z)),txt:`${o.n} · ${fmtMin(o.s)}`})))+'<p class="muted" style="margin-top:6px">Tratti continui con la FC (media 60") nella stessa fascia di 5 bpm, ultime 4 settimane.</p>':`<p class="muted">Nessun tratto continuo di almeno ${fitHold}' nelle ultime 4 settimane.</p>`);
+  // 7. costo del passo
+  const pcst=paceCost(28);
+  set('f-cost',pcst.length?hbars(pcst.map(o=>({l:`${fmtP(o.b)}–${fmtP(o.b+20)}`,sub:o.hr?`FC media ${Math.round(o.hr)}`:'',v:o.min,c:o.hr?zcol(zIdx(o.hr,Z)):'var(--dim)',txt:Math.round(o.min)+"'/sett"}))):'<p class="muted">Servono le tracce delle corse.</p>');
+  // 8. passo accumulato
+  const ws=weeksBack(10),acc=ws.map(w=>({w,a:accWeek(w)})),av=acc.filter(o=>o.a[5000]);
+  if(av.length>=2)chart('f-acc-c',av.map(o=>({x:labDay(o.w),y:o.a[5000]})),{ylab:v=>fmtP(v),invertY:true,color:'var(--warn)'});else set('f-acc-c','');
+  const la=acc[acc.length-1].a[5000]?acc[acc.length-1]:acc[acc.length-2];
+  const bestAcc=av.length?av.reduce((a,b)=>b.a[5000]<a.a[5000]?b:a):null;
+  set('f-acc',la?`<div class="grid3">${[3000,5000,10000].map(L=>`<div class="stat"><b>${la.a[L]?fmtP(la.a[L]):'–'}</b><span>${L/1000} km accumulati</span></div>`).join('')}</div><p class="muted" style="margin-top:6px">Settimana del ${labDay(la.w)}. I minuti più veloci della settimana sommati fra tutte le corse (media mobile di 2'), tapis roulant esclusi. Misura di allenamento, non previsione di gara.${bestAcc?` Migliore 10 settimane: ${fmtP(bestAcc.a[5000])}/km (${labDay(bestAcc.w)}).`:''}</p>`:'<p class="muted">Servono le corse importate da .fit.</p>');
+  // 9. migliori tratti
+  const b4=bestIn(28),ball=bestIn(0),DL={1000:'1 km',3000:'3 km',5000:'5 km',10000:'10 km',15000:'15 km',21097:'Mezza'};
+  set('f-best',`<table><tr><th></th><th class="r">Ultime 4 sett</th><th class="r">Passo</th><th class="r">Migliore storico</th></tr>${Object.entries(DL).map(([k,l])=>`<tr><td>${l}</td><td class="r">${b4[k]?fmtD(b4[k].s):'–'}</td><td class="r pace">${b4[k]?fmtP(b4[k].s/(k/1000)):''}</td><td class="r muted">${ball[k]?fmtD(ball[k].s)+' · '+ball[k].r.date.slice(0,10):'–'}</td></tr>`).join('')}</table><p class="muted" style="margin-top:6px">Tratti migliori dentro qualsiasi corsa (tempo in movimento), separati dai risultati di gara.</p>`);
+  // 10. piramide
+  const pr=recipe(56),BR=[60,45,30,25,15];
+  set('f-pyr',`<div class="pyr">${[4,3,2,1,0].map(i=>{const mins=pr.perWk[i]*8,n=Math.floor(mins/BR[i]);return`<div class="pyrr"><span class="pyl">${ZN[i]}</span><span class="pyb">${Array.from({length:Math.min(n,24)},()=>`<i style="background:${zcol(i)}"></i>`).join('')}${n>24?`<em>+${n-24}</em>`:''}${!n?'<em>–</em>':''}</span><span class="pyv">${Math.round(mins)}'</span></div>`}).join('')}</div><p class="muted" style="margin-top:6px">Ultimi 56 giorni. Un mattone = 60' Recupero, 45' Steady, 30' LT1, 25' LT2, 15' Alta intensità.</p>`);
+  // 11. capacità e lacune
+  const cp=capacity(),ex=exposure(),eg=enduranceGap(),du=durability();
+  set('f-cap',(cp?`<table><tr><td>Settimana più alta</td><td class="r"><b>${Math.round(cp.big.km)} km</b> <span class="muted">${labDay(cp.big.w)}</span></td></tr>
+    <tr><td>Miglior blocco di 8 settimane</td><td class="r"><b>${cp.best8?Math.round(cp.best8.v):'–'} km/sett</b> <span class="muted">${cp.best8?'fino al '+labDay(cp.best8.end):''}</span></td></tr>
+    <tr><td>Livello ripetibile (12 mesi)</td><td class="r"><b>${Math.round(cp.rep)} km/sett</b></td></tr>
+    <tr><td>Ultime 4 settimane</td><td class="r"><b>${Math.round(cp.cur)} km/sett</b> <span class="muted">${Math.round(cp.cur/cp.rep*100)}% del ripetibile</span></td></tr></table>
+    <p style="margin-top:8px;font-size:13px">Ripartenza sicura <b>${Math.round(cp.safe[0])}–${Math.round(cp.safe[1])} km</b>, tetto di crescita del blocco <b>${Math.round(cp.ceil[0])}–${Math.round(cp.ceil[1])} km</b>.</p>`:'')+
+    `<h3 class="fh">Da quanto non fai…</h3><table>${ex.map(e=>`<tr><td>${e.n}</td><td class="r ${e.days==null||e.days>28?'down':e.days>14?'':'up'}">${e.days==null?'mai (con FC)':e.days===0?'oggi':e.days+' giorni'}</td><td class="r muted">${e.r?e.r.date.slice(0,10):''}</td></tr>`).join('')}</table>`+
+    (eg.bs?`<h3 class="fh">Divario di resistenza</h3><p style="font-size:13px">Gara breve migliore: <b>VDOT ${eg.bs.v.toFixed(1)}</b> (${eg.bs.r.title}, ${eg.bs.r.date.slice(0,10)}).${eg.bl?` Gara lunga migliore: <b>VDOT ${eg.bl.v.toFixed(1)}</b> (${eg.bl.r.title}). Differenza <b>${eg.gap.toFixed(1)}</b> punti: ${eg.gap>3?'la resistenza è il limite, servono volume e lunghi più che velocità.':eg.gap>1.5?'margine di resistenza da costruire.':'resistenza in linea con la velocità.'}`:' Nessuna gara lunga negli ultimi 18 mesi.'}</p>`:'')+
+    (du.length?`<h3 class="fh">Deriva cardiaca nelle corse lunghe facili</h3><p style="font-size:13px">Mediana <b>${median(du.map(o=>o.d.v)).toFixed(1)}%</b> su ${du.length} corse (12 settimane): ${median(du.map(o=>o.d.v))<5?'tieni bene il passo quando la fatica sale.':'la FC sale molto nella seconda metà: più lunghi facili costanti.'}</p>`:''));
+  // 12. gare
+  const rcd=raceCands().slice(0,14);
+  set('f-races',rcd.length?`<table>${rcd.map(o=>`<tr><td><b>${o.r.km.toFixed(1)} km</b> ${fmtD(o.r.sec)} <span class="muted">· ${o.r.date.slice(0,10)} · ${o.r.title}</span><br><span class="muted">VDOT ${o.vd.toFixed(1)}${o.hr?' · FC '+Math.round(o.hr):''}</span></td><td class="r" style="white-space:nowrap">${o.state==='y'?'<span class="phb race">confermata</span>':o.state==='t'?'<span class="phb deload">dal titolo</span>':''}
+      <button class="btn btn2 mini" onclick="setRace('${o.r.date}','y')" title="È una gara vera">✓</button><button class="btn btn2 mini" onclick="setRace('${o.r.date}','n')" title="Non era una gara">✕</button>${o.state==='y'?`<button class="btn btn2 mini" onclick="setRace('${o.r.date}',null)" title="Annulla">↺</button>`:''}</td></tr>`).join('')}</table><p class="muted" style="margin-top:6px">Le gare confermate ancorano le zone e il VDOT; quelle scartate (✕) non contano più per il VDOT.</p>`:'<p class="muted">Nessuna gara riconosciuta.</p>');
+  const rej=runs.filter(r=>raceState(r)==='n');
+  if(rej.length)document.getElementById('f-races').innerHTML+=`<p class="muted" style="margin-top:6px">Scartate: ${rej.map(r=>`${r.date.slice(0,10)} <a href="#" onclick="setRace('${r.date}',null);return false">ripristina</a>`).join(' · ')}</p>`;
+  // 13. qualità del segnale
+  const flg=runs.filter(r=>X[r.date]&&X[r.date].hist&&xFlag(r,X[r.date])&&daysAgo(r)<180);
+  set('f-qual',flg.length?`<p class="muted" style="margin-bottom:6px">Corse con FC poco affidabile, escluse dalle analisi FC (distanza e passo restano):</p><table>${flg.map(r=>`<tr><td>${r.date.slice(0,10)} · ${r.title}<br><span class="muted">${xFlag(r,X[r.date])}</span></td><td class="r"><label style="margin:0;display:flex;gap:6px;align-items:center;justify-content:flex-end"><input type="checkbox" style="width:auto" ${st.hrok&&st.hrok[r.date]?'checked':''} onchange="st.hrok=st.hrok||{};if(this.checked)st.hrok['${r.date}']=1;else delete st.hrok['${r.date}'];LS('rp_st',st);zCache=null;rFit()">usa</label></td></tr>`).join('')}</table>`:'<p class="muted">Nessuna corsa scartata negli ultimi 6 mesi.</p>');
+}
+function rCurve(el,cw,best,Z){
+  const host=document.getElementById(el);if(!host)return;
+  const pts=cw.pts;const bp=Object.entries(best).map(([a,o])=>({a:+a,pace:o.pace}));
+  if(pts.length<2&&bp.length<2){host.innerHTML='<p class="muted">Dati insufficienti.</p>';return}
+  const all=[...pts,...bp];const W=520,H=210,P={l:40,r:10,t:10,b:24};
+  const x0=Math.min(...all.map(p=>p.a))-3,x1=Math.max(...all.map(p=>p.a))+8;
+  let y0=Math.min(...all.map(p=>p.pace)),y1=Math.max(...all.map(p=>p.pace));const pad=(y1-y0)*.1||10;y0-=pad;y1+=pad;
+  const X_=a=>P.l+(a-x0)/(x1-x0)*(W-P.l-P.r),Y=v=>P.t+(v-y0)/(y1-y0)*(H-P.t-P.b);
+  let s='';
+  for(let i=0;i<5;i++){const [a,b]=zRange(i,Z);const xa=Math.max(P.l,X_(Math.max(a,x0))),xb=Math.min(W-P.r,X_(b==null?x1:Math.min(b+1,x1)));if(xb>xa)s+=`<rect x="${xa}" y="${P.t}" width="${xb-xa}" height="${H-P.t-P.b}" fill="${zcol(i)}" fill-opacity=".10"/>`}
+  for(let g=0;g<4;g++){const v=y0+(y1-y0)*g/3;s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${P.l-4}" y="${Y(v)+3}" text-anchor="end">${fmtP(v)}</text>`}
+  for(let a=Math.ceil(x0/10)*10;a<=x1;a+=10)s+=`<text x="${X_(a)}" y="${H-6}" text-anchor="middle">${a}</text>`;
+  const line=(arr,c,dash)=>{arr=arr.slice().sort((p,q)=>p.a-q.a);if(arr.length<1)return'';const d=arr.map((p,i)=>`${i?'L':'M'}${X_(p.a+2.5).toFixed(1)},${Y(p.pace).toFixed(1)}`).join('');
+    return `<path d="${d}" fill="none" stroke="${c}" stroke-width="2" ${dash?'stroke-dasharray="5 4"':''}/>`+arr.map(p=>`<circle cx="${X_(p.a+2.5).toFixed(1)}" cy="${Y(p.pace).toFixed(1)}" r="${dash?2.5:3.5}" fill="${c}"><title>${p.a}–${p.a+4} bpm · ${fmtP(p.pace)}/km</title></circle>`).join('')};
+  s+=line(bp,'var(--dim)',true)+line(pts,'var(--acc2)',false);
+  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%">${s}</svg><div class="lgd"><span><i style="background:var(--acc2)"></i>Ora</span><span><i style="background:var(--dim)"></i>Migliore 18 mesi</span><span class="muted">FC in basso (bpm) · più in alto = più veloce</span></div>`;
+}
+
+/* ---------- Dati: zone confermate e import archivio ---------- */
+function rZoneEd(){
+  const el=document.getElementById('st-zones');if(!el)return;
+  const Z=Zcur(),p=Z.prop;
+  const v=[Z.floor,...Z.c];
+  el.innerHTML=`<div class="znote">Zone FC ${Z.src==='confermate'?'<b>confermate</b>'+(Z.date?' il '+Z.date:''):Z.src==='stima'?'<b>stimate</b> dalla '+Z.anchor.r.title+' ('+Z.anchor.r.date.slice(0,10)+')':'<b>da formula</b> (manca una gara con FC)'}</div>
+   ${[0,1,2,3,4].map(i=>`<div class="zchip" style="border-top:3px solid ${zcol(i)}"><b>${ZTAG[i]} · ${ZN[i]}</b><span>${zLab(i,Z)}</span></div>`).join('')}
+   <details class="pinfo" style="flex:1 0 100%"><summary>Modifica o conferma le zone</summary><div class="pinfo-body">
+     <p>Inserisci da quale FC parte ogni zona. Quando arrivano zone confermate da un coach o da un test, mettile qui: tutta l'app (analisi, piano, Fitness) userà queste.</p>
+     <div class="zedit">${['Recupero da','Steady da','LT1 da','LT2 da','Alta int. da'].map((l,i)=>`<div><label>${l}</label><input type="number" id="ze-${i}" value="${v[i]}"></div>`).join('')}</div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn" style="width:auto;margin:0;padding:9px 16px" onclick="saveZones()">Salva come confermate</button>
+     ${Z.src==='confermate'?`<button class="btn btn2" style="width:auto;margin:0;padding:9px 16px" onclick="clearZones()">Torna alla stima (${p.floor}/${p.c.join('/')})</button>`:''}</div>
+     <p style="margin-top:8px">La stima: tetto di LT2 dalla FC media di una gara di 35–75' (−1 bpm; 5k −5; mezza +3), LT2 largo 8 bpm, LT1 11 bpm sotto, Steady fino a 25 bpm sotto LT1, Recupero dal 42% della riserva cardiaca.</p>
+   </div></details>`;
+}
+function saveZones(){const v=[0,1,2,3,4].map(i=>+document.getElementById('ze-'+i).value);
+  if(v.some(x=>!x)||v.some((x,i)=>i&&x<=v[i-1])){alert('Le soglie devono essere crescenti.');return}
+  st.zones={floor:v[0],c:v.slice(1),date:todayISO()};LS('rp_st',st);zCache=null;refresh();alert('Zone salvate come confermate')}
+function clearZones(){delete st.zones;LS('rp_st',st);zCache=null;refresh()}
+
+/* ---------- Analisi seduta: traccia, zone, tratti ---------- */
+function anaXCard(r){
+  const x=X[r.date];if(!x||!x.hist)return'';
+  const Z=Zcur(),zs=zSecs(x,Z),tot=zs.s.reduce((a,b)=>a+b,0)||1;
+  const flag=xFlag(r,x);
+  let tr='';
+  if(x.tr&&x.tr.p.length>4){
+    const t=x.tr,n=t.p.length,W=520,H1=110,H2=90,P={l:36,r:6};
+    const km=t.d.map(v=>v/100),kmax=km[n-1]||1,X_=k=>P.l+k/kmax*(W-P.l-P.r);
+    const ps=t.p.filter(v=>v>0);const pl=Math.min(...ps),ph=Math.min(Math.max(...ps),pl+180);
+    const Yp=v=>8+(Math.min(v,ph)-pl)/((ph-pl)||1)*(H1-20);
+    const hs=t.h.filter(v=>v>0);const hl=Math.min(...hs)-3,hh=Math.max(...hs)+3;
+    const Yh=v=>H1+8+(1-(v-hl)/((hh-hl)||1))*(H2-16);
+    let s='';
+    for(let i=0;i<5;i++){const[a,b]=zRange(i,Z);const lo=Math.max(a,hl),hi=Math.min(b==null?hh:b+1,hh);if(hi>lo)s+=`<rect x="${P.l}" y="${Yh(hi)}" width="${W-P.l-P.r}" height="${Yh(lo)-Yh(hi)}" fill="${zcol(i)}" fill-opacity=".14"/><text x="${W-P.r-2}" y="${Yh(hi)+9}" text-anchor="end" style="font-size:8px">${ZTAG[i]}</text>`}
+    const path=(arr,Y)=>arr.map((v,i)=>v>0?`${i&&arr[i-1]>0?'L':'M'}${X_(km[i]).toFixed(1)},${Y(v).toFixed(1)}`:'').join('');
+    [pl,(pl+ph)/2,ph].forEach(v=>s+=`<text x="${P.l-4}" y="${Yp(v)+3}" text-anchor="end">${fmtP(v)}</text><line x1="${P.l}" x2="${W-P.r}" y1="${Yp(v)}" y2="${Yp(v)}" stroke="var(--line)"/>`);
+    [Math.round(hl+3),Math.round(hh-3)].forEach(v=>s+=`<text x="${P.l-4}" y="${Yh(v)+3}" text-anchor="end">${v}</text>`);
+    s+=`<path d="${path(t.p,Yp)}" fill="none" stroke="var(--acc)" stroke-width="1.6"/><path d="${path(t.h,Yh)}" fill="none" stroke="var(--red)" stroke-width="1.6"/>`;
+    for(let k=0;k<=kmax;k+=Math.max(1,Math.ceil(kmax/8)))s+=`<text x="${X_(k)}" y="${H1+H2+12}" text-anchor="middle">${k}</text>`;
+    tr=`<svg viewBox="0 0 ${W} ${H1+H2+16}" width="100%" style="max-width:none"><text x="${P.l}" y="7" style="font-size:9px">passo /km</text><text x="${P.l}" y="${H1+4}" style="font-size:9px">FC bpm</text>${s}</svg>`;
+  }
+  const bars=`<div class="zstack">${zs.s.map((v,i)=>v>0?`<i style="width:${(v/tot*100).toFixed(1)}%;background:${zcol(i)}" title="${ZN[i]} ${fmtMin(v)}"></i>`:'').join('')}</div>
+    <div class="lgd">${zs.s.map((v,i)=>v>=30?`<span><i style="background:${zcol(i)}"></i>${ZN[i]} ${fmtMin(v)}${zs.m[i]>200?' · '+fmtP(v/(zs.m[i]/1000)):''}</span>`:'').join('')}</div>`;
+  const bests=Object.entries(x.best||{}).filter(([k])=>+k>=1000).map(([k,s])=>`${+k>=21000?'mezza':+k/1000+' km'} <b>${fmtD(s)}</b>`).join(' · ');
+  const hl=(x.holds||[]).map(([b,s,m])=>`${b}–${b+5} bpm per ${fmtMin(s)} a ${fmtP(s/(m/1000))}`).join(' · ');
+  return `<div class="card lapcard"><h2>Passo, FC e zone</h2>${flag?`<div class="nolap">${flag}: questa corsa non entra nelle analisi FC.</div>`:''}${tr}${bars}
+    <p class="muted" style="margin-top:8px">Tempo in movimento ${fmtD(x.mov)} · FC registrata ${Math.round(x.cov*100)}%${x.art>=30?` · ${fmtMin(x.art)} di FC messi da parte (picchi o aggancio alla cadenza)`:''}${x.dec&&x.dec.cv<.08?` · deriva cardiaca ${x.dec.v}% (seconda metà vs prima)`:''}.</p>
+    ${bests?`<p class="muted">Migliori tratti: ${bests}.</p>`:''}${hl?`<p class="muted">Tenute ≥5': ${hl}.</p>`:''}</div>`;
+}
+
+/* ---------- Piano: obiettivo, richiesta della gara, dose di intensità ---------- */
+function rGoal(){
+  const el=document.getElementById('p-goalgap');if(!el)return;
+  const g=goalTarget();
+  if(!g){el.innerHTML='<p class="muted">Genera o apri un piano per vedere cosa chiede la gara.</p>';return}
+  const gv=vdotOf(g.km,g.sec),cv=curVdot()||0,gp=paces(gv),cp=paces(cv||gv);
+  const dm=demand(g.km,g.sec);
+  const race=dOnly(g.date);const wkOut=k=>{const d=new Date(race);d.setDate(d.getDate()-7*k);return d};
+  const fmtDay=d=>d.getDate()+' '+MESI[d.getMonth()];
+  const today=new Date();
+  const eq=[[5,'5 km'],[10,'10 km'],[21.0975,'Mezza'],[42.195,'Maratona']];
+  el.innerHTML=`<div class="grid2" style="align-items:start"><div>
+    <p style="margin-bottom:6px">Obiettivo <b class="pace">${fmtD(g.sec)}</b> · ${g.km>=42?'maratona':g.km>=21?'mezza':g.km+' km'} del ${g.date} <span class="muted">(${st.goalT?'scelto da te':'dal piano'})</span></p>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="text" id="g-t" placeholder="es. 2:59:59" value="${st.goalT?fmtD(st.goalT):''}" style="flex:1"><button class="btn btn2" style="width:auto;margin:0;padding:9px 12px" onclick="const v=parseHMS(document.getElementById('g-t').value);if(v)st.goalT=v;else delete st.goalT;LS('rp_st',st);rGoal()">Confronta</button></div>
+    <table><tr><th></th><th class="r">Oggi</th><th class="r">Serve</th><th class="r">Δ</th></tr>
+      <tr><td>VDOT</td><td class="r">${cv.toFixed(1)}</td><td class="r">${gv.toFixed(1)}</td><td class="r ${gv-cv>0?'down':'up'}">${(gv-cv>=0?'+':'')+(gv-cv).toFixed(1)}</td></tr>
+      ${[['Soglia T','T'],['Maratona M','M'],['Interval I','I']].map(([n,k])=>`<tr><td>${n}</td><td class="r">${fmtP(cp[k])}</td><td class="r">${fmtP(gp[k])}</td><td class="r">${Math.round(gp[k]-cp[k])}s</td></tr>`).join('')}
+      ${eq.filter(([d])=>d!==g.km).map(([d,n])=>`<tr><td>${n} equivalente</td><td class="r">${cv?fmtD(predict(d,cv)):'–'}</td><td class="r">${fmtD(predict(d,gv))}</td><td></td></tr>`).join('')}
+    </table>
+    <p class="muted" style="margin-top:6px">${gv-cv>5?'Il salto richiesto è grande: oltre 1 punto VDOT al mese è raro senza aumentare molto il volume.':gv-cv>2?'Salto ambizioso ma possibile con un blocco completo e regolare.':'Obiettivo in linea con la forma attuale.'}</p>
+  </div><div>
+    <p style="margin-bottom:6px"><b>Cosa chiede la gara</b> <span class="muted">· fascia ${dm.band} · ${dm.dur}</span></p>
+    <p class="muted" style="margin-bottom:8px">${dm.text}</p>
+    ${hbars(dm.emph.map(([n,v])=>({l:n,v,c:'var(--acc2)',txt:v+'%'})))}
+  </div></div>
+  <h3 class="fh">Sedute prova da fare prima della gara</h3>
+  <table>${dm.proofs.map(([n,d,a,b])=>{const from=wkOut(a),to=wkOut(b);const stt=today>to?'<span class="phb deload">passata</span>':today>=from?'<span class="phb race">adesso</span>':`<span class="muted">dal ${fmtDay(from)}</span>`;
+    return`<tr><td><b>${n}</b> · ${d}</td><td class="r" style="white-space:nowrap">${a===52?'tutto l\'anno':`${a}–${b} sett. prima`}<br>${a===52?'':stt}</td></tr>`}).join('')}</table>
+  <h3 class="fh">Errori da evitare</h3><ul class="muted" style="padding-left:18px;font-size:12.5px;line-height:1.5">${dm.errors.map(e=>`<li>${e}</li>`).join('')}</ul>`;
+}
+function doseCard(plan,refSun,nAll){
+  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
+  const wz={};weekZones(60).forEach(o=>{if(o.nx)wz[o.w]=o.min});
+  const isRace=s=>/^GARA|🏁/.test(s.n)||s.race;
+  const rows=plan.weeks.map(w=>{const sun=addD(refSun,-(nAll-w.w)*7),mon=isoLoc(addD(sun,-6));
+    const d=[0,0,0];w.sess.forEach(s=>{if(s.done||isRace(s))return;planDose(s.d,+plan.goal).forEach((v,i)=>d[i]+=v)});
+    const rec=wz[mon];return{w:w.w,mon,d,rec:rec?rec[2]+rec[3]:null,race:w.sess.some(isRace)}});
+  setTimeout(()=>{
+    const host=document.getElementById('p-dose');if(!host)return;
+    const W=920,H=200,P={l:30,r:6,t:8,b:22},n=rows.length,gw=(W-P.l-P.r)/n,bw=Math.max(3,gw*.7);
+    const mx=Math.max(30,...rows.map(r=>r.d[0]+r.d[1]+r.d[2]),...rows.map(r=>r.rec||0));
+    const step=Math.ceil(mx/4/10)*10,top=step*Math.ceil(mx/step),Y=v=>H-P.b-(v/top)*(H-P.t-P.b);
+    let s='';for(let g=0;g<=top;g+=step)s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--line)"/><text x="${P.l-4}" y="${Y(g)+3}" text-anchor="end">${g}</text>`;
+    rows.forEach((r,i)=>{const x=P.l+i*gw+(gw-bw)/2;let base=0;
+      [0,1,2].forEach(k=>{const v=r.d[k];if(!v)return;s+=`<rect x="${x.toFixed(1)}" y="${Y(base+v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(Y(base)-Y(base+v)).toFixed(1)}" fill="${zcol(k+2)}" fill-opacity=".55"><title>S${r.w} · ${['LT1','LT2','alta'][k]} prevista ${Math.round(v)}'</title></rect>`;base+=v});
+      if(r.rec!=null)s+=`<line x1="${(x-1).toFixed(1)}" x2="${(x+bw+1).toFixed(1)}" y1="${Y(r.rec).toFixed(1)}" y2="${Y(r.rec).toFixed(1)}" stroke="var(--acc)" stroke-width="3" stroke-linecap="round"><title>S${r.w} · LT1+LT2 registrata ${Math.round(r.rec)}'</title></line>`;
+      if(r.race)s+=`<text x="${(x+bw/2).toFixed(1)}" y="${(Y(base)-3).toFixed(1)}" text-anchor="middle" style="font-size:9px">🏁</text>`;
+      if(i%Math.ceil(n/12)===0||i===n-1)s+=`<text x="${(P.l+i*gw+gw/2).toFixed(1)}" y="${H-6}" text-anchor="middle">S${r.w}</text>`});
+    host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:none">${s}</svg><div class="lgd"><span><i style="background:${zcol(2)};opacity:.55"></i>LT1 prevista</span><span><i style="background:${zcol(3)};opacity:.55"></i>LT2 prevista</span><span><i style="background:${zcol(4)};opacity:.55"></i>Alta intensità prevista</span><span><i style="background:var(--acc)"></i>LT1+LT2 registrata (FC)</span><span>🏁 gara</span></div>`;
+  },0);
+  const tot=rows.reduce((a,r)=>[a[0]+r.d[0],a[1]+r.d[1],a[2]+r.d[2]],[0,0,0]);
+  return `<div class="card"><h2>Dose di intensità per settimana</h2><div id="p-dose"></div>
+    <p class="muted" style="margin-top:6px">Minuti di lavoro previsti dalle sedute (solo la parte di qualità, senza riscaldamento né gare) e, per le settimane passate, minuti registrati con la FC in LT1+LT2. Totale previsto: LT1 ${Math.round(tot[0])}' · LT2 ${Math.round(tot[1])}' · alta intensità ${Math.round(tot[2])}'. Se una settimana salta, non recuperare il lavoro mancato nei giorni dopo.</p></div>`;
+}
+
+document.getElementById('dt-zip').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  const stEl=document.getElementById('dt-zipst');
+  try{
+    const res=await importZip(f,(i,n,msg)=>{stEl.textContent=msg||`Elaboro ${i} di ${n} file .fit…`});
+    stEl.innerHTML=`<b>Fatto.</b> ${res.total} file .fit nell'archivio · ${res.nf} letti · ${res.nr} corse nuove · ${res.nu} completate · FC secondo per secondo su ${res.nx}${res.skip?` · ${res.skip} non di corsa ignorati`:''}${res.err?` · ${res.err} illeggibili`:''}.`;
+  }catch(err){stEl.textContent='Errore: '+err.message}
 });
 
 /* ---------- init ---------- */
@@ -3331,7 +4046,7 @@ function rGuide(){
   <p class="muted" style="margin-top:10px"><b>Strutture del lungo</b> (fase specifica, in ordine di carico crescente): <b>facile</b> — costruisce base aerobica e tolleranza; <b>progressivo</b> — easy → steady → ritmo gara senza pause; <b>a blocchi RM</b> — 2-3 blocchi a ritmo gara intervallati da easy; <b>fast finish</b> — blocco unico in coda, sulle gambe già stanche; <b>a ritmo gara continuo</b> — blocco unico centrale, chiusura easy; <b>sopra/sotto RM</b> — alternanze appena sopra e appena sotto il ritmo gara, senza recupero vero; <b>big workout</b> — il picco, prova generale di ritmo, fueling e scarpe. Non tutti i lunghi sono qualificati: i lunghi facili intercalati servono a reggere il costo degli altri.</p>
   <p class="muted" style="margin-top:8px">Sedute dure: riscaldamento 10–15' in Z1 + allunghi, defaticamento 10' Z1. Intensità crescente: Z1 recupero &lt; Z2 fondo &lt; M &lt; T &lt; I/R. I passi seguono il tuo VDOT attuale (${vd.toFixed(1)}).</p>`;
 }
-function refresh(){rDash();rLoad();rProg();rData();rManage();rAnaSel();rAna();rGuide();rToday();
+function refresh(){zCache=null;rDash();rLoad();rProg();rData();rManage();rAnaSel();rAna();rGuide();rToday();
   const vd=curVdot();if(vd)document.getElementById('p-vdot').value=vd.toFixed(1);
   const wk=weeklyKm().slice(-4).map(([,v])=>v);
   document.getElementById('p-base').value=Math.round(wk.reduce((a,b)=>a+b,0)/Math.max(1,wk.length));
@@ -3343,6 +4058,8 @@ function refresh(){rDash();rLoad();rProg();rData();rManage();rAnaSel();rAna();rG
       <button class="btn btn2" style="margin:0" onclick="showPlan()">Mostra ultimo piano</button></div>`;
   }else pout.innerHTML='';
   rTrack();rMonitor();
+  try{rGoal()}catch(e){console.warn('rGoal',e)}
+  try{rFit()}catch(e){console.warn('rFit',e)}
   lastRenderDay=todayISO();
 }
 /* Tutto ciò che è "oggi" viene calcolato durante il rendering, e il rendering avviene una volta sola
