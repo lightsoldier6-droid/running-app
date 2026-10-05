@@ -29,6 +29,18 @@ La barra in basso ha 4 voci; quelle con due viste hanno un selettore in alto:
 | **Corse** | Importazione (.zip Garmin, .fit, .json), **Analisi della corsa** (ex tab Analisi; "Analizza" su ogni corsa dell'archivio la apre direttamente), archivio. |
 | **⚙ in alto** | Impostazioni: FC max/riposo, zone FC (modifica/conferma), test, ripristino dati. |
 
+### Novità v104 (le funzioni di RunZones che mancavano)
+
+- **Forma › Fitness › Ora, previsto, migliore, obiettivo**: per Steady, LT1, LT2 e potenza aerobica il passo che tieni ora con la FC in zona (40 giorni), quello che il VDOT da gara fa attendere, la migliore finestra degli ultimi 2 anni e il passo che serve per l'obiettivo. Se un riferimento manca, suggerisce il test per misurarlo.
+- **Forma › Fitness › Efficienza a FC di riferimento**: passo settimanale con la FC in Steady, LT1 o LT2 (a scelta), con tendenza (s/km a settimana) e affidabilità.
+- **Indice aerobico**: finestre 3 mesi / 6 mesi / 12 mesi / 2 anni.
+- **Forma › Progressi › Analisi del blocco** (8/12/16/20 settimane): forma (CTL), fatica (ATL) e freschezza (TSB) dal TRIMP di ogni corsa; questo blocco contro il precedente; ultime 4 settimane contro le prime 4; composizione per zona; settimana tipo; storico 2 anni (miglior periodo, forma massima, gare, interruzioni).
+- **Corse › Calendario** (4/8/12 settimane): un cerchio per corsa, grandezza = durata, colore = zona più alta toccata in modo significativo, arco = quota di tempo in quella zona; a destra km, corse, ore e indice aerobico della settimana. Tocca un cerchio per l'analisi.
+- **Corse › Analisi**: tempo in zona sia per FC sia per passo (passi dal VDOT).
+- **Corse › Archivio**: filtri per tipo (Easy, Lunghi, Qualità, Interval, Gare), corse con FC 1s, tapis roulant.
+- **Piano › Guida a passo / Guida a FC**: con «Guida a FC» le sedute mostrano la fascia di FC al posto del passo (il passo resta tra parentesi); le ripetute brevi restano a passo perché la FC arriva in ritardo.
+- **Oggi**: proiezione dei km a fine settimana (se fai le sedute rimaste e al ritmo dei giorni passati).
+
 Colori fissi delle zone in tutta l'app: Z1 grigio-azzurro, Z2 blu, Z3/LT1 verde, Z4/LT2 arancio, Z5 rosso. Le sezioni sotto (§2–§5) descrivono i contenuti con i vecchi nomi dei tab.
 
 ---
