@@ -447,7 +447,7 @@ details.wkd-past[open]>summary{margin-bottom:8px}
 .twk div{background:var(--bg);border-radius:8px;padding:6px 4px;text-align:center;display:flex;flex-direction:column;gap:1px;min-width:0}
 .twk div.off{opacity:.45}.twk b{font-size:11px}.twk span{font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.twk small{font-size:9.5px;color:var(--dim)}
 .hrm{color:var(--z5);font-weight:700;white-space:nowrap}.hrp{color:var(--dim);font-size:11px}
-#p-mode,#dt-filt{display:flex;flex-wrap:wrap;gap:6px}#p-mode{margin:0 0 12px}
+#p-gmode,#dt-filt{display:flex;flex-wrap:wrap;gap:6px}#p-gmode{margin:0 0 12px}
 @media(min-width:900px){.calc .calv{width:46px;height:46px}.calc{min-height:50px}}
 
 </style>
@@ -543,7 +543,7 @@ details.wkd-past[open]>summary{margin-bottom:8px}
 
 <div class="tab" id="tab-plan">
   <div class="seg"><span data-p="plan">Settimane</span><span data-p="mon">Aderenza</span></div>
-  <div id="p-mode"></div>
+  <div id="p-gmode"></div>
   <div id="p-out"></div>
   <div class="card"><h2>Obiettivo: cosa serve</h2><div id="p-goalgap"></div></div>
   <div class="card"><h2>Progressione vs piano</h2><div id="p-track"></div></div>
@@ -1446,7 +1446,7 @@ function genPlan(silent,carry){
   const buildIdx=ww=>{let i=0;for(let k=Math.max(1,wNow);k<ww;k++){
     if(k%4===0&&k!==core)continue;if(raceAt[k]||raceAt[k-1])continue;i++}return i};
   const CR=[[4,8,2],[3,12,3],[5,10,2],[2,20,4]]; // cruise interval @ T: [rip, min, rec]
-  const weeks=[];let crx=0;
+  const weeks=[];let crx=0,mpx=0,spx=0;
   for(let w=1;w<=n;w++){
     const isTaper=w>core;
     // gare intermedie: settimana gara (tune-up), settimana prima (mini-scarico), settimana dopo (recupero)
@@ -1619,16 +1619,29 @@ function genPlan(silent,carry){
         return isM?(k===specW||(gi>0&&gi%3!==0)):isHM&&(k===specW||(gi>=1&&gi%2===1))};
       const hasM=isQ(wq);
       const qOrd=qDone+specLongWks.filter(k=>k<wq&&isQ(k)).length; // quanti lunghi qualificati già fatti
+      // MARATONA: il ritmo gara diventa una seduta a sé il martedì (2 settimane su 3), in km e con
+      // progressione 9 → 10 → 12 km; la terza settimana resta soglia (cruise / criss-cross) per non
+      // perdere lo stimolo LT2. Il picco (big workout la domenica) ha il martedì a soglia.
+      const sIdx=spx++; // contatore delle sole settimane specifiche di carico (salta scarichi e gare)
+      const tueMP=isM&&!isPeak&&sIdx%3!==2;
+      if(tueMP){
+        const MPS=[[3,3,2],[2,5,3],[4,3,2],[3,4,2],[1,10,0],[2,6,3]]; // [ripetute, km, rec min]
+        const[mn,mk,mr]=MPS[mpx<MPS.length?mpx:4+(mpx-MPS.length)%2];mpx++;
+        sess.push({t:'Martedì',n:'Ritmo maratona',load:3,d:mn===1?`${mk} km continui @ ${M} (M)`:`${mn}×${mk*1000}m @ ${M} (M), rec ${mr}' @ ${E}`,km:3.2+mn*mk+kmAt((mn-1)*mr,Ea)+1.7});
+      }else{
       const[cn,cm,crec]=CR[crx++%CR.length];
       // alterna cruise a soglia e criss-cross (Z3/Z4): entrambi lavorano la soglia, il criss-cross aggiunge cambi di ritmo gara
       if(crx%2===0)
         sess.push({t:'Martedì',n:'Criss-cross',d:`${cn}×${cm}' alternando ${Math.round(cm/2)}' @ ${M} (M) / ${Math.round(cm/2)}' @ ${T} (T), rec ${recF(crec)} @ ${E}`,km:3.2+kmAt(cn*cm,(p.M+p.T)/2)+kmAt((cn-1)*crec,Ea)+1.7});
       else
         sess.push({t:'Martedì',n:'Cruise @ soglia',d:`${cn}×${cm}' @ ${T} (T), rec ${recF(crec)} @ ${E}`,km:3.2+kmAt(cn*cm,p.T)+kmAt((cn-1)*crec,Ea)+1.7});
+      }
       // nelle settimane col lungo qualificato il giovedì è base (max 2 sedute dure/settimana)
       const mfinWeek=hasM;
       const qual=mfinWeek?{n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
-        :(isM||isHM)?(Math.floor(wq/2)%2?{n:'Ritmo M',d:`15' @ ${E} + 2×15' @ ${M} (M), rec 5' @ ${E} + 10' @ ${E}`,km:kmAt(30,Ea)+kmAt(30,p.M)}
+        :isM?(tueMP?{n:'Soglia',d:`15' @ ${E} + 6×1000m @ ${T} (T), rec 2' @ ${E} + 10' @ ${E}`,km:kmAt(25,Ea)+6+kmAt(10,Ea)}
+          :{n:'Progressivo lungo',d:`60' continui da ${fmtP(p.E[0])} a ${fmtP(p.M)} (E→M)`,km:kmAt(60,(Ea+p.M)/2)})
+        :isHM?(Math.floor(wq/2)%2?{n:'Ritmo M',d:`15' @ ${E} + 2×15' @ ${M} (M), rec 5' @ ${E} + 10' @ ${E}`,km:kmAt(30,Ea)+kmAt(30,p.M)}
           :{n:'Progressivo lungo',d:`60' continui da ${fmtP(p.E[0])} a ${fmtP(p.M)} (E→M)`,km:kmAt(60,(Ea+p.M)/2)})
         :wq%2===0?{n:'Base',d:`50' @ ${E} (Z2)`,km:kmAt(50,Ea)}
         :{n:'Ritmo gara',d:`15' @ ${E} + ${goal<=5?'6×1000m':'5×2000m'} @ ${GP} (gara), rec 2' @ ${E} + 10' @ ${E}`,km:kmAt(25,Ea)+(goal<=5?6:10)+kmAt((goal<=5?5:4)*2,Ea)};
@@ -1638,7 +1651,7 @@ function genPlan(silent,carry){
       // Il ritmo di riferimento è quello DELLA GARA OBIETTIVO: M per la maratona, ritmo mezza per la mezza
       // (per un mezzista il ritmo maratona è ~10-15 s/km troppo lento per essere specifico).
       const qNum=isM?p.M:tFast/goal,qStr=isM?M:GP,qLab=isM?'M':'gara';
-      const mmin=Math.min(isM?50:40,(isM?12:15)+(wq+wOff)*(isM?5:4));
+      const mmin=Math.min(isM?70:40,(isM?15:15)+(wq+wOff)*(isM?6:4)); // maratona: fino a ~16 km a ritmo gara nel lungo
       // FORMA del lungo qualificato — progressione applicativa: progressivo → blocchi a ritmo gara →
       // fast finish → sopra/sotto ritmo gara → ritmo gara continuo → big workout (picco). La quota di
       // lavoro specifico è la stessa (mmin): cambia COME è distribuita, con richiesta via via maggiore.
@@ -2241,7 +2254,7 @@ function updatePlan(){
   document.getElementById('p-date').value=old.dateStr;
   document.getElementById('p-days').value=old.days;
   restorePlanOptions(old);   // gare intermedie + "+1 easy": senza questo la rigenerazione le perde
-  document.getElementById('p-mode').value=old.modeVal||'mod';
+  document.getElementById('p-mode').value=old.modeVal||({Conservativo:'cons',Moderato:'mod',Ambizioso:'amb','Molto ambizioso':'amb'})[old.mode]||'mod';
   document.getElementById('p-target').value=old.target||'';
   document.getElementById('p-vdot').value=vd?vd.toFixed(1):old.vd;
   const wk=weeklyKm().slice(-4).map(([,v])=>v);
@@ -2366,7 +2379,7 @@ function isRaceName(name){const s=(name||'').trim();return s.includes('🏁')||/
 function sysOfSess(s){
   const t=(((s&&s.n)||'')+' '+((s&&s.d)||'')).toLowerCase();
   if(/lungo|long|simulazione|big workout/.test(t))return 'endurance';
-  if(/cruise|soglia|medio|progress|criss|ritmo gara|tempo run|fartlek/.test(t))return 'threshold';
+  if(/cruise|soglia|medio|progress|criss|ritmo|tempo run|fartlek/.test(t))return 'threshold';
   if(/interval|ripetut|richiami/.test(t))return 'vo2';        // ripetute dichiarate nel nome
   if(/allungh|strides/.test(t))return 'easy';                 // easy + allunghi resta easy
   if(/[0-9]+\s*[×x]\s*[0-9]|[0-9]{3}\s*m/.test(t))return 'vo2'; // ripetute riconosciute dalla struttura
@@ -2540,7 +2553,7 @@ function monRecalibrate(){
   const wkv=weeklyKm().slice(-4).map(([,v])=>v);
   const baseVol=Math.max(15,Math.round(wkv.reduce((a,b)=>a+b,0)/Math.max(1,wkv.length)));
   document.getElementById('p-base').value=baseVol;
-  document.getElementById('p-mode').value=prev&&prev.modeVal?prev.modeVal:'mod';
+  document.getElementById('p-mode').value=prev?(prev.modeVal||({Conservativo:'cons',Moderato:'mod',Ambizioso:'amb','Molto ambizioso':'amb'})[prev.mode]||'mod'):'mod';
   document.getElementById('p-target').value=(prev&&+prev.goal===goal&&prev.target)?prev.target:'';
   // stessa gara del piano in memoria → conserva gare intermedie, opzioni e la griglia del piano
   const same=!!(prev&&prev.dateStr===dateStr&&prev.weeks&&prev.weeks.length>=6);
@@ -3441,7 +3454,7 @@ function rAna(){
       const sess=wk.sess.find(s=>s.t===dayName);
       plano=`Rispetto al piano: cade nella settimana ${wk.w} (fase ${PHn[wk.phase]||'?'}${wk.isDeload?', scarico':''}${wk.summer?', estiva':''}).`;
       if(sess){
-        const MAPS={Interval:'int','Interval corti':'int','Interval lunghi':'int','Ripetute brevi':'int',Richiami:'int','Cruise @ soglia':'qual',Cruise:'qual','Criss-cross':'qual',Fartlek:'qual','Fartlek leggero':'qual','Fartlek Mona':'qual','Medio-soglia':'qual','Medio breve':'qual',Progressivo:'qual','Progressivo lungo':'qual','Ritmo M':'qual','Ritmo gara':'qual',Lungo:'long','Lungo corto':'long','Lungo ridotto':'long','Lungo facile':'long','Lungo con finale':'long','Lungo progressivo':'long','Lungo a blocchi RM':'long','Lungo fast finish':'long','Lungo sopra/sotto RM':'long','Lungo a ritmo gara continuo':'long','Big workout (picco)':'long','Simulazione gara':'long','Simulazione gara (picco)':'long'};
+        const MAPS={Interval:'int','Interval corti':'int','Interval lunghi':'int','Ripetute brevi':'int',Richiami:'int','Cruise @ soglia':'qual',Cruise:'qual','Criss-cross':'qual',Fartlek:'qual','Fartlek leggero':'qual','Fartlek Mona':'qual','Medio-soglia':'qual','Medio breve':'qual',Progressivo:'qual','Progressivo lungo':'qual','Ritmo M':'qual','Ritmo maratona':'qual',Soglia:'qual','Ritmo gara':'qual',Lungo:'long','Lungo corto':'long','Lungo ridotto':'long','Lungo facile':'long','Lungo con finale':'long','Lungo progressivo':'long','Lungo a blocchi RM':'long','Lungo fast finish':'long','Lungo sopra/sotto RM':'long','Lungo a ritmo gara continuo':'long','Big workout (picco)':'long','Simulazione gara':'long','Simulazione gara (picco)':'long'};
         const expC=sess.n.startsWith('GARA')?'race':MAPS[sess.n]||'easy';
         if(expC===c){
           const kmOk=Math.abs(r.km-sess.km)<=Math.max(2,sess.km*0.2);
@@ -3982,6 +3995,7 @@ function planDose(txt,goalKm){
   const o=[0,0,0];if(!txt)return o; // [LT1, LT2, alta]
   const Z={M:0,gara:goalKm>=42?0:1,'ritmo mezza':1,T:1,I:2,R:2};
   let t=String(txt);
+  t=t.replace(/([\d.]+) km continui @ (\d:\d\d)(?:–(\d:\d\d))? \((M|gara|T)\)/g,(_,k,a,b,z)=>{const p=(toSec(a)+toSec(b||a))/2;o[Z[z]]+=k*p/60;return''});
   t=t.replace(/(\d+)×(\d+)' alternando (\d+)' @ [^()]*\((M|gara)\) \/ (\d+)' @ [^()]*\(T\)/g,(_,n,_m,a,z,b)=>{o[Z[z]]+=n*a;o[1]+=n*b;return''});
   t=t.replace(/(\d+)×(\d+)' alternando (\d+)' @ [\d:]+ \(poco sopra M\)/g,(_,n,mm)=>{o[0]+=n*mm;return''});
   t=t.replace(/([\d.]+) km @ (\d:\d\d)(?:–(\d:\d\d))?\/km/g,(_,k,a,b)=>{const p=(toSec(a)+toSec(b||a))/2,mm=k*p/60;o[k<12?2:k<30?1:0]+=mm;return''});
@@ -4534,7 +4548,7 @@ function hrMode(t,Z,lab){
   });
 }
 function rGuideMode(){
-  pillsTxt('p-mode',[['pace','Guida a passo'],['hr','Guida a FC']],st.guide==='hr'?'hr':'pace',v=>{st.guide=v;LS('rp_st',st);rGuideMode();const pl=LS('rp_plan');if(pl)try{rPlan(pl)}catch(e){console.warn(e)}});
+  pillsTxt('p-gmode',[['pace','Guida a passo'],['hr','Guida a FC']],st.guide==='hr'?'hr':'pace',v=>{st.guide=v;LS('rp_st',st);rGuideMode();const pl=LS('rp_plan');if(pl)try{rPlan(pl)}catch(e){console.warn(e)}});
 }
 
 /* ---------- 6. filtri dell'archivio ---------- */
@@ -4561,7 +4575,7 @@ function rGuide(){
    <tr><th>Seduta</th><th class="r">Passo /km</th><th>Esempio</th></tr>
    ${row('Recupero (Z1)','&gt;'+fmtP(p.E[0]),'scioglie le gambe, non aggiunge fatica',"30–50' molto lento")}
    ${row('Fondo / Lungo (Z2)',fmtP(p.E[1])+'–'+fmtP(p.E[0]),'base aerobica, usa i grassi come carburante',"60–120' facili")}
-   ${row('Ritmo maratona (M)',fmtP(p.M),'economia di corsa al ritmo dei 42k',"3×15' @ M, rec 3'")}
+   ${row('Ritmo maratona (M)',fmtP(p.M),'economia di corsa al ritmo dei 42k; nella fase specifica è la seduta del martedì (2 settimane su 3)',"3×3 km → 2×5 → 4×3 → 3×4 → 10 km continui → 2×6 km @ M")}
    ${row('Soglia (T)',fmtP(p.T),'alza la soglia del lattato, ritardi la fatica',"4×8' @ T, rec 2'")}
    ${row('VO2max (I)',fmtP(p.I),'massima potenza aerobica',"6×3' @ I, rec 3'")}
    ${row('Ripetute brevi (R)',fmtP(p.R),'velocità, reattività ed economia','10×200–400m @ R')}

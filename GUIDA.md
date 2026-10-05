@@ -29,6 +29,14 @@ La barra in basso ha 4 voci; quelle con due viste hanno un selettore in alto:
 | **Corse** | Importazione (.zip Garmin, .fit, .json), **Analisi della corsa** (ex tab Analisi; "Analizza" su ogni corsa dell'archivio la apre direttamente), archivio. |
 | **⚙ in alto** | Impostazioni: FC max/riposo, zone FC (modifica/conferma), test, ripristino dati. |
 
+### Novità v105 (fase specifica della maratona come RunZones)
+
+- **Martedì a ritmo maratona**: nella fase specifica, 2 settimane di carico su 3 il martedì è una seduta a sé a ritmo M, in km e in progressione: 3×3 km → 2×5 km → 4×3 km → 3×4 km → 10 km continui → 2×6 km. La terza settimana resta a soglia (cruise o criss-cross); anche la settimana del big workout.
+- **Giovedì**: se il martedì è a ritmo M e il lungo è facile, il giovedì diventa **Soglia** (6×1000 m a T); se il lungo ha ritmo gara resta Base (mai più di due sedute dure).
+- **Lunghi con più ritmo gara**: la parte a ritmo M nei lunghi qualificati cresce di 6' a settimana fino a 70' (circa 16 km), contro i 50' di prima.
+- Per applicarlo al piano in corso: Piano › Aderenza › **↻ Ricalibra i passi delle sedute** (rigenera solo le settimane future; la modalità del piano, es. Ambizioso, ora viene mantenuta).
+- Correzione: in v104 il selettore «Guida a passo / a FC» aveva lo stesso identificativo del menu Modalità del generatore, che così non veniva letto. Risolto.
+
 ### Novità v104 (le funzioni di RunZones che mancavano)
 
 - **Forma › Fitness › Ora, previsto, migliore, obiettivo**: per Steady, LT1, LT2 e potenza aerobica il passo che tieni ora con la FC in zona (40 giorni), quello che il VDOT da gara fa attendere, la migliore finestra degli ultimi 2 anni e il passo che serve per l'obiettivo. Se un riferimento manca, suggerisce il test per misurarlo.
