@@ -450,6 +450,17 @@ details.wkd-past[open]>summary{margin-bottom:8px}
 #p-gmode,#dt-filt{display:flex;flex-wrap:wrap;gap:6px}#p-gmode{margin:0 0 12px}
 @media(min-width:900px){.calc .calv{width:46px;height:46px}.calc{min-height:50px}}
 
+/* grafici espliciti: unità, verso del meglio, riferimenti, valore finale, riga di lettura */
+.chv{display:block;width:100%;max-width:560px;margin:0 auto;overflow:visible}
+.chv text{font-size:12px;fill:var(--dim)}
+.chv .cu{font-size:11.5px;font-weight:700;fill:var(--txt);letter-spacing:.02em}
+.chv .cd{font-size:11.5px;font-weight:600;fill:var(--dim)}
+.chv .cv{font-size:12.5px;font-weight:700;fill:var(--txt);paint-order:stroke;stroke:var(--card);stroke-width:3.5px;stroke-linejoin:round}
+.chv .cr{font-size:11px;font-weight:600;paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round}
+.chv .cz{font-size:10.5px;font-weight:600;opacity:.9}
+.chr{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5}
+.chr b{color:var(--txt)}
+.gauge{margin-top:10px}
 </style>
 </head>
 <body>
@@ -503,10 +514,10 @@ details.wkd-past[open]>summary{margin-bottom:8px}
   <div class="card"><h2>Bilancio del periodo</h2><div id="c-recap"></div></div>
   <div class="card"><h2>Miglioramento passi di allenamento</h2><div id="c-paces"></div></div>
   <div class="card"><h2>Ultima corsa vs precedente simile</h2><div id="c-cmp"></div></div>
-  <div class="card"><h2>VDOT nel tempo (best effort 60g)</h2><div id="c-vdot"></div></div>
-  <div class="card"><h2>Volume settimanale (km)</h2><div id="c-vol"></div></div>
-  <div class="card"><h2>Passo corse facili (min/km)</h2><div id="c-easy"></div></div>
-  <div class="card"><h2>Efficienza aerobica (m/battito, corse facili)</h2><div id="c-eff"></div><p class="muted" style="margin-top:8px">Metri percorsi per battito cardiaco: più alto = stessa velocità con meno sforzo.</p></div>
+  <div class="card"><h2>VDOT nel tempo</h2><div id="c-vdot"></div><p class="muted" style="margin-top:4px">Se la linea scende non è per forza forma persa: spesso in quei 60 giorni non c’erano gare o sforzi a tutta, e il VDOT viene da corse più tranquille.</p></div>
+  <div class="card"><h2>Volume settimanale</h2><div id="c-vol"></div></div>
+  <div class="card"><h2>Passo corse facili</h2><div id="c-easy"></div><p class="muted" style="margin-top:4px">Da leggere insieme all’efficienza qui sotto: un passo più veloce con la FC più alta non è un miglioramento.</p></div>
+  <div class="card"><h2>Efficienza aerobica (corse facili)</h2><div id="c-eff"></div><p class="muted" style="margin-top:4px">Metri percorsi per ogni battito del cuore: se sale, corri alla stessa velocità con meno sforzo.</p></div>
   <div class="card"><h2>Dinamiche di corsa</h2>
     <select id="pr-metric">
       <option value="cad">Cadenza (passi/min)</option>
@@ -606,10 +617,10 @@ details.wkd-past[open]>summary{margin-bottom:8px}
     <p class="muted" style="margin-top:6px">Più invasivo: prendo gara e data dall’.ics che segui e il tuo VDOT + volume reali dai .fit, e rigenero le settimane da oggi alla gara aggiornando anche il piano monitorato. Le passate restano. Scarico anche il nuovo .ics per il calendario.</p>
   </div>
   <div class="card"><h2>Andamento aderenza settimanale</h2>
-    <div id="mon-trend"></div><p class="muted" id="mon-trend-note" style="margin-top:6px"></p>
+    <div id="mon-trend"></div><p class="muted" id="mon-trend-note" style="margin-top:4px"></p>
   </div>
   <div class="card"><h2>Scostamento cumulato dal piano</h2>
-    <div id="mon-cum"></div><p class="muted" id="mon-cum-note" style="margin-top:6px">Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.</p>
+    <div id="mon-cum"></div><p class="muted" id="mon-cum-note" style="margin-top:4px">Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.</p>
   </div>
   <div class="card"><h2>Settimana per settimana</h2>
     <div id="mon-weeks"></div>
@@ -880,40 +891,96 @@ document.querySelectorAll('.seg span[data-p]').forEach(sp=>sp.onclick=()=>showPa
 document.getElementById('gear').onclick=()=>showPane('data');
 
 /* ---------- SVG charts ---------- */
-function chart(el,pts,{ylab=v=>v.toFixed(0),color='var(--acc)',bar=false,invertY=false}={}){
-  const W=520,H=190,P={l:40,r:8,t:10,b:22};
-  const host=document.getElementById(el);
+// Ogni grafico dice da solo come si legge: unità sull'asse, verso "meglio", tacche tonde,
+// linee di riferimento (piano, zero, obiettivo, media), valore dell'ultimo punto scritto e
+// una riga di lettura sotto (cosa è un punto, da → a, migliore). Prima c'erano solo linea e numeri.
+function niceStep(span,n,pace){
+  const raw=(span||1)/Math.max(1,n);
+  if(pace){for(const s of[5,10,15,20,30,60,120,300])if(s>=raw)return s;return 600}
+  const p=Math.pow(10,Math.floor(Math.log10(raw)));
+  for(const m of[1,2,2.5,5,10])if(m*p>=raw-1e-12)return m*p;return 10*p;
+}
+function stepDec(st){let d=0;while(d<3&&Math.abs(Math.round(st*10**d)-st*10**d)>1e-9)d++;return d}
+const chEsc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function chart(el,pts,o={}){
+  const{ylab=v=>v.toFixed(0),color='var(--acc)',bar=false,invertY=false,unit='',each='',ref=[],avg=false,pace=false,better=null,suf='',extra='',read=true}=o;
+  const W=420,H=206,P={l:44,r:12,t:26,b:24};
+  const host=document.getElementById(el);if(!host)return;
   if(pts.length<2){host.innerHTML='<p class="muted">Dati insufficienti</p>';return}
-  let ys=pts.map(p=>p.y),y0=Math.min(...ys),y1=Math.max(...ys);
-  const pad=(y1-y0)*0.12||1;y0-=pad;y1+=pad;if(bar)y0=Math.min(0,y0+pad);
-  const X=i=>P.l+i*(W-P.l-P.r)/(pts.length-1);
+  const n=pts.length,ys=pts.map(p=>p.y),mu=ys.reduce((a,b)=>a+b,0)/n;
+  const refs=ref.filter(r=>r&&r.y!=null&&isFinite(r.y)).slice();
+  if(avg)refs.push({y:mu,lab:'media '+ylab(mu),c:'var(--dim)',avg:1});
+  const allY=ys.concat(refs.map(r=>r.y));
+  let y0=Math.min(...allY),y1=Math.max(...allY);if(bar)y0=Math.min(0,y0);
+  // mai tacche più fitte della precisione con cui scrivo i valori (niente 257.6 ms se il valore è 258)
+  const yDec=pace?0:((String(ylab(ys[0])).match(/\.(\d+)/)||[,''])[1]).length;
+  const step=Math.max(niceStep(y1-y0,4,pace),pace?1:10**-yDec);
+  y0=Math.floor(y0/step+1e-9)*step;y1=Math.ceil(y1/step-1e-9)*step;if(y1<=y0)y1=y0+step;
+  // spazio per l'etichetta dell'ultimo valore: se il punto tocca il bordo, una tacca in più
+  const lastY=ys[n-1],edge=invertY?lastY-y0:y1-lastY;if(!bar&&edge<step*.25){if(invertY)y0-=step;else y1+=step}
+  const tick=o.tlab||(pace?fmtP:(v=>v.toFixed(stepDec(step))+suf));
+  const slot=(W-P.l-P.r)/n;
+  const X=i=>bar?P.l+slot*(i+.5):P.l+i*(W-P.l-P.r)/(n-1);
   const Y=v=>{let f=(v-y0)/(y1-y0);if(invertY)f=1-f;return H-P.b-f*(H-P.t-P.b)};
   let s='';
-  for(let g=0;g<4;g++){const v=y0+(y1-y0)*g/3,y=Y(v);
-    s+=`<line x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}" stroke="var(--line)"/><text x="2" y="${y+3}">${ylab(v)}</text>`}
-  if(bar){const bw=Math.max(2,(W-P.l-P.r)/pts.length-2);
-    pts.forEach((p,i)=>s+=`<rect x="${X(i)-bw/2}" y="${Y(p.y)}" width="${bw}" height="${Math.max(0,H-P.b-Y(p.y))}" fill="${p.c||color}" rx="1.5"/>`)}
+  // riga di testa: unità a sinistra, verso del "meglio" a destra
+  const topBetter=better?((better==='up')!==!!invertY):null;
+  const upTxt=o.up||(better?(topBetter?'↑ meglio':'↓ meglio'):'');
+  if(unit)s+=`<text x="2" y="12" class="cu">${chEsc(unit)}</text>`;
+  if(upTxt)s+=`<text x="${W-2}" y="12" text-anchor="end" class="cd">${chEsc(upTxt)}</text>`;
+  for(let v=y0;v<=y1+step*1e-6;v+=step){const y=Y(v);
+    s+=`<line x1="${P.l}" y1="${y.toFixed(1)}" x2="${W-P.r}" y2="${y.toFixed(1)}" stroke="var(--line)"/><text x="${P.l-6}" y="${(y+4).toFixed(1)}" text-anchor="end">${tick(v)}</text>`}
+  if(bar){const bw=Math.max(2,Math.min(26,slot*.72));
+    pts.forEach((p,i)=>{const yv=Y(p.y),yb=Y(Math.max(y0,0));s+=`<rect x="${(X(i)-bw/2).toFixed(1)}" y="${Math.min(yv,yb).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.abs(yb-yv).toFixed(1)}" fill="${p.c||color}" fill-opacity="${p.o||1}" rx="1.5"/>`})}
   else{const line=pts.map((p,i)=>`${X(i).toFixed(1)},${Y(p.y).toFixed(1)}`).join('L');
-    s+=`<path d="M${X(0).toFixed(1)},${H-P.b}L${line}L${X(pts.length-1).toFixed(1)},${H-P.b}Z" fill="${color}" fill-opacity="0.10"/>`;
+    s+=`<path d="M${X(0).toFixed(1)},${H-P.b}L${line}L${X(n-1).toFixed(1)},${H-P.b}Z" fill="${color}" fill-opacity="0.08"/>`;
     s+=`<path d="M${line}" fill="none" stroke="${color}" stroke-width="2"/>`;
-    pts.forEach((p,i)=>s+=`<circle cx="${X(i)}" cy="${Y(p.y)}" r="2.8" fill="${p.c||color}"/>`)}
-  const step=Math.ceil(pts.length/7);
-  pts.forEach((p,i)=>{if(i%step===0||i===pts.length-1&&i%step>step/2)s+=`<text x="${X(i)}" y="${H-6}" text-anchor="middle">${p.x}</text>`});
+    pts.forEach((p,i)=>{if(i<n-1)s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="2.6" fill="${p.c||color}"/>`})}
+  // linee di riferimento, con il nome scritto sopra a destra
+  refs.forEach(r=>{const y=Y(r.y);const c=r.c||'var(--txt)';
+    s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${c}" stroke-width="1.3" stroke-dasharray="5 4" opacity=".85"/>`;
+    s+=`<text x="${P.l+4}" y="${(y-4).toFixed(1)}" class="cr" style="fill:${c}">${chEsc(r.lab||'')}</text>`});
+  // ultimo punto evidenziato con il suo valore
+  {const i=n-1,x=X(i),y=Y(pts[i].y);
+    if(!bar)s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.6" fill="${pts[i].c||color}" stroke="var(--card)" stroke-width="2"/>`;
+    const below=y-P.t<16;s+=`<text x="${(x+(bar?0:-2)).toFixed(1)}" y="${(below?y+18:y-8).toFixed(1)}" text-anchor="${bar?'middle':'end'}" class="cv">${chEsc(pts[i].vl||ylab(pts[i].y))}</text>`}
+  // etichette asse x: ~5, mai tagliate ai bordi
+  const xs=Math.max(1,Math.ceil(n/5));
+  pts.forEach((p,i)=>{const last=i===n-1;if(!(i%xs===0&&(last||n-1-i>=xs*.6))&&!last)return;
+    const tw=String(p.x).length*6.4,cx=Math.max(tw/2+1,Math.min(W-tw/2-1,X(i)));
+    s+=`<text x="${cx.toFixed(1)}" y="${H-6}" text-anchor="middle">${chEsc(p.x)}</text>`});
   // tooltip: tocco/hover → valore del punto più vicino
-  s+=`<g class="ctt" style="display:none;pointer-events:none"><line y1="${P.t}" y2="${H-P.b}" stroke="var(--dim)" stroke-dasharray="3 3"/><circle r="4" fill="${color}" stroke="var(--card)" stroke-width="2"/><rect rx="5" height="18" fill="var(--txt)" fill-opacity=".88"/><text text-anchor="middle" style="fill:var(--card);font-size:10px;font-weight:600"></text></g>`;
-  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="touch-action:pan-y">${s}</svg>`;
+  s+=`<g class="ctt" style="display:none;pointer-events:none"><line y1="${P.t}" y2="${H-P.b}" stroke="var(--dim)" stroke-dasharray="3 3"/><circle r="4" fill="${color}" stroke="var(--card)" stroke-width="2"/><rect rx="5" height="20" fill="var(--txt)" fill-opacity=".9"/><text text-anchor="middle" style="fill:var(--card);font-size:11.5px;font-weight:600"></text></g>`;
+  // riga di lettura
+  let rd='';
+  if(read){const f=pts[0],l=pts[n-1],parts=[];
+    if(each)parts.push(each);
+    if(better&&n>=2){
+      // la differenza si calcola sui valori come sono scritti, così 1.20 → 1.19 fa −0.01 e non −0.00
+      let d,dec=0;
+      if(pace)d=Math.round(l.y)-Math.round(f.y);
+      else{const sa=String(ylab(f.y)),sb=String(ylab(l.y)),a=parseFloat(sa),b=parseFloat(sb);dec=((sb.match(/\.(\d+)/)||[,''])[1]).length;
+        d=isFinite(a)&&isFinite(b)?+(b-a).toFixed(dec):+(l.y-f.y).toFixed(stepDec(step)+1);if(!(isFinite(a)&&isFinite(b)))dec=stepDec(step)+1}
+      const good=d===0?null:(better==='up')===(d>0);
+      const dtx=pace?`${Math.abs(d)}" /km ${d<0?'più veloce':'più lento'}`:`${d>0?'+':'−'}${Math.abs(d).toFixed(dec)}`;
+      parts.push(`da ${chEsc(f.x)} a ${chEsc(l.x)}: ${ylab(f.y)} → <b>${ylab(l.y)}</b>${good==null?' (invariato)':` <span class="${good?'up':'down'}">(${dtx}${pace?'':good?', meglio':', peggio'})</span>`}`);
+      const bi=ys.reduce((b,v,i)=>((better==='up')?v>ys[b]:v<ys[b])?i:b,0);
+      if(bi!==n-1&&ylab(ys[bi])!==ylab(l.y))parts.push(`migliore ${ylab(ys[bi])} (${chEsc(pts[bi].x)})`)}
+    if(extra)parts.push(extra);
+    if(parts.length){let t=parts.join(' · ');t=t.replace(/^[a-zà-ù]/,c=>c.toUpperCase());rd=`<p class="chr">${t}.</p>`}}
+  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" class="chv" style="touch-action:pan-y">${s}</svg>${rd}`;
   const svg=host.querySelector('svg'),tt=svg.querySelector('.ctt');
   const tl=tt.querySelector('line'),tc=tt.querySelector('circle'),tr=tt.querySelector('rect'),tx=tt.querySelector('text');
   const show=cx=>{
     const rct=svg.getBoundingClientRect(),vx=(cx-rct.left)*W/rct.width;
-    let i=Math.round((vx-P.l)/((W-P.l-P.r)/(pts.length-1)));
-    i=Math.max(0,Math.min(pts.length-1,i));
-    const x=X(i),lab=`${pts[i].x} · ${ylab(pts[i].y)}`;
+    let i=bar?Math.floor((vx-P.l)/slot):Math.round((vx-P.l)/((W-P.l-P.r)/(n-1)));
+    i=Math.max(0,Math.min(n-1,i));
+    const x=X(i),lab=`${pts[i].x} · ${pts[i].t||ylab(pts[i].y)}`;
     tl.setAttribute('x1',x);tl.setAttribute('x2',x);
-    tc.setAttribute('cx',x);tc.setAttribute('cy',Y(pts[i].y));
-    const tw=lab.length*5.8+14,txp=Math.max(P.l+tw/2-6,Math.min(W-P.r-tw/2+6,x));
-    tr.setAttribute('x',txp-tw/2);tr.setAttribute('y',P.t);tr.setAttribute('width',tw);
-    tx.setAttribute('x',txp);tx.setAttribute('y',P.t+13);tx.textContent=lab;
+    tc.setAttribute('cx',x);tc.setAttribute('cy',Y(pts[i].y));tc.style.display=bar?'none':'';
+    const tw=lab.length*6.6+16,txp=Math.max(tw/2+1,Math.min(W-tw/2-1,x));
+    tr.setAttribute('x',txp-tw/2);tr.setAttribute('y',P.t-22);tr.setAttribute('width',tw);
+    tx.setAttribute('x',txp);tx.setAttribute('y',P.t-8);tx.textContent=lab;
     tt.style.display='';
   };
   svg.addEventListener('pointermove',e=>show(e.clientX));
@@ -935,7 +1002,8 @@ function groupAvg(list,val,wt){ // media per settimana o mese; wt opzionale = pe
   const wk=rangeSpan(list)<=150;
   const m={};
   list.forEach(r=>{const v=val(r);if(v==null||!isFinite(v))return;const w=wt?wt(r):1;if(!(w>0))return;const k=wk?weekKey(r.date):r.date.slice(0,7);(m[k]=m[k]||[]).push([v,w])});
-  return Object.entries(m).sort().map(([k,v])=>({x:wk?labDay(k):labMonth(k),y:v.reduce((a,p)=>a+p[0]*p[1],0)/v.reduce((a,p)=>a+p[1],0)}));
+  const out=Object.entries(m).sort().map(([k,v])=>({x:wk?labDay(k):labMonth(k),y:v.reduce((a,p)=>a+p[0]*p[1],0)/v.reduce((a,p)=>a+p[1],0),n:v.length}));
+  out.per=wk?'settimana':'mese';return out;
 }
 function monthlyVdot(list){
   list=list||runs;if(!list.length)return[];
@@ -1103,13 +1171,20 @@ function rLoad(){
   else if(ratio>=0.8){col='';verdict='<b>Carico ottimale.</b> Sei nella fascia (0.8–1.3) dove si costruisce forma con basso rischio.'}
   else if(ratio>=0.5){col='warn';verdict='<b>Carico in calo.</b> Meno della tua media: normale in scarico/taper o dopo una pausa, ma se prolungato perdi condizione.'}
   else{col='warn';verdict='<b>Carico molto basso.</b> Settimana quasi ferma: bene se voluta (riposo/rientro), altrimenti stai perdendo terreno.'}
-  const barPct=Math.min(100,ratio/1.8*100);
+  // scala con le fasce scritte: dove cadi rispetto a basso / ottimale / alto / picco
+  const gauge=(()=>{const W=420,L=8,R=8,MX=1.8,Xg=v=>L+Math.min(v,MX)/MX*(W-L-R);
+    const seg=[[0,.8,'var(--z1)','basso'],[.8,1.3,'var(--ok)','ottimale'],[1.3,1.5,'var(--warn)','alto'],[1.5,MX,'var(--red)','picco']];
+    let g=seg.map(([a,b,c,t])=>`<rect x="${Xg(a).toFixed(1)}" y="20" width="${(Xg(b)-Xg(a)).toFixed(1)}" height="10" fill="${c}" fill-opacity=".35"/><text x="${((Xg(a)+Xg(b))/2).toFixed(1)}" y="60" text-anchor="middle" class="cz" style="fill:${c}">${t}</text>`).join('');
+    g+=[.8,1.3,1.5].map(v=>`<line x1="${Xg(v)}" x2="${Xg(v)}" y1="18" y2="34" stroke="var(--card)" stroke-width="1.5"/><text x="${Xg(v)}" y="46" text-anchor="middle">${v.toFixed(1)}</text>`).join('');
+    const xm=Xg(ratio);g+=`<path d="M${(xm-6).toFixed(1)},14 L${(xm+6).toFixed(1)},14 L${xm.toFixed(1)},22 Z" fill="var(--txt)"/><line x1="${xm.toFixed(1)}" x2="${xm.toFixed(1)}" y1="18" y2="32" stroke="var(--txt)" stroke-width="2.5"/>`;
+    const tw=60,tx=Math.max(tw/2,Math.min(W-tw/2,xm));g+=`<text x="${tx.toFixed(1)}" y="10" text-anchor="middle" class="cv">tu: ${ratio.toFixed(2)}</text>`;
+    return`<svg viewBox="0 0 ${W} 64" width="100%" class="chv gauge">${g}</svg>`})();
   el.innerHTML=`<div class="grid3">
       <div class="stat"><b>${ratio.toFixed(2)}</b><span>carico ac./cron.</span></div>
       <div class="stat"><b>${acute.toFixed(0)}</b><span>km ultimi 7g</span></div>
       <div class="stat"><b>${chronic.toFixed(0)}</b><span>media sett. (28g)</span></div>
     </div>
-    <div class="bar" style="margin-top:10px"><i class="${col}" style="width:${Math.max(3,barPct)}%"></i></div>
+    ${gauge}
     <p style="margin-top:10px">${verdict}</p>
     ${ramp!=null?`<p class="muted" style="margin-top:4px">Vs i 7 giorni precedenti: ${ramp>=0?'+':''}${ramp.toFixed(0)}% km (${winP} ${lastWk.toFixed(0)} km → ${winA} ${acute.toFixed(0)} km). Sopra +10% è il limite prudente.</p>`:''}
     <details class="pinfo"><summary>Come si calcola</summary><p class="muted" style="margin-top:4px">Sono 7 giorni mobili (${winA}), non la settimana lunedì-domenica: con la settimana ancora a metà il confronto per settimane di calendario direbbe sempre "in calo". Il rapporto è fra i km di questi 7 giorni e la media settimanale delle ultime 4 (acute:chronic workload ratio). Fascia consigliata 0.8–1.3.</p></details>`;
@@ -1121,14 +1196,31 @@ const DYN={cad:{n:'Cadenza',u:'passi/min',dir:1,f:v=>v.toFixed(0)},stl:{n:'Lungh
   gct:{n:'Contatto col suolo',u:'ms',dir:-1,f:v=>v.toFixed(0)}};
 function rProg(){
   const list=fRuns();
-  chart('c-vdot',monthlyVdot(list),{ylab:v=>v.toFixed(0)});
-  const wk=weeklyKm(list).slice(-40).map(([k,v])=>({x:labDay(k),y:+v.toFixed(1)}));
-  chart('c-vol',wk,{bar:true,color:'var(--acc2)'});
-  chart('c-easy',groupAvg(list.filter(r=>cls(r)==='easy'&&!r.tm),r=>pace(r)/60,r=>r.km),{ylab:v=>fmtP(v*60),invertY:true,color:'var(--warn)'}); // ponderata sui km = sec totali/km totali
-  chart('c-eff',groupAvg(list.filter(r=>cls(r)==='easy'&&r.hr&&!r.tm),r=>r.km*1000/(r.hr*r.sec/60),r=>r.hr*r.sec/60),{ylab:v=>v.toFixed(1)}); // ponderata sui battiti = metri totali/battiti totali
+  // VDOT: con la linea dell'obiettivo del piano, se c'è
+  let gV=null;try{const g=goalTarget();if(g)gV=vdotOf(g.km,g.sec)}catch(e){}
+  chart('c-vdot',monthlyVdot(list),{ylab:v=>v.toFixed(1),unit:'VDOT',better:'up',
+    ref:gV?[{y:gV,lab:'obiettivo '+gV.toFixed(1),c:'var(--ok)'}]:[],
+    each:'Ogni punto = la prestazione più forte (gara o sforzo massimo) dei 60 giorni prima di quella data, convertita in VDOT'});
+  // volume: la settimana in corso è parziale, la segno più chiara
+  const curWk=weekKey(todayISO()+' 12:00');
+  const wkRaw=weeklyKm(list).slice(-40);
+  const wk=wkRaw.map(([k,v])=>({x:labDay(k),y:+v.toFixed(1),o:k===curWk?.4:1,vl:`${v.toFixed(0)} km`,t:k===curWk?`${v.toFixed(0)} km (in corso)`:`${v.toFixed(0)} km`}));
+  const wDone=wkRaw.filter(([k])=>k!==curWk).map(([,v])=>v),l4=wDone.slice(-4);
+  const wMax=wkRaw.reduce((a,b)=>b[1]>a[1]?b:a,wkRaw[0]||['',0]);
+  chart('c-vol',wk,{bar:true,color:'var(--acc2)',unit:'km a settimana',ylab:v=>v.toFixed(0),avg:true,
+    each:'Ogni barra = km di una settimana (lun–dom)'+(wkRaw.length&&wkRaw[wkRaw.length-1][0]===curWk?'; l’ultima, più chiara, è quella in corso':''),
+    extra:(l4.length?`media ultime 4 concluse <b>${Math.round(mean(l4))} km</b>`:'')+(wMax[0]?` · più alta ${Math.round(wMax[1])} km (${labDay(wMax[0])})`:'')});
+  const ge=groupAvg(list.filter(r=>cls(r)==='easy'&&!r.tm),r=>pace(r),r=>r.km); // ponderata sui km = sec totali/km totali
+  chart('c-easy',ge,{ylab:fmtP,pace:true,invertY:true,better:'down',up:'↑ più veloce',unit:'min/km',color:'var(--warn)',
+    each:`Ogni punto = passo medio delle corse facili ${ge.per==='mese'?'del mese':'della settimana'} (pesato sui km)`});
+  const gf=groupAvg(list.filter(r=>cls(r)==='easy'&&r.hr&&!r.tm),r=>r.km*1000/(r.hr*r.sec/60),r=>r.hr*r.sec/60); // ponderata sui battiti = metri totali/battiti totali
+  chart('c-eff',gf,{ylab:v=>v.toFixed(2),unit:'metri per battito',better:'up',dfmt:v=>v.toFixed(2),
+    each:`Ogni punto = corse facili ${gf.per==='mese'?'del mese':'della settimana'}`});
   const mk=document.getElementById('pr-metric').value||'cad';const M=DYN[mk];
-  chart('c-dyn',groupAvg(list.filter(r=>r[mk]!=null&&!r.tm),r=>r[mk]),{ylab:M.f,invertY:M.dir<0,color:'var(--acc2)'});
-  document.getElementById('dyn-note').textContent=`${M.n} (${M.u}): ${M.dir>0?'più alto':'più basso'} = meglio, a parità di ritmo.`;
+  const gd=groupAvg(list.filter(r=>r[mk]!=null&&!r.tm),r=>r[mk]);
+  chart('c-dyn',gd,{ylab:M.f,invertY:M.dir<0,better:M.dir>0?'up':'down',unit:M.u,color:'var(--acc2)',
+    each:`Ogni punto = media ${gd.per==='mese'?'del mese':'della settimana'}`});
+  document.getElementById('dyn-note').textContent=`${M.n} (${M.u}): ${M.dir>0?'più alto':'più basso'} = meglio, a parità di ritmo.${M.dir<0?' Il grafico è capovolto: in alto c’è il valore migliore.':''}`;
   document.getElementById('c-pb').innerHTML='<tr><th>Distanza</th><th class="r">Tempo</th><th class="r">Passo</th><th class="r">Quando</th></tr>'+pbs();
   rRecap();rPaces();rCmp();rAnaSel();rAna();
 }
@@ -2882,12 +2974,18 @@ function rMonitor(){
   // grafici trend + scostamento cumulato (solo settimane concluse: la corrente è parziale)
   const wcol=w=>w.okTarget?'var(--acc)':w.pct>=60?'var(--warn)':'var(--red)';
   const MONLEG='<span class="clg"><i style="background:var(--acc)"></i>a target<i style="background:var(--warn)"></i>\u226560%<i style="background:var(--red)"></i>sotto</span>';
-  const trend=completed.map(w=>({x:'S'+(w.num||''),y:Math.min(150,w.pct),c:wcol(w)}));
-  chart('mon-trend',trend,{bar:true,ylab:v=>v.toFixed(0)+'%',color:'var(--acc2)'});
-  document.getElementById('mon-trend-note').innerHTML=trend.length?'Ogni barra: km svolti / km pianificati della settimana conclusa. 100% = in linea col piano. '+MONLEG:'';
-  let cum=0;const cumPts=completed.map(w=>{cum+=w.actualKm-w.plannedKm;return{x:'S'+(w.num||''),y:+cum.toFixed(0),c:wcol(w)}});
-  chart('mon-cum',cumPts,{ylab:v=>v.toFixed(0),color:'var(--dim)'});
-  {const n=document.getElementById('mon-cum-note');if(n)n.innerHTML=cumPts.length?'I punti sono colorati come le barre, in base al target della settimana. Sopra lo zero = km in più; sotto = km in meno. '+MONLEG:'Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.';}
+  // il valore vero va nel tooltip anche quando la barra è tagliata a 150%
+  const trend=completed.map(w=>({x:'S'+(w.num||''),y:Math.min(150,w.pct),c:wcol(w),vl:`${Math.round(w.pct)}%`,t:`${Math.round(w.pct)}% · ${w.actualKm.toFixed(0)}/${w.plannedKm.toFixed(0)} km`}));
+  const nOk=completed.filter(w=>w.okTarget).length;
+  chart('mon-trend',trend,{bar:true,ylab:v=>v.toFixed(0)+'%',suf:'%',color:'var(--acc2)',unit:'% dei km pianificati',
+    ref:[{y:100,lab:'100% = come da piano',c:'var(--txt)'}],
+    extra:trend.length?`<b>${nOk} su ${completed.length}</b> settimane a target`:''});
+  document.getElementById('mon-trend-note').innerHTML=trend.length?'Ogni barra = km svolti diviso km pianificati, per settimana conclusa (la barra si ferma a 150%; tocca per il valore vero). '+MONLEG:'';
+  let cum=0;const cumPts=completed.map(w=>{cum+=w.actualKm-w.plannedKm;return{x:'S'+(w.num||''),y:+cum.toFixed(0),c:wcol(w),t:`${cum>=0?'+':''}${cum.toFixed(0)} km`}});
+  chart('mon-cum',cumPts,{ylab:v=>(v>0?'+':'')+v.toFixed(0)+' km',tlab:v=>(v>0?'+':'')+v.toFixed(0),color:'var(--dim)',unit:'km in più (+) o in meno (−) del piano',
+    ref:[{y:0,lab:'0 = in linea col piano',c:'var(--txt)'}],
+    extra:cumPts.length?`a fine S${completed[completed.length-1].num||''} sei a <b>${cum>=0?'+':''}${cum.toFixed(0)} km</b> ${cum>=0?'sopra':'sotto'} il piano, sommando tutte le settimane`:''});
+  {const n=document.getElementById('mon-cum-note');if(n)n.innerHTML=cumPts.length?'Somma, settimana dopo settimana, della differenza fra km svolti e pianificati. Linea che sale = stai facendo più del piano; che scende = meno. I punti hanno il colore della settimana: '+MONLEG:'Sopra lo zero = km in più rispetto al pianificato; sotto = km in meno.';}
   // tabella settimana per settimana
   const wrows=weeks.filter(w=>w.started).map(w=>{
     const icon=w.inProg?'⏳':w.okTarget?'✅':w.pct>=60?'🟡':'🔴';
@@ -4088,18 +4186,20 @@ function hbars(rows,unit){
   const mx=Math.max(1e-9,...rows.map(r=>r.v||0));
   return `<div class="hb">${rows.map(r=>`<div class="hbr"><div class="hbl">${r.l}${r.sub?`<small>${r.sub}</small>`:''}</div><div class="hbt"><i style="width:${Math.max(r.v?2:0,100*(r.v||0)/mx).toFixed(1)}%;background:${r.c||'var(--acc)'}"></i></div><div class="hbv">${r.txt!=null?r.txt:Math.round(r.v||0)+(unit||'')}</div></div>`).join('')}</div>`;
 }
-function gbars(el,labels,series,fmt){ // barre affiancate per settimana
+function gbars(el,labels,series,fmt,o={}){ // barre affiancate per settimana
   const host=document.getElementById(el);if(!host)return;
-  const W=520,H=170,P={l:30,r:6,t:8,b:22};
+  const W=420,H=196,P={l:36,r:8,t:24,b:24};
   const mx=Math.max(1,...series.flatMap(s=>s.v.map(v=>v||0)));
   const step=Math.max(5,Math.ceil(mx/4/5)*5),top=step*Math.ceil(mx/step);
   const n=labels.length,gw=(W-P.l-P.r)/n,bw=Math.max(2,(gw-4)/series.length-1);
   const Y=v=>H-P.b-(v/top)*(H-P.t-P.b);
-  let s='';for(let g=0;g<=top;g+=step)s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--line)"/><text x="${P.l-4}" y="${Y(g)+3}" text-anchor="end">${g}</text>`;
+  let s=`<text x="2" y="12" class="cu">${o.unit||''}</text>`;
+  for(let g=0;g<=top;g+=step)s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--line)"/><text x="${P.l-5}" y="${Y(g)+4}" text-anchor="end">${g}</text>`;
+  const xs=Math.max(1,Math.ceil(n/5));
   labels.forEach((lb,i)=>{series.forEach((se,j)=>{const v=se.v[i];if(v==null)return;const x=P.l+i*gw+2+j*(bw+1),y=Y(v);
       s+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,H-P.b-y).toFixed(1)}" rx="1.5" fill="${se.c}" fill-opacity="${se.o||1}"><title>${lb} · ${se.n}: ${fmt?fmt(v):Math.round(v)}</title></rect>`});
-    if(i%Math.ceil(n/7)===0||i===n-1)s+=`<text x="${(P.l+i*gw+gw/2).toFixed(1)}" y="${H-6}" text-anchor="middle">${lb}</text>`});
-  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%">${s}</svg><div class="lgd">${series.map(se=>`<span><i style="background:${se.c};opacity:${se.o||1}"></i>${se.n}</span>`).join('')}</div>`;
+    if((i%xs===0&&n-1-i>=xs*.6)||i===n-1){const tw=String(lb).length*6.4,cx=Math.max(tw/2+1,Math.min(W-tw/2-1,P.l+i*gw+gw/2));s+=`<text x="${cx.toFixed(1)}" y="${H-6}" text-anchor="middle">${lb}</text>`}});
+  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" class="chv">${s}</svg><div class="lgd">${series.map(se=>`<span><i style="background:${se.c};opacity:${se.o||1}"></i>${se.n}</span>`).join('')}</div>${o.leg?`<p class="chr">${o.leg}</p>`:''}`;
 }
 function pillset(id,opts,cur,cb){const el=document.getElementById(id);if(!el)return;
   el.innerHTML=opts.map(([v,l])=>`<span class="pill${v===cur?' on':''}" data-v="${v}">${l}</span>`).join('');
@@ -4129,13 +4229,15 @@ function rFit(){
     `<p class="muted" style="margin-top:8px">${Math.round(tot)}' a settimana con FC registrata (${rc.n} di ${rc.all} corse). Sopra LT1: <b>${Math.round(hard)}'</b> (${tot?Math.round(hard/tot*100):0}%). È la composizione di quello che hai fatto, non un programma da copiare.</p>`:'<p class="muted">Nessuna corsa con FC nella finestra.</p>');
   // 3. minuti di soglia
   const wz=weekZones(12);const lab=wz.map(o=>labDay(o.w));
-  gbars('f-thr',lab,[{n:'LT1',c:zcol(2),v:wz.map(o=>o.nx?o.min[2]:null)},{n:'LT2',c:zcol(3),v:wz.map(o=>o.nx?o.min[3]:null)},{n:'Alta int.',c:zcol(4),v:wz.map(o=>o.nx?o.min[4]:null)}],v=>Math.round(v)+"'");
+  gbars('f-thr',lab,[{n:'LT1',c:zcol(2),v:wz.map(o=>o.nx?o.min[2]:null)},{n:'LT2',c:zcol(3),v:wz.map(o=>o.nx?o.min[3]:null)},{n:'Alta int.',c:zcol(4),v:wz.map(o=>o.nx?o.min[4]:null)}],v=>Math.round(v)+"'",{unit:'minuti nella zona, per settimana',leg:'Ogni gruppo di barre = una settimana (lun–dom), con la data del lunedì; l’ultima è quella in corso.'});
   const done=wz.slice(0,-1).filter(o=>o.nx);
   set('f-thr-n',done.length?`Media settimane concluse: LT1 <b>${Math.round(mean(done.map(o=>o.min[2])))}'</b> · LT2 <b>${Math.round(mean(done.map(o=>o.min[3])))}'</b> · alta intensità <b>${Math.round(mean(done.map(o=>o.min[4])))}'</b>. Sono minuti con la FC dentro la fascia, riscaldamento e recuperi compresi se la FC c'era.`:'');
   // 4. indice aerobico
   pillset('f-aerow',[[13,'3 mesi'],[26,'6 mesi'],[52,'12 mesi'],[104,'2 anni']],aeroN,v=>{aeroN=v;rFit()});
   const ser=aeroSeries(aeroN).filter(o=>o.v!=null);const mv=aeroMoved();const cur=ser.length?ser[ser.length-1]:null;
-  if(ser.length>=2)chart('f-aero-c',ser.map(o=>({x:labDay(o.w),y:+o.v.toFixed(1)})),{ylab:v=>v.toFixed(1),color:'var(--acc2)'});else set('f-aero-c','');
+  if(ser.length>=2)chart('f-aero-c',ser.map(o=>({x:labDay(o.w),y:+o.v.toFixed(1)})),{ylab:v=>v.toFixed(1),color:'var(--acc2)',unit:'indice aerobico (punti VDOT)',better:'up',
+    ref:vd?[{y:vd,lab:'VDOT da gara '+vd.toFixed(1),c:'var(--dim)'}]:[],
+    each:'Ogni punto = una settimana, calcolato sui 28 giorni precedenti'});else set('f-aero-c','');
   const bestA=ser.length?ser.reduce((a,b)=>b.v>a.v?b:a):null;
   set('f-aero',cur?`<div class="grid3"><div class="stat"><b>${cur.v.toFixed(1)}</b><span>indice aerobico</span>${mv.total!=null?`<i style="display:block" class="${mv.total>=0?'up':'down'}">${mv.total>=0?'▲':'▼'} ${Math.abs(mv.total).toFixed(1)} vs 7 giorni fa</i>`:''}</div>
       <div class="stat"><b>${vd?vd.toFixed(1):'–'}</b><span>VDOT da gara</span><i style="display:block" class="muted">${vd&&cur?(vd-cur.v>=0?'+':'')+(vd-cur.v).toFixed(1)+' sull\'indice':''}</i></div>
@@ -4157,7 +4259,8 @@ function rFit(){
   set('f-cost',pcst.length?hbars(pcst.map(o=>({l:`${fmtP(o.b)}–${fmtP(o.b+20)}`,sub:o.hr?`FC media ${Math.round(o.hr)}`:'',v:o.min,c:o.hr?zcol(zIdx(o.hr,Z)):'var(--dim)',txt:Math.round(o.min)+"'/sett"}))):'<p class="muted">Servono le tracce delle corse.</p>');
   // 8. passo accumulato
   const ws=weeksBack(10),acc=ws.map(w=>({w,a:accWeek(w)})),av=acc.filter(o=>o.a[5000]);
-  if(av.length>=2)chart('f-acc-c',av.map(o=>({x:labDay(o.w),y:o.a[5000]})),{ylab:v=>fmtP(v),invertY:true,color:'var(--warn)'});else set('f-acc-c','');
+  if(av.length>=2)chart('f-acc-c',av.map(o=>({x:labDay(o.w),y:o.a[5000]})),{ylab:v=>fmtP(v),pace:true,invertY:true,better:'down',up:'↑ più veloce',unit:'passo dei 5 km accumulati, min/km',color:'var(--warn)',
+    each:'Ogni punto = una settimana'});else set('f-acc-c','');
   const la=acc[acc.length-1].a[5000]?acc[acc.length-1]:acc[acc.length-2];
   const bestAcc=av.length?av.reduce((a,b)=>b.a[5000]<a.a[5000]?b:a):null;
   set('f-acc',la?`<div class="grid3">${[3000,5000,10000].map(L=>`<div class="stat"><b>${la.a[L]?fmtP(la.a[L]):'–'}</b><span>${L/1000} km accumulati</span></div>`).join('')}</div><p class="muted" style="margin-top:6px">Settimana del ${labDay(la.w)}. I minuti più veloci della settimana sommati fra tutte le corse (media mobile di 2'), tapis roulant esclusi. Misura di allenamento, non previsione di gara.${bestAcc?` Migliore 10 settimane: ${fmtP(bestAcc.a[5000])}/km (${labDay(bestAcc.w)}).`:''}</p>`:'<p class="muted">Servono le corse importate da .fit.</p>');
@@ -4166,7 +4269,7 @@ function rFit(){
   set('f-best',`<table><tr><th></th><th class="r">Ultime 4 sett</th><th class="r">Passo</th><th class="r">Migliore storico</th></tr>${Object.entries(DL).map(([k,l])=>`<tr><td>${l}</td><td class="r">${b4[k]?fmtD(b4[k].s):'–'}</td><td class="r pace">${b4[k]?fmtP(b4[k].s/(k/1000)):''}</td><td class="r muted">${ball[k]?fmtD(ball[k].s)+' · '+ball[k].r.date.slice(0,10):'–'}</td></tr>`).join('')}</table><p class="muted" style="margin-top:6px">Tratti migliori dentro qualsiasi corsa (tempo in movimento), separati dai risultati di gara.</p>`);
   // 10. piramide
   const pr=recipe(56),BR=[60,45,30,25,15];
-  set('f-pyr',`<div class="pyr">${[4,3,2,1,0].map(i=>{const mins=pr.perWk[i]*8,n=Math.floor(mins/BR[i]);return`<div class="pyrr"><span class="pyl">${ZN[i]}</span><span class="pyb">${Array.from({length:Math.min(n,24)},()=>`<i style="background:${zcol(i)}"></i>`).join('')}${n>24?`<em>+${n-24}</em>`:''}${!n?'<em>–</em>':''}</span><span class="pyv">${Math.round(mins)}'</span></div>`}).join('')}</div><p class="muted" style="margin-top:6px">Ultimi 56 giorni. Un mattone = 60' Recupero, 45' Steady, 30' LT1, 25' LT2, 15' Alta intensità.</p>`);
+  set('f-pyr',`<div class="pyr">${[4,3,2,1,0].map(i=>{const mins=pr.perWk[i]*8,n=Math.floor(mins/BR[i]);return`<div class="pyrr"><span class="pyl">${ZN[i]}<small style="display:block;color:var(--dim);font-size:10.5px">1 mattone = ${BR[i]}'</small></span><span class="pyb">${Array.from({length:Math.min(n,24)},()=>`<i style="background:${zcol(i)}"></i>`).join('')}${n>24?`<em>+${n-24}</em>`:''}${!n?'<em>–</em>':''}</span><span class="pyv">${Math.round(mins)}'</span></div>`}).join('')}</div><p class="muted" style="margin-top:6px">Minuti con la FC in ogni zona negli ultimi 56 giorni (numero a destra). Ogni mattone vale minuti diversi a seconda della zona (scritto sotto il nome): così le zone dure, dove bastano pochi minuti, restano visibili accanto a quelle facili. Una base larga e una punta stretta = distribuzione tipica da fondo.</p>`);
   // 11. capacità e lacune
   const cp=capacity(),ex=exposure(),eg=enduranceGap(),du=durability();
   set('f-cap',(cp?`<table><tr><td>Settimana più alta</td><td class="r"><b>${Math.round(cp.big.km)} km</b> <span class="muted">${labDay(cp.big.w)}</span></td></tr>
@@ -4191,18 +4294,24 @@ function rCurve(el,cw,best,Z){
   const host=document.getElementById(el);if(!host)return;
   const pts=cw.pts;const bp=Object.entries(best).map(([a,o])=>({a:+a,pace:o.pace}));
   if(pts.length<2&&bp.length<2){host.innerHTML='<p class="muted">Dati insufficienti.</p>';return}
-  const all=[...pts,...bp];const W=520,H=210,P={l:40,r:10,t:10,b:24};
+  const all=[...pts,...bp];const W=420,H=244,P={l:44,r:10,t:40,b:36};
   const x0=Math.min(...all.map(p=>p.a))-3,x1=Math.max(...all.map(p=>p.a))+8;
-  let y0=Math.min(...all.map(p=>p.pace)),y1=Math.max(...all.map(p=>p.pace));const pad=(y1-y0)*.1||10;y0-=pad;y1+=pad;
+  let y0=Math.min(...all.map(p=>p.pace)),y1=Math.max(...all.map(p=>p.pace));
+  const st_=niceStep(y1-y0,4,true);y0=Math.floor(y0/st_)*st_;y1=Math.ceil(y1/st_)*st_;if(y1<=y0)y1=y0+st_;
   const X_=a=>P.l+(a-x0)/(x1-x0)*(W-P.l-P.r),Y=v=>P.t+(v-y0)/(y1-y0)*(H-P.t-P.b);
-  let s='';
-  for(let i=0;i<5;i++){const [a,b]=zRange(i,Z);const xa=Math.max(P.l,X_(Math.max(a,x0))),xb=Math.min(W-P.r,X_(b==null?x1:Math.min(b+1,x1)));if(xb>xa)s+=`<rect x="${xa}" y="${P.t}" width="${xb-xa}" height="${H-P.t-P.b}" fill="${zcol(i)}" fill-opacity=".10"/>`}
-  for(let g=0;g<4;g++){const v=y0+(y1-y0)*g/3;s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${P.l-4}" y="${Y(v)+3}" text-anchor="end">${fmtP(v)}</text>`}
-  for(let a=Math.ceil(x0/10)*10;a<=x1;a+=10)s+=`<text x="${X_(a)}" y="${H-6}" text-anchor="middle">${a}</text>`;
+  let s=`<text x="2" y="12" class="cu">passo, min/km</text><text x="${W-2}" y="12" text-anchor="end" class="cd">↑ più veloce</text>`;
+  const ZS=['Rec.','Steady','LT1','LT2','Alta'];
+  for(let i=0;i<5;i++){const [a,b]=zRange(i,Z);const xa=Math.max(P.l,X_(Math.max(a,x0))),xb=Math.min(W-P.r,X_(b==null?x1:Math.min(b+1,x1)));
+    if(xb>xa){s+=`<rect x="${xa}" y="${P.t-16}" width="${xb-xa}" height="${H-P.t-P.b+16}" fill="${zcol(i)}" fill-opacity=".10"/>`;
+      if(xb-xa>=ZS[i].length*6.2+4)s+=`<text x="${((xa+xb)/2).toFixed(1)}" y="${P.t-5}" text-anchor="middle" class="cz" style="fill:${zcol(i)}">${ZS[i]}</text>`}}
+  for(let v=y0;v<=y1+1e-9;v+=st_)s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${P.l-6}" y="${Y(v)+4}" text-anchor="end">${fmtP(v)}</text>`;
+  for(let a=Math.ceil(x0/10)*10;a<=x1;a+=10)s+=`<text x="${X_(a)}" y="${H-P.b+16}" text-anchor="middle">${a}</text>`;
+  s+=`<text x="${(P.l+W-P.r)/2}" y="${H-3}" text-anchor="middle" class="cd">frequenza cardiaca, bpm →</text>`;
   const line=(arr,c,dash)=>{arr=arr.slice().sort((p,q)=>p.a-q.a);if(arr.length<1)return'';const d=arr.map((p,i)=>`${i?'L':'M'}${X_(p.a+2.5).toFixed(1)},${Y(p.pace).toFixed(1)}`).join('');
     return `<path d="${d}" fill="none" stroke="${c}" stroke-width="2" ${dash?'stroke-dasharray="5 4"':''}/>`+arr.map(p=>`<circle cx="${X_(p.a+2.5).toFixed(1)}" cy="${Y(p.pace).toFixed(1)}" r="${dash?2.5:3.5}" fill="${c}"><title>${p.a}–${p.a+4} bpm · ${fmtP(p.pace)}/km</title></circle>`).join('')};
   s+=line(bp,'var(--dim)',true)+line(pts,'var(--acc2)',false);
-  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%">${s}</svg><div class="lgd"><span><i style="background:var(--acc2)"></i>Ora</span><span><i style="background:var(--dim)"></i>Migliore 18 mesi</span><span class="muted">FC in basso (bpm) · più in alto = più veloce</span></div>`;
+  host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" class="chv">${s}</svg><div class="lgd"><span><i style="background:var(--acc2)"></i>Ora</span><span><i style="background:var(--dim)"></i>Migliore 18 mesi (tratteggio)</span></div>
+    <p class="chr">Ogni punto = il passo medio che tieni quando la FC sta in quella fascia di 5 bpm. Linea blu più in alto del tratteggio = a parità di battiti oggi corri più veloce del tuo meglio; più in basso = più lento. Le fasce colorate sono le tue zone.</p>`;
 }
 
 /* ---------- Dati: zone confermate e import archivio ---------- */
@@ -4232,27 +4341,35 @@ function anaXCard(r){
   const flag=xFlag(r,x);
   let tr='';
   if(x.tr&&x.tr.p.length>4){
-    const t=x.tr,n=t.p.length,W=520,H1=110,H2=90,P={l:36,r:6};
+    // due pannelli con lo stesso asse dei km: sopra il passo (veloce in alto), sotto la FC con le zone
+    const t=x.tr,n=t.p.length,W=420,P={l:42,r:10},T1=28,H1=112,T2=T1+H1+36,H2=104,H=T2+H2+22;
     const km=t.d.map(v=>v/100),kmax=km[n-1]||1,X_=k=>P.l+k/kmax*(W-P.l-P.r);
-    const ps=t.p.filter(v=>v>0);const pl=Math.min(...ps),ph=Math.min(Math.max(...ps),pl+180);
-    const Yp=v=>8+(Math.min(v,ph)-pl)/((ph-pl)||1)*(H1-20);
-    const hs=t.h.filter(v=>v>0);const hl=Math.min(...hs)-3,hh=Math.max(...hs)+3;
-    const Yh=v=>H1+8+(1-(v-hl)/((hh-hl)||1))*(H2-16);
-    let s='';
-    for(let i=0;i<5;i++){const[a,b]=zRange(i,Z);const lo=Math.max(a,hl),hi=Math.min(b==null?hh:b+1,hh);if(hi>lo)s+=`<rect x="${P.l}" y="${Yh(hi)}" width="${W-P.l-P.r}" height="${Yh(lo)-Yh(hi)}" fill="${zcol(i)}" fill-opacity=".14"/><text x="${W-P.r-2}" y="${Yh(hi)+9}" text-anchor="end" style="font-size:8px">${ZTAG[i]}</text>`}
+    const ps=t.p.filter(v=>v>0);let pl=Math.min(...ps),ph=Math.min(Math.max(...ps),pl+180);
+    const sp=niceStep(ph-pl,3,true);pl=Math.floor(pl/sp)*sp;ph=Math.ceil(ph/sp)*sp;if(ph<=pl)ph=pl+sp;
+    const Yp=v=>T1+(Math.min(v,ph)-pl)/(ph-pl)*H1;
+    const hs=t.h.filter(v=>v>0);let hl=Math.min(...hs),hh=Math.max(...hs);
+    const sh=niceStep(hh-hl,3);hl=Math.floor(hl/sh)*sh;hh=Math.ceil(hh/sh)*sh;if(hh<=hl)hh=hl+sh;
+    const Yh=v=>T2+(1-(v-hl)/(hh-hl))*H2;
+    let s=`<text x="2" y="12" class="cu">passo, min/km</text><text x="${W-2}" y="12" text-anchor="end" class="cd">↑ più veloce</text>`;
+    s+=`<text x="2" y="${T2-10}" class="cu">frequenza cardiaca, bpm</text><text x="${W-2}" y="${T2-10}" text-anchor="end" class="cd">fasce = le tue zone</text>`;
+    const ZS=['Recupero','Steady','LT1','LT2','Alta int.'];
+    for(let i=0;i<5;i++){const[a,b]=zRange(i,Z);const lo=Math.max(a,hl),hi=Math.min(b==null?hh:b+1,hh);if(hi>lo){const ya=Yh(hi),yb=Yh(lo);
+      s+=`<rect x="${P.l}" y="${ya.toFixed(1)}" width="${W-P.l-P.r}" height="${(yb-ya).toFixed(1)}" fill="${zcol(i)}" fill-opacity=".13"/>`;
+      if(yb-ya>=10)s+=`<text x="${W-P.r-3}" y="${(ya+(yb-ya)/2+4).toFixed(1)}" text-anchor="end" class="cz" style="fill:${zcol(i)}">${ZS[i]}</text>`}}
     const path=(arr,Y)=>arr.map((v,i)=>v>0?`${i&&arr[i-1]>0?'L':'M'}${X_(km[i]).toFixed(1)},${Y(v).toFixed(1)}`:'').join('');
-    [pl,(pl+ph)/2,ph].forEach(v=>s+=`<text x="${P.l-4}" y="${Yp(v)+3}" text-anchor="end">${fmtP(v)}</text><line x1="${P.l}" x2="${W-P.r}" y1="${Yp(v)}" y2="${Yp(v)}" stroke="var(--line)"/>`);
-    [Math.round(hl+3),Math.round(hh-3)].forEach(v=>s+=`<text x="${P.l-4}" y="${Yh(v)+3}" text-anchor="end">${v}</text>`);
-    s+=`<path d="${path(t.p,Yp)}" fill="none" stroke="var(--acc)" stroke-width="1.6"/><path d="${path(t.h,Yh)}" fill="none" stroke="var(--red)" stroke-width="1.6"/>`;
-    for(let k=0;k<=kmax;k+=Math.max(1,Math.ceil(kmax/8)))s+=`<text x="${X_(k)}" y="${H1+H2+12}" text-anchor="middle">${k}</text>`;
-    tr=`<svg viewBox="0 0 ${W} ${H1+H2+16}" width="100%" style="max-width:none"><text x="${P.l}" y="7" style="font-size:9px">passo /km</text><text x="${P.l}" y="${H1+4}" style="font-size:9px">FC bpm</text>${s}</svg>`;
+    for(let v=pl;v<=ph+1e-9;v+=sp)s+=`<text x="${P.l-6}" y="${Yp(v)+4}" text-anchor="end">${fmtP(v)}</text><line x1="${P.l}" x2="${W-P.r}" y1="${Yp(v)}" y2="${Yp(v)}" stroke="var(--line)"/>`;
+    for(let v=hl;v<=hh+1e-9;v+=sh)s+=`<text x="${P.l-6}" y="${Yh(v)+4}" text-anchor="end">${v}</text>`;
+    s+=`<path d="${path(t.p,Yp)}" fill="none" stroke="var(--acc)" stroke-width="1.7"/><path d="${path(t.h,Yh)}" fill="none" stroke="var(--red)" stroke-width="1.7"/>`;
+    const ks=Math.max(1,Math.ceil(kmax/7));
+    for(let k=0;k<=kmax;k+=ks){const lst=k+ks>kmax;s+=`<line x1="${X_(k)}" x2="${X_(k)}" y1="${T1}" y2="${T2+H2}" stroke="var(--line)" stroke-dasharray="2 3"/><text x="${Math.min(X_(k),W-P.r-14)}" y="${H-6}" text-anchor="middle">${k}${lst?' km':''}</text>`}
+    tr=`<svg viewBox="0 0 ${W} ${H}" width="100%" class="chv" style="max-width:none">${s}</svg>`;
   }
   const bars=`<div class="zrow"><span>Per FC</span><div class="zstack">${zs.s.map((v,i)=>v>0?`<i style="width:${(v/tot*100).toFixed(1)}%;background:${zcol(i)}" title="${ZN[i]} ${fmtMin(v)}"></i>`:'').join('')}</div></div>
     <div class="lgd">${zs.s.map((v,i)=>v>=30?`<span><i style="background:${zcol(i)}"></i>${ZN[i]} ${fmtMin(v)}${zs.m[i]>200?' · '+fmtP(v/(zs.m[i]/1000)):''}</span>`:'').join('')}</div>`;
   let pz='';const vdz=curVdot();
   if(x.tr&&x.tr.p.length>4&&vdz){const B=paceBounds(vdz),ps=[0,0,0,0,0];x.tr.p.forEach(p=>{if(p>0&&p<900)ps[paceZone(p,B)]+=30});const pt=ps.reduce((a,b)=>a+b,0)||1;
     pz=`<div class="zrow"><span>Per passo</span><div class="zstack">${ps.map((v,i)=>v>0?`<i style="width:${(v/pt*100).toFixed(1)}%;background:${zcol(i)}" title="${ZN[i]} ${fmtMin(v)}"></i>`:'').join('')}</div></div>
-    <div class="lgd">${ps.map((v,i)=>v>=60?`<span><i style="background:${zcol(i)}"></i>${ZN[i]} ${fmtMin(v)}</span>`:'').join('')}<span>passi da VDOT ${vdz.toFixed(1)}: ${B.map(fmtP).join(' · ')}</span></div>`}
+    <div class="lgd">${ps.map((v,i)=>v>=60?`<span><i style="background:${zcol(i)}"></i>${ZN[i]} ${fmtMin(v)}</span>`:'').join('')}</div><p class="chr" style="margin-top:2px">Fasce di passo dal VDOT ${vdz.toFixed(1)}: Recupero più lento di ${fmtP(B[0])} · Steady da ${fmtP(B[0])} · LT1 da ${fmtP(B[1])} · LT2 da ${fmtP(B[2])} · Alta da ${fmtP(B[3])}/km. Se le due barre si somigliano, FC e passo raccontano la stessa seduta; se “per FC” è più rossa, hai faticato più di quanto dica il passo (caldo, salita, stanchezza).</p>`}
   const bests=Object.entries(x.best||{}).filter(([k])=>+k>=1000).map(([k,s])=>`${+k>=21000?'mezza':+k/1000+' km'} <b>${fmtD(s)}</b>`).join(' · ');
   const hl=(x.holds||[]).map(([b,s,m])=>`${b}–${b+5} bpm per ${fmtMin(s)} a ${fmtP(s/(m/1000))}`).join(' · ');
   return `<div class="card lapcard"><h2>Passo, FC e zone</h2>${flag?`<div class="nolap">${flag}: questa corsa non entra nelle analisi FC.</div>`:''}${tr}${bars}${pz}
@@ -4299,16 +4416,21 @@ function doseCard(plan,refSun,nAll){
     const rec=wz[mon];return{w:w.w,mon,d,rec:rec?rec[2]+rec[3]:null,race:w.sess.some(isRace)}});
   setTimeout(()=>{
     const host=document.getElementById('p-dose');if(!host)return;
-    const W=920,H=200,P={l:30,r:6,t:8,b:22},n=rows.length,gw=(W-P.l-P.r)/n,bw=Math.max(3,gw*.7);
+    const W=420,H=214,P={l:34,r:8,t:30,b:24},n=rows.length,gw=(W-P.l-P.r)/n,bw=Math.max(3,gw*.72);
     const mx=Math.max(30,...rows.map(r=>r.d[0]+r.d[1]+r.d[2]),...rows.map(r=>r.rec||0));
     const step=Math.ceil(mx/4/10)*10,top=step*Math.ceil(mx/step),Y=v=>H-P.b-(v/top)*(H-P.t-P.b);
-    let s='';for(let g=0;g<=top;g+=step)s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--line)"/><text x="${P.l-4}" y="${Y(g)+3}" text-anchor="end">${g}</text>`;
+    let s=`<text x="2" y="12" class="cu">minuti di lavoro di qualità, per settimana</text>`;
+    for(let g=0;g<=top;g+=step)s+=`<line x1="${P.l}" x2="${W-P.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--line)"/><text x="${P.l-5}" y="${Y(g)+4}" text-anchor="end">${g}</text>`;
+    // dove siamo: linea "oggi" fra settimane passate e future
+    const tdy=todayISO(),ci=rows.findIndex(r=>r.mon<=tdy&&tdy<isoLoc(addD(dOnly(r.mon),7)));
+    if(ci>=0){const xo=P.l+ci*gw;s+=`<line x1="${xo.toFixed(1)}" x2="${xo.toFixed(1)}" y1="${P.t-8}" y2="${H-P.b}" stroke="var(--txt)" stroke-width="1.2" stroke-dasharray="4 3"/><text x="${(xo+3).toFixed(1)}" y="${P.t-1}" class="cr" style="fill:var(--txt)">oggi →</text>`;
+      if(ci>0)s+=`<text x="${(xo-3).toFixed(1)}" y="${P.t-1}" text-anchor="end" class="cr" style="fill:var(--dim)">← fatte</text>`}
     rows.forEach((r,i)=>{const x=P.l+i*gw+(gw-bw)/2;let base=0;
       [0,1,2].forEach(k=>{const v=r.d[k];if(!v)return;s+=`<rect x="${x.toFixed(1)}" y="${Y(base+v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(Y(base)-Y(base+v)).toFixed(1)}" fill="${zcol(k+2)}" fill-opacity=".55"><title>S${r.w} · ${['LT1','LT2','alta'][k]} prevista ${Math.round(v)}'</title></rect>`;base+=v});
       if(r.rec!=null)s+=`<line x1="${(x-1).toFixed(1)}" x2="${(x+bw+1).toFixed(1)}" y1="${Y(r.rec).toFixed(1)}" y2="${Y(r.rec).toFixed(1)}" stroke="var(--acc)" stroke-width="3" stroke-linecap="round"><title>S${r.w} · LT1+LT2 registrata ${Math.round(r.rec)}'</title></line>`;
-      if(r.race)s+=`<text x="${(x+bw/2).toFixed(1)}" y="${(Y(base)-3).toFixed(1)}" text-anchor="middle" style="font-size:9px">🏁</text>`;
-      if(i%Math.ceil(n/12)===0||i===n-1)s+=`<text x="${(P.l+i*gw+gw/2).toFixed(1)}" y="${H-6}" text-anchor="middle">S${r.w}</text>`});
-    host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:none">${s}</svg><div class="lgd"><span><i style="background:${zcol(2)};opacity:.55"></i>LT1 prevista</span><span><i style="background:${zcol(3)};opacity:.55"></i>LT2 prevista</span><span><i style="background:${zcol(4)};opacity:.55"></i>Alta intensità prevista</span><span><i style="background:var(--acc)"></i>LT1+LT2 registrata (FC)</span><span>🏁 gara</span></div>`;
+      if(r.race)s+=`<text x="${(x+bw/2).toFixed(1)}" y="${(Y(base)-3).toFixed(1)}" text-anchor="middle" style="font-size:11px">🏁</text>`;
+      const xs=Math.max(1,Math.ceil(n/6));if((i%xs===0&&n-1-i>=xs*.6)||i===n-1)s+=`<text x="${(P.l+i*gw+gw/2).toFixed(1)}" y="${H-6}" text-anchor="middle">S${r.w}</text>`});
+    host.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" class="chv">${s}</svg><div class="lgd"><span><i style="background:${zcol(2)};opacity:.55"></i>LT1 prevista</span><span><i style="background:${zcol(3)};opacity:.55"></i>LT2 prevista</span><span><i style="background:${zcol(4)};opacity:.55"></i>Alta intensità prevista</span><span><i style="background:var(--acc)"></i>trattino = LT1+LT2 registrata (FC)</span><span>🏁 gara</span></div>`;
   },0);
   const tot=rows.reduce((a,r)=>[a[0]+r.d[0],a[1]+r.d[1],a[2]+r.d[2]],[0,0,0]);
   return `<div class="card"><h2>Dose di intensità per settimana</h2><div id="p-dose"></div>
@@ -4402,7 +4524,8 @@ function rEff(){
   pillsTxt('f-effz',[[1,'Steady'],[2,'LT1'],[3,'LT2']],String(effZ),v=>{effZ=+v;rEff()});
   const ser=zoneWeekPace(effZ,16),pts=ser.filter(o=>o.pace);
   if(pts.length<2){el.innerHTML=`<p class="muted">Servono almeno due settimane con 10' in ${ZN[effZ]} (finestra di 14 giorni).</p>`;document.getElementById('f-eff-c').innerHTML='';return}
-  chart('f-eff-c',pts.map(o=>({x:labDay(o.w),y:Math.round(o.pace)})),{ylab:v=>fmtP(v),invertY:true,color:zcol(effZ)});
+  chart('f-eff-c',pts.map(o=>({x:labDay(o.w),y:Math.round(o.pace)})),{ylab:v=>fmtP(v),pace:true,invertY:true,better:'down',up:'↑ più veloce',unit:`passo con FC in ${ZN[effZ]}, min/km`,color:zcol(effZ),
+    each:'Ogni punto = una settimana (finestra dei 14 giorni precedenti)'});
   const L=pts.slice(-8),xs=L.map((o,k)=>k),ys=L.map(o=>o.pace),mx=mean(xs),my=mean(ys);
   const sl=xs.reduce((s,x,k)=>s+(x-mx)*(ys[k]-my),0)/Math.max(1e-9,xs.reduce((s,x)=>s+(x-mx)**2,0)); // s/km a settimana
   const tr=L.length<3?'troppo pochi dati':sl<-1?'in miglioramento':sl>1?'in calo':'stabile';
@@ -4484,14 +4607,32 @@ function rBlock(){
   const F=blockStats(start,addDaysISO(start,28),L),T=blockStats(addDaysISO(end,-28),end,L);
   const now=L[L.length-1];
   const tsbLab=now.tsb>5?'fresco':now.tsb>-10?'in equilibrio':now.tsb>-25?'affaticato (carico produttivo)':'molto affaticato';
-  // grafico CTL/ATL/TSB
-  const seg=L.filter(o=>o.d>=start);const W=520,H=170,Pd={l:30,r:6,t:8,b:20};
-  const ymx=Math.max(10,...seg.map(o=>Math.max(o.ctl,o.atl))),ymn=Math.min(0,...seg.map(o=>o.tsb));
-  const Xc=i=>Pd.l+i/(Math.max(1,seg.length-1))*(W-Pd.l-Pd.r),Yc=v=>Pd.t+(ymx-v)/(ymx-ymn)*(H-Pd.t-Pd.b);
-  const pl=(k,c,w,da)=>`<path d="${seg.map((o,i)=>`${i?'L':'M'}${Xc(i).toFixed(1)},${Yc(o[k]).toFixed(1)}`).join('')}" fill="none" stroke="${c}" stroke-width="${w}" ${da?'stroke-dasharray="4 3"':''}/>`;
-  let sv='';[ymn,0,ymx/2,ymx].forEach(v=>sv+=`<line x1="${Pd.l}" x2="${W-Pd.r}" y1="${Yc(v)}" y2="${Yc(v)}" stroke="var(--line)"/><text x="${Pd.l-4}" y="${Yc(v)+3}" text-anchor="end">${Math.round(v)}</text>`);
-  seg.forEach((o,i)=>{if(o.d.endsWith('-01'))sv+=`<text x="${Xc(i)}" y="${H-5}" text-anchor="middle">${MESI[+o.d.slice(5,7)-1]}</text>`});
-  sv+=pl('ctl','var(--z2)',2.2)+pl('atl','var(--z5)',1.4)+pl('tsb','var(--z3)',1.4,1);
+  // grafico CTL/ATL/TSB, in due pannelli: sopra forma e fatica (stessa scala), sotto la freschezza
+  // con le fasce che dicono cosa significa il numero. Prima stavano tutte e tre sullo stesso asse.
+  const seg=L.filter(o=>o.d>=start);const W=420,Pd={l:36,r:8};
+  const T1=30,H1=116,T2=T1+H1+36,H2=96,H=T2+H2+22;
+  const ymx=Math.max(10,...seg.map(o=>Math.max(o.ctl,o.atl)));const st1=niceStep(ymx,3),top1=Math.ceil(ymx/st1)*st1;
+  const tmn=Math.min(...seg.map(o=>o.tsb)),tmx=Math.max(...seg.map(o=>o.tsb));
+  const lo=Math.min(-30,Math.floor(tmn/10)*10),hi=Math.max(20,Math.ceil(tmx/10)*10);
+  const Xc=i=>Pd.l+i/(Math.max(1,seg.length-1))*(W-Pd.l-Pd.r);
+  const Y1=v=>T1+(top1-v)/top1*H1,Y2=v=>T2+(hi-v)/(hi-lo)*H2;
+  const pl=(k,c,w,Yf,da)=>`<path d="${seg.map((o,i)=>`${i?'L':'M'}${Xc(i).toFixed(1)},${Yf(o[k]).toFixed(1)}`).join('')}" fill="none" stroke="${c}" stroke-width="${w}" ${da?'stroke-dasharray="4 3"':''}/>`;
+  let sv=`<text x="2" y="12" class="cu">Forma e fatica (carico TRIMP medio al giorno)</text>`;
+  for(let v=0;v<=top1+1e-9;v+=st1)sv+=`<line x1="${Pd.l}" x2="${W-Pd.r}" y1="${Y1(v)}" y2="${Y1(v)}" stroke="var(--line)"/><text x="${Pd.l-5}" y="${Y1(v)+4}" text-anchor="end">${Math.round(v)}</text>`;
+  sv+=pl('ctl','var(--z2)',2.4,Y1)+pl('atl','var(--z5)',1.4,Y1);
+  // valori finali scritti accanto alle linee (separati se troppo vicini)
+  {const xe=Xc(seg.length-1),yc=Y1(now.ctl),ya=Y1(now.atl);let a=yc,b=ya;if(Math.abs(a-b)<14){const m=(a+b)/2;a=m+(yc>=ya?7:-7);b=m+(yc>=ya?-7:7)}
+    sv+=`<text x="${xe-2}" y="${(a+(a>=b?14:-5)).toFixed(1)}" text-anchor="end" class="cv" style="fill:var(--z2)">forma ${Math.round(now.ctl)}</text><text x="${xe-2}" y="${(b+(b>a?14:-5)).toFixed(1)}" text-anchor="end" class="cv" style="fill:var(--z5)">fatica ${Math.round(now.atl)}</text>`}
+  sv+=`<text x="2" y="${T2-10}" class="cu">Freschezza = forma − fatica</text>`;
+  const bands=[[hi,5,'var(--ok)','fresco, pronto per gara (sopra +5)'],[5,-10,'var(--dim)','in equilibrio (−10…+5)'],[-10,-25,'var(--z2)','carico produttivo (−25…−10)'],[-25,lo,'var(--red)','troppa fatica (sotto −25)']];
+  bands.forEach(([a,b,c])=>{if(a<=b)return;const ya=Y2(a),yb=Y2(b);sv+=`<rect x="${Pd.l}" y="${ya.toFixed(1)}" width="${W-Pd.l-Pd.r}" height="${(yb-ya).toFixed(1)}" fill="${c}" fill-opacity=".12"/>`});
+  for(let v=Math.ceil(lo/20)*20;v<=hi;v+=20)sv+=`<text x="${Pd.l-5}" y="${Y2(v)+4}" text-anchor="end">${v>0?'+':''}${v}</text>`;
+  sv+=`<line x1="${Pd.l}" x2="${W-Pd.r}" y1="${Y2(0)}" y2="${Y2(0)}" stroke="var(--dim)" stroke-width="1"/>`;
+  sv+=pl('tsb','var(--z3)',1.8,Y2);
+  {const xe=Xc(seg.length-1),y=Y2(now.tsb);sv+=`<circle cx="${xe}" cy="${y}" r="4" fill="var(--z3)" stroke="var(--card)" stroke-width="2"/><text x="${xe-6}" y="${(y<T2+14?y+16:y-7).toFixed(1)}" text-anchor="end" class="cv">${now.tsb>0?'+':''}${Math.round(now.tsb)}</text>`}
+  // mesi sull'asse, e l'ultimo giorno = oggi
+  seg.forEach((o,i)=>{if(o.d.endsWith('-01')&&i<seg.length-8)sv+=`<line x1="${Xc(i)}" x2="${Xc(i)}" y1="${T1}" y2="${T2+H2}" stroke="var(--line)" stroke-dasharray="2 3"/><text x="${Xc(i)}" y="${H-6}" text-anchor="middle">${MESI[+o.d.slice(5,7)-1]}</text>`});
+  sv+=`<text x="${W-Pd.r}" y="${H-6}" text-anchor="end" class="cd">oggi</text>`;
   // settimana tipo
   const DN=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
   const tw=DN.map((n,k)=>{const rs=B.rs.filter(r=>(dOnly(r.date).getDay()+6)%7===k);const f=rs.length/blkWk;
@@ -4517,9 +4658,11 @@ function rBlock(){
   el.innerHTML=`<div class="grid3"><div class="stat"><b>${Math.round(now.ctl)}</b><span>forma (CTL, 42 gg)</span><i style="display:block" class="muted">migliore 2 anni ${Math.round(ctlBest.ctl)} · ${ctlBest.d?labDay(ctlBest.d):''}</i></div>
       <div class="stat"><b>${Math.round(now.atl)}</b><span>fatica (ATL, 7 gg)</span></div>
       <div class="stat"><b class="${now.tsb>-10?'up':now.tsb<-25?'down':''}">${now.tsb>0?'+':''}${Math.round(now.tsb)}</b><span>freschezza (TSB) · ${tsbLab}</span></div></div>
-    <svg viewBox="0 0 ${W} ${H}" width="100%" style="margin-top:8px">${sv}</svg>
-    <div class="lgd"><span><i style="background:var(--z2)"></i>Forma (CTL)</span><span><i style="background:var(--z5)"></i>Fatica (ATL)</span><span><i style="background:var(--z3)"></i>Freschezza (TSB)</span></div>
-    <p class="muted" style="margin-top:6px">Carico di ogni corsa = TRIMP: minuti pesati per la FC (secondo per secondo se c'è il .fit, altrimenti la media; senza FC si assume un'uscita facile). Freschezza negativa durante il carico è normale; per una gara si punta a +5…+15.</p>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" class="chv" style="margin-top:10px">${sv}</svg>
+    <div class="lgd"><span><i style="background:var(--z2)"></i>Forma (CTL): carico medio delle ultime 6 settimane</span><span><i style="background:var(--z5)"></i>Fatica (ATL): carico medio degli ultimi 7 giorni</span></div>
+    <div class="lgd"><span style="color:var(--txt)">Fasce della freschezza:</span>${bands.map(([,,c,t])=>`<span><i style="background:${c};opacity:.45"></i>${t}</span>`).join('')}</div>
+    <p class="chr">Come si legge: la <b>forma</b> sale piano se ti alleni con costanza; la <b>fatica</b> sale e scende in fretta con le singole settimane. Quando la fatica sta sopra la forma la freschezza è negativa: normale durante il carico. Prima di una gara si scarica finché la freschezza arriva a +5…+15.</p>
+    <p class="muted" style="margin-top:4px">Carico di ogni corsa = TRIMP: minuti pesati per la FC (secondo per secondo se c'è il .fit, altrimenti la media; senza FC si assume un'uscita facile). Ultime ${blkWk} settimane.</p>
     <h3 class="fh">Questo blocco contro il precedente (${blkWk} settimane)</h3>${cmp(B,P,'Ora','Prima')}
     <h3 class="fh">Andamento dentro il blocco: ultime 4 settimane contro le prime 4</h3>${cmp(T,F,'Ultime 4','Prime 4')}
     <h3 class="fh">Composizione</h3>
