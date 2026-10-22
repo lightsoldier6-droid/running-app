@@ -79,6 +79,48 @@ svg text{fill:var(--dim);font-size:9px}
 .smeta{color:var(--dim);font-size:11px;margin-top:2px}
 .skipx{flex:0 0 auto;align-self:center;background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;font-size:12px;line-height:1;padding:4px 6px;cursor:pointer;opacity:.55}
 .skipx:hover{opacity:1;color:var(--red,#c0392b);border-color:currentColor}
+.sbtns{display:flex;gap:4px;align-self:center;flex:0 0 auto}
+.fxbtn{background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;font-size:13px;line-height:1;padding:3px 7px;cursor:pointer}
+.fxbtn:hover{color:var(--acc2);border-color:currentColor}
+.fxrow{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
+.fxrow button{background:none;border:1px dashed var(--line);color:var(--dim);border-radius:7px;font-size:11.5px;padding:4px 8px;cursor:pointer}
+.fxrow button:hover{color:var(--acc2);border-color:var(--acc2)}
+.fx-ov{position:fixed;inset:0;z-index:1000;background:rgba(10,14,22,.45);display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:640px){.fx-ov{align-items:center}}
+.fx-box{background:var(--card);color:var(--txt);width:100%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;border-radius:16px 16px 0 0;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+@media(min-width:640px){.fx-box{border-radius:16px}}
+.fx-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:16px 16px 10px;border-bottom:1px solid var(--line)}
+.fx-k{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.fx-t{font-size:17px;font-weight:700;margin-top:2px}
+.fx-x{background:none;border:1px solid var(--line);border-radius:50%;width:30px;height:30px;color:var(--dim);cursor:pointer;flex:0 0 auto}
+.fx-bd{padding:12px 16px;overflow:auto;flex:1}
+.fx-bd label{display:block;font-size:11.5px;color:var(--dim);margin:10px 0 4px}
+.fx-bd input,.fx-bd select,.fx-bd textarea{width:100%;box-sizing:border-box;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--txt)}
+.fx-ft{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:10px 16px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.fx-ft .btn{margin:0;width:auto;padding:9px 16px}
+.fx-delta{margin-right:auto;font-size:12.5px;color:var(--dim)}
+.fx-cur{background:color-mix(in srgb,var(--acc2) 7%,transparent);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:13.5px}
+.fx-d{font-size:12.5px;color:var(--dim);margin-top:3px;line-height:1.4}
+.fx-m{font-size:11.5px;color:var(--dim);margin-top:4px}
+.fx-opt,.fx-day{display:block;width:100%;text-align:left;background:none;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:6px 0;cursor:pointer;color:var(--txt);font:inherit}
+.fx-opt:hover,.fx-day:hover{border-color:var(--acc2);background:color-mix(in srgb,var(--acc2) 5%,transparent)}
+.fx-opt b,.fx-day b{display:block;font-size:14px}
+.fx-opt span,.fx-day span{display:block;font-size:12.5px;color:var(--dim);margin-top:2px;line-height:1.4}
+.fx-opt span span,.fx-day span span{display:inline;margin:0 0 0 4px}
+.fx-opt em{display:block;font-style:normal;font-size:11px;color:var(--dim);margin-top:4px}
+.fx-day{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.fx-day span{text-align:right;margin:0}
+.fx-sec{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:14px 0 4px}
+.fx-sec:first-child{margin-top:2px}
+.fx-chips{display:flex;flex-wrap:wrap;gap:6px}
+.fx-chips button{background:none;border:1px solid var(--line);border-radius:999px;padding:7px 13px;font:inherit;font-size:13px;color:var(--txt);cursor:pointer}
+.fx-chips button.on,.fx-chips button:hover{background:var(--txt);color:var(--card);border-color:var(--txt)}
+.fx-note{font-size:12px;color:var(--dim);margin:6px 0;line-height:1.45}
+.fx-sum{margin:4px 0 10px;padding-left:18px;font-size:14px;line-height:1.55}
+.fx-warn{font-size:13px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--txt);margin:6px 0}
+.fx-ok{font-size:12.5px;color:var(--acc);margin:6px 0}
+.fx-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.fx-step{display:flex;gap:6px}.fx-step button{flex:0 0 36px;border:1px solid var(--line);border-radius:8px;background:none;color:var(--txt);font-size:16px;cursor:pointer}.fx-step input{text-align:center}
 .skiprow{font-size:11px;color:var(--dim);margin:6px 0 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .skiprow button{background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;font-size:11px;padding:3px 7px;cursor:pointer}
 .skiprow button:hover{color:var(--acc);border-color:currentColor}
@@ -716,7 +758,7 @@ const LS=(k,v)=>{
   // Monitor è più vecchio del piano (cioè se recuperare butterebbe via una ricalibrazione appena fatta)
   if(k==='rp_plan'&&v&&typeof v==='object')v.savedAt=new Date().toISOString();
   localStorage.setItem(k,JSON.stringify(v));
-  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit'||k==='rp_wkskip') pushCloud();
+  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit'||k==='rp_wkskip'||k==='rp_flex') pushCloud();
   return v;
 };
 let edits=LS('rp_edits')||{}; // rinomine ed eliminazioni manuali, sopravvivono ai rebuild
@@ -792,6 +834,7 @@ function startCloudSync(uid){
     if(payload.ics!==undefined)localStorage.setItem('rp_ics',JSON.stringify(payload.ics));
     if(payload.wkedit!==undefined)localStorage.setItem('rp_wkedit',JSON.stringify(payload.wkedit));
     if(payload.wkskip!==undefined)localStorage.setItem('rp_wkskip',JSON.stringify(payload.wkskip));
+    if(payload.flex!==undefined)localStorage.setItem('rp_flex',JSON.stringify(payload.flex));
     location.reload();
   },err=>console.warn('cloud sync',err));
 }
@@ -802,7 +845,7 @@ function pushCloud(){
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{
     fbDb.collection('users').doc(fbAuth.currentUser.uid).set({
-      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics'),wkedit:LS('rp_wkedit'),wkskip:LS('rp_wkskip')}),
+      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics'),wkedit:LS('rp_wkedit'),wkskip:LS('rp_wkskip'),flex:LS('rp_flex')}),
       writer:cloudSessionId,
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true}).catch(e=>console.warn('cloud push',e));
@@ -1861,6 +1904,7 @@ function setWkReal(key,on){const o=wkParts(key);o.real=!!on;setWkEdit(key,[o.bas
 function setWkEdit(key,val){
   const ed=wkEdits();
   if(!val)delete ed[key];else ed[key]=val;
+  {const fx=flexAll();if(fx[key]){delete fx[key];LS('rp_flex',fx)}} // la settimana si ricostruisce: la foto delle modifiche seduta per seduta non vale più
   LS('rp_wkedit',ed);
   monSyncFuture(); // la modifica deve arrivare anche a Oggi e al Monitor, che leggono monitor.sessions
   const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
@@ -2104,7 +2148,327 @@ function applyWkSkips(pl){
   });
   return clone;
 }
-function applyWkEdits(pl){return applyWkSkips(applyWkOv(pl))}
+function applyWkEdits(pl){return applyWkSkips(applyFlex(applyWkOv(pl)))}
+/* ---------- FLEX: cambio della singola seduta (ripreso dal "Flex session" di RunZones) ----------
+   Sei azioni su ogni seduta del Piano non ancora svolta:
+   ✎ Modifica (ripetute, durata, zona, recupero, testo) · ↔ Sposta (stesso allenamento, altro giorno) ·
+   ⬇ Alleggerisci (rendila facile / sposta il lavoro duro / scambia con un giorno facile) ·
+   ⇄ Cambia (scegli lo stimolo, poi una seduta dalla banca, coi passi DELLA SETTIMANA) ·
+   🏁 Gara o test al posto della seduta · ＋ Aggiungi una seduta in un giorno libero.
+   Ogni azione passa da un'anteprima con gli avvisi (due giorni duri di fila) e si applica solo con
+   "Conferma". Il risultato si salva come FOTO della settimana in `rp_flex[domenicaISO]`: sopravvive ai
+   rebuild del piano come gli altri override, e "↺ Ripristina la settimana" la toglie. Cambiare il tipo
+   di settimana (scarico / gara al volo / riscrivi sul reale) la azzera, perché la settimana si ricostruisce. */
+const FX_DAYS=['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
+let FX=null; // stato del pannello aperto
+function flexAll(){return LS('rp_flex')||{}}
+function applyFlex(pl){
+  if(!pl||!pl.weeks)return pl;
+  const fx=flexAll();if(!Object.keys(fx).length)return pl;
+  const clone=JSON.parse(JSON.stringify(pl)),nAll=clone.weeks.length;
+  clone.weeks=clone.weeks.map(w=>{
+    if(w.hist||w.w===nAll)return w;
+    const s=fx[wkSunISO(clone,w)];if(!s)return w;
+    return {...w,sess:JSON.parse(JSON.stringify(s)),flex:true,vol:Math.round(s.reduce((a,x)=>a+(+x.km||0),0))};
+  });
+  return clone;
+}
+// settimana così come la vedi ora (tutti gli override applicati) + i passi di quella settimana
+function fxCtx(key){
+  const raw=LS('rp_plan');if(!raw||!raw.weeks)return null;
+  const pl=applyWkEdits(raw);
+  const w=pl.weeks.find(x=>wkSunISO(pl,x)===key);if(!w)return null;
+  const ph=raw.ph||{},core=Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.ispecW||0)+(ph.specW||0));
+  const vd=raw.vd+((raw.vdTarget||raw.vd)-raw.vd)*Math.min(1,w.w/core);
+  const p=paces(vd),Ea=(p.E[0]+p.E[1])/2;
+  const Z={p,vd,Ea,E:`${fmtP(p.E[1])}–${fmtP(p.E[0])}`,M:rngP(p.M),T:rngP(p.T),I:rngP(p.I),R:rngP(p.R)};
+  return {pl,w,Z,nAll:pl.weeks.length,editable:!w.hist&&w.w!==pl.weeks.length};
+}
+const fxIso=(key,t)=>addDaysISO(key,FX_DAYS.indexOf(t)-6);
+const fxDL=iso=>{const d=dOnly(iso);return `${['dom','lun','mar','mer','gio','ven','sab'][d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`};
+const fxHard=s=>!!s&&(sLoad(s)>=2||!!s.race||isRaceName(s.n));
+const fxSort=ss=>ss.slice().sort((a,b)=>FX_DAYS.indexOf(a.t)-FX_DAYS.indexOf(b.t));
+const fxEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fxCost=s=>{const L=sLoad(s);return L>=3?'alto':L===2?'medio':'basso'};
+const fxR=k=>Math.round(k*2)/2;
+function fxLists(keys){const o={};[...new Set(keys)].forEach(k=>{const c=fxCtx(k);o[k]=c?JSON.parse(JSON.stringify(c.w.sess)):[]});return o}
+function fxCur(){const c=FX&&fxCtx(FX.key);return c&&FX.si!=null?c.w.sess[FX.si]:null}
+// giorni proponibili: da oggi fino alla fine della settimana dopo, solo dentro settimane modificabili
+function fxDays(key){
+  const out=[],todayS=todayISO();
+  [0,7].forEach(off=>{const k=addDaysISO(key,off),c=fxCtx(k);if(!c||!c.editable)return;
+    FX_DAYS.forEach(t=>{const iso=fxIso(k,t);if(iso<todayS)return;out.push({iso,key:k,t,sess:c.w.sess.filter(s=>s.t===t)})})});
+  return out;
+}
+// due giorni duri di fila: si segnalano solo quelli che la modifica CREA
+function fxDayMap(keys,over){const m={};keys.forEach(k=>{const c=fxCtx(k);if(!c)return;
+  ((over&&over[k])||c.w.sess).forEach(s=>{const iso=fxIso(k,s.t);(m[iso]=m[iso]||[]).push(s)})});return m}
+function fxHardPairs(m){return Object.keys(m).sort().filter(d=>{const n=addDaysISO(d,1);return m[n]&&m[d].some(fxHard)&&m[n].some(fxHard)}).map(d=>d+'|'+addDaysISO(d,1))}
+function fxWarnings(changes){
+  const ks=[...new Set(Object.keys(changes).flatMap(k=>[addDaysISO(k,-7),k,addDaysISO(k,7)]))];
+  const before=new Set(fxHardPairs(fxDayMap(ks))),after=fxHardPairs(fxDayMap(ks,changes));
+  return after.filter(x=>!before.has(x)).map(x=>{const [a,b]=x.split('|');return `Così ci sono due giorni duri di fila: ${fxDL(a)} e ${fxDL(b)}. Meglio una corsa facile in mezzo.`});
+}
+/* ---------- banca sedute, coi passi della settimana ---------- */
+const FX_STIM=[
+  ['rec','Recupero','Corsa molto lenta, solo per muovere le gambe'],
+  ['z2','Facile Z2','Base aerobica, la maggior parte dei km'],
+  ['eco','Economia','Allunghi e salite brevi: tecnica e reattività senza fatica'],
+  ['lt1','Medio (LT1)','Ritmo maratona o poco più lento, continuo'],
+  ['mp','Ritmo maratona','Blocchi al passo gara'],
+  ['lt2','Soglia (LT2)','Cruise interval e soglia continua'],
+  ['cap','Tenuta','Blocchi lunghi a ritmo mezza: reggere il passo nel tempo'],
+  ['ap','Potenza aerobica','Ritmo 10k (CV), ripetute da 1-2 km'],
+  ['vo2','VO2max','Ripetute da 3-5 minuti al passo I'],
+  ['spd','Velocità','Ripetute brevi al passo R'],
+  ['long','Lungo','Il lungo facile o con un finale più veloce']
+];
+function fxBank(stim,Z){
+  const {p,Ea,E,M,T,I,R,vd}=Z,WC=4.9,km=(min,sec)=>min*60/sec;
+  const cvS=predict(10,vd)/10,hmS=predict(21.0975,vd)/21.0975,CV=rngP(cvS),HM=rngP(hmS);
+  const recE=`${fmtP(p.E[0])}–${fmtP(p.E[0]+20)}`;
+  const reps=(n,min,pace,sec,tag,rec,nm,load)=>({n:nm,load,d:`${n}×${min}' @ ${pace} (${tag}), rec ${recF(rec)} @ ${E}`,km:fxR(WC+km(n*min,sec)+km((n-1)*rec,Ea))});
+  const kmReps=(n,dist,pace,sec,tag,rec,nm,load)=>({n:nm,load,d:`${n}×${dist>=1000?dist/1000+' km':dist+'m'} @ ${pace} (${tag}), rec ${recF(rec)} @ ${E}`,km:fxR(WC+n*dist/1000+km((n-1)*rec,Ea))});
+  const B={
+    rec:[30,40,50].map(m=>({n:'Recupero',load:1,d:`${m}' @ ${recE} (Z2) — molto facile, FC bassa`,km:fxR(km(m,p.E[0]+10))})),
+    z2:[...[40,50,60].map(m=>({n:'Easy',load:1,d:`${m}' @ ${E} (Z2)`,km:fxR(km(m,Ea))})),
+        {n:'Easy + allunghi',load:1,d:`45' @ ${E} (Z2) + 6×20" in progressione, rec 1' camminando`,km:fxR(km(45,Ea)+0.8)}],
+    eco:[{n:'Easy + allunghi',load:1,d:`40' @ ${E} (Z2) + 8×100m allunghi, rec 100m camminando`,km:fxR(km(40,Ea)+1.6)},
+         {n:'Easy + salite brevi',load:1,d:`35' @ ${E} (Z2) + 6×8" sprint in salita, rec 2' camminando`,km:fxR(km(35,Ea)+0.5)},
+         {n:'Easy + allunghi lunghi',load:1,d:`35' @ ${E} (Z2) + 10×200m sciolti @ ${R} (R), rec 200m camminando`,km:fxR(km(35,Ea)+4)},
+         {n:'Easy + allunghi lanciati',load:1,d:`40' @ ${E} (Z2) + 6×60m lanciati, rec completo`,km:fxR(km(40,Ea)+1)}],
+    lt1:[...[30,45,60].map(m=>({n:'Medio',load:2,d:`${m}' @ ${M} (M) continui`,km:fxR(WC+km(m,p.M))})),
+         {n:'Medio a blocchi',load:2,d:`3×15' @ ${M} (M), rec 3' @ ${E}`,km:fxR(WC+km(45,p.M)+km(6,Ea))}],
+    mp:[kmReps(3,3000,M,p.M,'M',3,'Ritmo maratona',3),kmReps(2,5000,M,p.M,'M',4,'Ritmo maratona',3),
+        kmReps(4,3000,M,p.M,'M',2,'Ritmo maratona',3),
+        {n:'Ritmo maratona',load:3,d:`10 km continui @ ${M} (M)`,km:fxR(WC+10)}],
+    lt2:[reps(5,6,T,p.T,'T',1,'Cruise @ soglia',3),reps(4,8,T,p.T,'T',2,'Cruise @ soglia',3),reps(3,10,T,p.T,'T',2,'Cruise @ soglia',3),
+         reps(2,15,T,p.T,'T',3,'Cruise @ soglia',3),kmReps(6,1000,T,p.T,'T',1,'Cruise @ soglia',3),
+         {n:'Soglia continua',load:3,d:`20' @ ${T} (T) continui`,km:fxR(WC+km(20,p.T))}],
+    cap:[kmReps(2,5000,HM,hmS,'T',3,'Ritmo mezza',3),kmReps(3,3000,HM,hmS,'T',2,'Ritmo mezza',3),kmReps(4,2000,HM,hmS,'T',2,'Ritmo mezza',3)],
+    ap:[kmReps(5,1000,CV,cvS,'I',2,'Interval CV',3),kmReps(6,1000,CV,cvS,'I',1.5,'Interval CV',3),
+        kmReps(3,2000,CV,cvS,'I',3,'Interval CV',3),kmReps(5,1200,CV,cvS,'I',2,'Interval CV',3)],
+    vo2:[reps(6,3,I,p.I,'I',2.5,'Interval',3),reps(5,4,I,p.I,'I',3,'Interval',3),reps(4,5,I,p.I,'I',3,'Interval',3),
+         kmReps(5,1000,I,p.I,'I',2.5,'Interval',3),
+         {n:'Ripetute',load:3,d:`12×400m @ ${I} (I), rec 200m corsa lenta`,km:fxR(WC+4.8+2.2)}],
+    spd:[[10,200],[12,200],[8,300],[6,400]].map(([n,m])=>({n:'Ripetute brevi',load:3,d:`${n}×${m}m @ ${R} (R), rec ${m}m corsa lenta`,km:fxR(WC+n*m*2/1000)})),
+    long:[...[90,105,120].map(m=>({n:'Lungo',load:1,d:`${m}' @ ${E} (Z2)`,km:fxR(km(m,Ea))})),
+          {n:'Lungo con finale',load:2,d:`80' @ ${E} (Z2) + 20' @ ${M} (M)`,km:fxR(km(80,Ea)+km(20,p.M))},
+          {n:'Lungo con finale',load:2,d:`90' @ ${E} (Z2) + 30' @ ${M} (M)`,km:fxR(km(90,Ea)+km(30,p.M))}]
+  };
+  return B[stim]||[];
+}
+/* ---------- pannello ---------- */
+function fxShell(kicker,title,body,foot){
+  let el=document.getElementById('fx-modal');
+  if(!el){el=document.createElement('div');el.id='fx-modal';el.className='fx-ov';el.onclick=e=>{if(e.target===el)fxClose()};document.body.appendChild(el)}
+  el.innerHTML=`<div class="fx-box" role="dialog" aria-modal="true"><div class="fx-hd"><div><div class="fx-k">${kicker}</div><div class="fx-t">${title}</div></div><button class="fx-x" onclick="fxClose()" aria-label="Chiudi">✕</button></div><div class="fx-bd">${body}</div>${foot?`<div class="fx-ft">${foot}</div>`:''}</div>`;
+}
+function fxClose(){FX=null;const el=document.getElementById('fx-modal');if(el)el.remove()}
+function fxSessLine(s,iso){return `<div class="fx-cur"><b>${fxEsc(s.n)}</b> · ${fxDL(iso)}<div class="fx-d">${fxEsc(s.d)}</div><div class="fx-m">≈${s.km} km · costo di recupero ${fxCost(s)}</div></div>`}
+function fxOpen(key,si){FX={key,si};fxMenu()}
+function fxMenu(){
+  const s=fxCur();if(!s)return fxClose();
+  const iso=fxIso(FX.key,s.t),hard=fxHard(s);
+  const opt=(fn,t,d)=>`<button class="fx-opt" onclick="${fn}"><b>${t}</b><span>${d}</span></button>`;
+  fxShell('Cambia seduta',fxEsc(s.n),fxSessLine(s,iso)+
+    opt('fxModify()','✎ Modifica la seduta','Ripetute, durata, zona, recupero e testo: tieni la struttura e la ritocchi.')+
+    opt('fxMove()','↔ Spostala','Stesso allenamento in un altro giorno, anche della settimana dopo.')+
+    (hard?opt('fxEasier()','⬇ Alleggerisci oggi','Rendila facile, sposta il lavoro duro più avanti o scambiala con un giorno facile.'):'')+
+    opt('fxStim()','⇄ Cambia seduta','Scegli lo stimolo, poi una seduta dalla banca, già coi tuoi passi.')+
+    opt('fxRace()','🏁 Gara o test al suo posto','Una gara o una prova cronometrata al posto della seduta.'));
+}
+// ---- anteprima + conferma, comune a tutte le azioni
+function fxPreview(changes,lines,back){
+  FX.pending=changes;FX.back=back;
+  const warn=fxWarnings(changes);
+  fxShell('Anteprima','Controlla prima di confermare',
+    `<ul class="fx-sum">${lines.map(l=>`<li>${l}</li>`).join('')}</ul>`+
+    (warn.length?warn.map(w=>`<p class="fx-warn">⚠️ ${w}</p>`).join(''):'<p class="fx-ok">Nessun conflitto con le sedute dure vicine.</p>')+
+    `<p class="fx-note">La settimana resta modificata a mano finché non premi «↺ Ripristina la settimana» nel Piano.</p>`,
+    `<button class="btn btn2" onclick="${back}">Indietro</button><button class="btn" onclick="fxCommit()">Conferma</button>`);
+}
+function fxCommit(){
+  if(!FX||!FX.pending)return;
+  const fx=flexAll(),sp=wkSkips();
+  Object.entries(FX.pending).forEach(([k,ss])=>{fx[k]=fxSort(ss);delete sp[k]}); // le sedute tolte sono già fuori dalla foto
+  LS('rp_flex',fx);LS('rp_wkskip',sp);
+  fxClose();monSyncFuture();
+  const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
+}
+function fxReset(key){
+  if(!confirm('Rimettere questa settimana com’era nel piano? Le modifiche fatte seduta per seduta si perdono.'))return;
+  const fx=flexAll();delete fx[key];LS('rp_flex',fx);monSyncFuture();
+  const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
+}
+const fxSL=s=>s?`<b>${fxEsc(s.n)}</b>`:'riposo';
+// ---- ↔ Sposta
+function fxMove(){
+  const s=fxCur(),from=fxIso(FX.key,s.t);
+  const days=fxDays(FX.key).filter(d=>d.iso!==from);
+  fxShell('Sposta la seduta',fxEsc(s.n),`<p class="fx-note">Scegli il giorno. Se è già occupato, le due sedute si scambiano.</p>`+
+    days.map((d,i)=>`<button class="fx-day" onclick="fxMoveTo(${i},'fxMove()')"><b>${fxDL(d.iso)}</b><span>${d.sess.length?d.sess.map(x=>fxEsc(x.n)+(fxHard(x)?' · dura':'')).join(', '):'libero'}</span></button>`).join(''),
+    `<button class="btn btn2" onclick="fxMenu()">Indietro</button>`);
+  FX.days=days;
+}
+function fxMoveTo(i,back){
+  const d=FX.days[i],o=fxLists([FX.key,d.key]),src=o[FX.key],s=src[FX.si],fromT=s.t,from=fxIso(FX.key,fromT);
+  src.splice(FX.si,1);
+  const there=o[d.key].filter(x=>x.t===d.t&&!x.done&&!/^GARA/.test(x.n));
+  o[d.key]=o[d.key].filter(x=>!there.includes(x));
+  there.forEach(x=>{x.t=fromT;src.push(x)});
+  o[d.key].push({...s,t:d.t});
+  const lines=[`${fxSL(s)}: ${fxDL(from)} → ${fxDL(d.iso)}`].concat(there.map(x=>`${fxSL(x)}: ${fxDL(d.iso)} → ${fxDL(from)} (scambio)`));
+  fxPreview(o,lines,back||'fxMove()');
+}
+// ---- ⬇ Alleggerisci
+function fxEasier(){
+  const s=fxCur(),iso=fxIso(FX.key,s.t),Z=fxCtx(FX.key).Z;
+  const days=fxDays(FX.key).filter(d=>d.iso>iso);
+  FX.days=days;
+  const fxEasyS=x=>!x.done&&!fxHard(x)&&planCls(x.n)==='easy'; // il lungo non è un giorno «facile» da sacrificare
+  const easyDays=days.map((d,i)=>({d,i})).filter(({d})=>d.sess.length&&d.sess.every(fxEasyS));
+  fxShell('Alleggerisci oggi',fxEsc(s.n)+' · '+fxDL(iso),
+    `<div class="fx-sec">Rendila facile</div><div class="fx-chips">
+      <button onclick="fxEasy(0)">Riposo</button><button onclick="fxEasy(5)">5 km facili</button><button onclick="fxEasy(8)">8 km facili</button></div>
+     <div class="fx-sec">Sposta il lavoro duro più avanti</div><p class="fx-note">Oggi diventa riposo; la seduta va in un giorno libero o al posto di una corsa facile.</p>
+     ${days.filter(d=>d.sess.every(fxEasyS)).map(d=>`<button class="fx-day" onclick="fxMoveHard(${days.indexOf(d)})"><b>${fxDL(d.iso)}</b><span>${d.sess.length?d.sess.map(x=>fxEsc(x.n)).join(', '):'libero'}</span></button>`).join('')||'<p class="fx-note">Nessun giorno libero o con corsa facile nei prossimi giorni.</p>'}
+     <div class="fx-sec">Scambiala con un giorno facile</div>
+     ${easyDays.map(({d,i})=>`<button class="fx-day" onclick="fxSwapEasy(${i})"><b>${fxDL(d.iso)}</b><span>${d.sess.map(x=>fxEsc(x.n)).join(', ')}</span></button>`).join('')||'<p class="fx-note">Nessuna corsa facile da scambiare nei prossimi giorni.</p>'}`,
+    `<button class="btn btn2" onclick="fxMenu()">Indietro</button>`);
+}
+function fxEasy(kmE){
+  const o=fxLists([FX.key]),L=o[FX.key],s=L[FX.si],iso=fxIso(FX.key,s.t),Z=fxCtx(FX.key).Z;
+  if(!kmE)L.splice(FX.si,1);
+  else L[FX.si]={t:s.t,n:'Easy',load:1,d:`${Math.round(kmE*Z.Ea/60)}' @ ${Z.E} (Z2) — alleggerita`,km:kmE};
+  fxPreview(o,[`${fxDL(iso)}: ${fxSL(s)} → ${kmE?`<b>Easy ${kmE} km</b>`:'riposo'}`],'fxEasier()');
+}
+function fxMoveHard(i){
+  const d=FX.days[i],o=fxLists([FX.key,d.key]),src=o[FX.key],s=src[FX.si],iso=fxIso(FX.key,s.t);
+  src.splice(FX.si,1);
+  const gone=o[d.key].filter(x=>x.t===d.t);
+  o[d.key]=o[d.key].filter(x=>x.t!==d.t);o[d.key].push({...s,t:d.t});
+  fxPreview(o,[`${fxSL(s)}: ${fxDL(iso)} → ${fxDL(d.iso)}`,`${fxDL(iso)}: riposo`].concat(gone.map(x=>`${fxDL(d.iso)}: ${fxSL(x)} tolta`)),'fxEasier()');
+}
+function fxSwapEasy(i){fxMoveTo(i,'fxEasier()')}
+// ---- ⇄ Cambia: stimolo → seduta
+function fxStim(){
+  const s=FX.si!=null?fxCur():null;
+  fxShell(FX.si!=null?'Cambia seduta · 1 di 2':'Aggiungi seduta · 2 di 3','Scegli lo stimolo',
+    FX_STIM.map(([id,t,d])=>`<button class="fx-opt" onclick="fxPick('${id}')"><b>${t}</b><span>${d}</span></button>`).join(''),
+    `<button class="btn btn2" onclick="${FX.si!=null?'fxMenu()':'fxAddDays()'}">Indietro</button>`);
+}
+function fxPick(stim){
+  const c=fxCtx(FX.key);FX.stim=stim;FX.bank=fxBank(stim,c.Z);
+  const t=(FX_STIM.find(x=>x[0]===stim)||[])[1];
+  fxShell(FX.si!=null?'Cambia seduta · 2 di 2':'Aggiungi seduta · 3 di 3',t,
+    `<p class="fx-note">Passi calcolati sul VDOT di questa settimana (${c.Z.vd.toFixed(1)}).</p>`+
+    FX.bank.map((b,i)=>`<button class="fx-opt" onclick="fxUse(${i})"><b>${fxEsc(b.n)} · ≈${b.km} km</b><span>${hrTag(fxEsc(b.d))}</span><em>costo di recupero ${fxCost(b)}</em></button>`).join(''),
+    `<button class="btn btn2" onclick="fxStim()">Indietro</button>`);
+}
+function fxUse(i){
+  const b=FX.bank[i];
+  if(FX.si==null){ // aggiunta
+    const o=fxLists([FX.key]);o[FX.key].push({t:FX.addT,...b});
+    return fxPreview(o,[`${fxDL(fxIso(FX.key,FX.addT))}: aggiunta ${fxSL(b)} (≈${b.km} km)`],`fxPick('${FX.stim}')`);
+  }
+  const o=fxLists([FX.key]),L=o[FX.key],s=L[FX.si];
+  L[FX.si]={t:s.t,...b};
+  fxPreview(o,[`${fxDL(fxIso(FX.key,s.t))}: ${fxSL(s)} → ${fxSL(b)} (≈${s.km} → ${b.km} km)`],`fxPick('${FX.stim}')`);
+}
+// ---- ＋ Aggiungi
+function fxAdd(key){FX={key,si:null};fxAddDays()}
+function fxAddDays(){
+  const days=fxDays(FX.key).filter(d=>d.key===FX.key);FX.days=days;
+  fxShell('Aggiungi seduta · 1 di 3','Scegli il giorno',
+    days.map((d,i)=>`<button class="fx-day" onclick="FX.addT=FX.days[${i}].t;fxStim()"><b>${fxDL(d.iso)}</b><span>${d.sess.length?d.sess.map(x=>fxEsc(x.n)).join(', ')+' (si aggiunge)':'libero'}</span></button>`).join('')||'<p class="fx-note">Nessun giorno ancora disponibile in questa settimana.</p>',
+    `<button class="btn btn2" onclick="fxClose()">Annulla</button>`);
+}
+// ---- 🏁 Gara o test
+function fxRace(){
+  const s=fxCur();
+  fxShell('Gara o test',fxEsc(s.n)+' · '+fxDL(fxIso(FX.key,s.t)),
+    `<label>Tipo</label><div class="fx-chips" id="fx-rk"><button class="on" data-v="gara" onclick="fxTog(this)">Gara</button><button data-v="test" onclick="fxTog(this)">Prova cronometrata</button></div>
+     <label>Distanza</label><select id="fx-rd" onchange="document.getElementById('fx-rdo').style.display=this.value==='x'?'':'none'">
+       <option value="3">3 km</option><option value="5" selected>5 km</option><option value="10">10 km</option><option value="15">15 km</option><option value="16.09">10 miglia</option><option value="21.0975">Mezza maratona</option><option value="x">Altra distanza…</option></select>
+     <input id="fx-rdo" type="number" step="0.1" min="1" placeholder="km" style="display:none;margin-top:6px">
+     <label>Impegno</label><div class="fx-chips" id="fx-re"><button class="on" data-v="tutta" onclick="fxTog(this)">A tutta</button><button data-v="ctrl" onclick="fxTog(this)">Controllata</button></div>
+     <label>Superficie</label><select id="fx-rs"><option>strada</option><option>pista</option><option>trail</option><option>collinare</option></select>
+     <label>Obiettivo (facoltativo)</label><input id="fx-rg" type="text" placeholder="es. sotto 21:00, o «sensazioni»">`,
+    `<button class="btn btn2" onclick="fxMenu()">Indietro</button><button class="btn" onclick="fxRaceGo()">Anteprima</button>`);
+}
+function fxTog(b){[...b.parentElement.children].forEach(x=>x.classList.toggle('on',x===b))}
+function fxRaceGo(){
+  const v=id=>document.getElementById(id).value,on=id=>document.querySelector(`#${id} .on`).dataset.v;
+  let dist=v('fx-rd')==='x'?+v('fx-rdo'):+v('fx-rd');
+  if(!dist||dist<1)return alert('Indica la distanza in km.');
+  const c=fxCtx(FX.key),kind=on('fx-rk'),eff=on('fx-re'),surf=v('fx-rs'),goal=v('fx-rg').trim();
+  const rp=predict(dist,c.Z.vd)/dist*(eff==='ctrl'?1.03:1);
+  const lab=Math.abs(dist-21.0975)<.01?'Mezza':Math.abs(dist-16.09)<.01?'10 miglia':(+dist.toFixed(1))+'k';
+  const o=fxLists([FX.key]),L=o[FX.key],s=L[FX.si];
+  const ns={t:s.t,n:`🏁 ${kind==='test'?'Test':'Gara'} ${lab}`,race:true,load:eff==='ctrl'?3:4,
+    d:`${dist>=21?dist.toFixed(1):+dist.toFixed(2)} km @ ${fmtP(rp)}/km — ${eff==='ctrl'?'controllata':'a tutta'} · ${surf}${goal?' · obiettivo: '+goal.replace(/[<>]/g,''):''}`,km:+dist.toFixed(1)};
+  L[FX.si]=ns;
+  fxPreview(o,[`${fxDL(fxIso(FX.key,s.t))}: ${fxSL(s)} → ${fxSL(ns)} (${ns.d.replace(/[<>]/g,'')})`],'fxRace()');
+}
+// ---- ✎ Modifica
+function fxParse(d){
+  let m=String(d).match(/^(\d+)×(\d+(?:[.,]\d+)?)\s*(m|'|km)\s*@\s*([0-9:–\-]+)\s*\((I|R|T|M|Z2)\)(.*)$/s);
+  if(m)return{kind:'reps',n:+m[1],amt:+m[2].replace(',','.'),unit:m[3],zone:m[5],tail:m[6]};
+  m=String(d).match(/^(\d+(?:[.,]\d+)?)\s*(km|')(\s*continui)?\s*@\s*([0-9:–\-]+)\s*\((I|R|T|M|Z2)\)(.*)$/s);
+  if(m)return{kind:'cont',amt:+m[1].replace(',','.'),unit:m[2],zone:m[5],tail:m[6],cont:!!m[3]};
+  return{kind:'free'};
+}
+function fxModify(){
+  const s=fxCur(),P=fxParse(s.d),rm=P.tail&&P.tail.match(/rec (\d+)'(30")?/);
+  FX.mod={P,s,rec:rm?+rm[1]+(rm[2]?.5:0):null};
+  const zsel=z=>`<select id="fx-mz" onchange="fxModUpd()">${[['Z2','Facile (Z2)'],['M','Maratona (M)'],['T','Soglia (T)'],['I','Interval (I)'],['R','Ripetute (R)']].map(([v,l])=>`<option value="${v}"${v===z?' selected':''}>${l}</option>`).join('')}</select>`;
+  const unitL={m:'metri','\'':'minuti',km:'km'};
+  let struct='';
+  if(P.kind==='reps')struct=`<div class="fx-grid"><div><label>Ripetute</label><div class="fx-step"><button onclick="fxStep(-1)">−</button><input id="fx-mn" type="number" min="1" value="${P.n}" oninput="fxModUpd()"><button onclick="fxStep(1)">+</button></div></div>
+      <div><label>Ogni ripetuta (${unitL[P.unit]})</label><input id="fx-ma" type="number" step="${P.unit==='km'?0.5:P.unit==='m'?50:0.5}" value="${P.amt}" oninput="fxModUpd()"></div>
+      <div><label>Zona</label>${zsel(P.zone)}</div>
+      ${FX.mod.rec!=null?`<div><label>Recupero (minuti)</label><input id="fx-mr" type="number" step="0.5" min="0.5" value="${FX.mod.rec}" oninput="fxModUpd()"></div>`:''}</div>`;
+  else if(P.kind==='cont')struct=`<div class="fx-grid"><div><label>${P.unit==='km'?'Distanza (km)':'Durata (minuti)'}</label><input id="fx-ma" type="number" step="${P.unit==='km'?0.5:5}" value="${P.amt}" oninput="fxModUpd()"></div><div><label>Zona</label>${zsel(P.zone)}</div></div>`;
+  else struct=`<p class="fx-note">Questa seduta non ha una struttura riconoscibile (ripetute o tratto continuo): modifica direttamente il testo e i km.</p>`;
+  fxShell('Modifica la seduta',fxEsc(s.n)+' · '+fxDL(fxIso(FX.key,s.t)),
+    `<label>Nome</label><input id="fx-mt" type="text" value="${fxEsc(s.n)}">${struct}
+     <label>Descrizione</label><textarea id="fx-md" rows="3">${fxEsc(s.d)}</textarea>
+     <label>Km totali (con riscaldamento e defaticamento)</label><input id="fx-mk" type="number" step="0.5" value="${s.km}" oninput="FX.mod.kmTouched=true;fxModFoot()">`,
+    `<span class="fx-delta" id="fx-mf"></span><button class="btn btn2" onclick="fxMenu()">Indietro</button><button class="btn" onclick="fxModGo()">Anteprima</button>`);
+  fxModFoot();
+}
+function fxStep(k){const i=document.getElementById('fx-mn');i.value=Math.max(1,(+i.value||1)+k);fxModUpd()}
+function fxModUpd(){
+  const {P}=FX.mod,Z=fxCtx(FX.key).Z,g=id=>{const e=document.getElementById(id);return e?+e.value:null};
+  const zone=document.getElementById('fx-mz').value,pace={Z2:Z.E,M:Z.M,T:Z.T,I:Z.I,R:Z.R}[zone],sec={Z2:Z.Ea,M:Z.p.M,T:Z.p.T,I:Z.p.I,R:Z.p.R}[zone];
+  let d,km;
+  if(P.kind==='reps'){
+    const n=Math.max(1,g('fx-mn')||1),a=g('fx-ma')||P.amt,rec=FX.mod.rec!=null?(g('fx-mr')||FX.mod.rec):null;
+    let tail=P.tail;if(rec!=null)tail=tail.replace(/rec \d+'(30")?/,'rec '+recF(rec));
+    d=`${n}×${+a}${P.unit==='km'?' km':P.unit} @ ${pace} (${zone})${tail}`;
+    const work=P.unit==='m'?n*a/1000:P.unit==='km'?n*a:n*a*60/sec;
+    const recKm=rec!=null?(n-1)*rec*60/Z.Ea:P.unit==='m'&&/rec \d+m/.test(tail)?n*a/1000:0;
+    km=fxR(4.9+work+recKm);
+  }else{
+    const a=g('fx-ma')||P.amt;
+    d=`${+a}${P.unit==='km'?' km':"'"}${P.cont?' continui':''} @ ${pace} (${zone})${P.tail}`;
+    km=fxR((P.unit==='km'?a:a*60/sec)+(zone==='Z2'?0:4.9));
+  }
+  document.getElementById('fx-md').value=d;
+  if(!FX.mod.kmTouched)document.getElementById('fx-mk').value=km;
+  fxModFoot();
+}
+function fxModFoot(){const e=document.getElementById('fx-mf');if(e)e.textContent=`${FX.mod.s.km} km → ${document.getElementById('fx-mk').value||'?'} km`}
+function fxModGo(){
+  const o=fxLists([FX.key]),L=o[FX.key],s=L[FX.si];
+  const n=document.getElementById('fx-mt').value.trim()||s.n,d=document.getElementById('fx-md').value.trim()||s.d,km=+document.getElementById('fx-mk').value||s.km;
+  const ns={...s,n,d,km};
+  if(ns.n!==s.n)delete ns.load; // con un nome nuovo il carico si ricava dal nome, come per le sedute del piano
+  L[FX.si]=ns;
+  fxPreview(o,[`${fxDL(fxIso(FX.key,s.t))}: ${fxSL(s)} → ${fxSL(ns)}`,`<span class="fx-d">${fxEsc(d)}</span>`,`≈${s.km} → ${km} km`],'fxModify()');
+}
+
 /* ---------- allineamento Piano ↔ Monitor ----------
    Il Monitor tiene il calendario VERO: ogni seduta ha la sua data reale. Il tab Piano invece ricalcola
    le settimane a ritroso dalla domenica di gara sul totale `weeks.length`, quindi basta una settimana
@@ -2142,7 +2506,7 @@ function alignPlanToMonitor(){
     return alert('Il Monitor non ha nessun piano caricato: non c’è niente da recuperare.');
   const old=LS('rp_plan');
   if(!old)return alert('Genera prima un piano nel tab Piano.');
-  const nEd=Object.keys(LS('rp_wkedit')||{}).length+Object.keys(LS('rp_wkskip')||{}).length;
+  const nEd=Object.keys(LS('rp_wkedit')||{}).length+Object.keys(LS('rp_wkskip')||{}).length+Object.keys(LS('rp_flex')||{}).length;
   const dL=x=>new Date(x).toLocaleString('it-IT',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   // Direzione: qui si copia Monitor → Piano. Se il piano è stato toccato DOPO l'ultimo allineamento del
   // Monitor (tipico di "Ricalibra i passi", che aggiorna il piano ma non il Monitor), recuperare da qui
@@ -2178,7 +2542,7 @@ function alignPlanToMonitor(){
   // Tutte le modifiche a mano sono ormai incorporate nelle settimane ricostruite (il Monitor le ha già
   // dentro): se restassero verrebbero riapplicate sopra a sé stesse — gare duplicate, settimane
   // riscritte due volte — e le due viste mostrerebbero titoli diversi a griglia allineata.
-  if(nEd){LS('rp_wkedit',{});LS('rp_wkskip',{})}
+  if(nEd){LS('rp_wkedit',{});LS('rp_wkskip',{});LS('rp_flex',{})}
   LS('rp_plan',np);
   monitor.syncedAt=np.savedAt||new Date().toISOString(); // da adesso sono la stessa cosa
   LS('rp_monitor',monitor);
@@ -2250,7 +2614,7 @@ function rPlan(plan){
         <label style="display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);margin:7px 0 0;cursor:pointer"><input type="checkbox" ${w.fromReal?'checked':''} onchange="setWkReal('${wkKey}',this.checked)" style="width:15px;height:15px;accent-color:var(--acc2,#2563eb)">✔ Riscrivi sulle corse svolte</label>`:'';
       return wkWrap(w,isCur,sunW,curWeek,`<div class="wk ph-${w.phase||'base'}${w.isDeload?' deload':''}${isCur?' cur':''}${w.manual?' manual':''}"${w.hist?' style="opacity:.55"':''}>
         <div class="wkhead"><div class="wktitle">Settimana ${w.w}${isCur?' <span class="nowb">in corso</span>':''}</div><div class="wkvol">~${w.vol} km</div></div>
-        <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.manual&&w.manual!=='deload'&&w.manual!=='real'?`<span class="phb race">🏁 gara${w.addRace?' (dom)':w.midRace?' (gio)':''}</span>`:''}${w.fromReal?'<span class="phb manual">✔ dal reale</span>':''}${w.manual&&!w.fromReal?'<span class="phb manual">✎ a mano</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
+        <div class="wkpills"><span class="phb ${w.phase}">${PH[w.phase]||''}</span>${w.isDeload?'<span class="phb deload">scarico</span>':''}${w.manual&&w.manual!=='deload'&&w.manual!=='real'?`<span class="phb race">🏁 gara${w.addRace?' (dom)':w.midRace?' (gio)':''}</span>`:''}${w.fromReal?'<span class="phb manual">✔ dal reale</span>':''}${w.flex?'<span class="phb manual">✎ sedute cambiate</span>':''}${w.manual&&!w.fromReal?'<span class="phb manual">✎ a mano</span>':''}${w.summer?'<span class="phb summer">☀️ estate</span>':''}${w.hist?'<span class="phb deload">passata</span>':''}</div>
         ${editSel}
         ${w.raceNote?`<p style="font-size:11px;color:var(--dim);margin:6px 0 0;padding:6px 8px;border-left:3px solid var(--acc2,#2563eb);background:rgba(37,99,235,.07);border-radius:6px;line-height:1.4">🧠 ${w.raceNote}</p>`:''}
         <div class="vbar"><i style="width:${vpct}%;background:${phCol}"></i></div>
@@ -2284,8 +2648,9 @@ function rPlan(plan){
           // invece cosa è stata davvero (la classificazione che l'app calcola dai dati della corsa).
           const badge=s.done&&s.rcls?(DCL[s.rcls]||'svolta'):`carico ${LOADL[L]}`;
           const canSkip=!w.hist&&w.w!==nAll&&!s.done&&!isRaceFinal;
-          return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.done?s.d:hrTag(s.d)}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">${badge}</span></div></div>${canSkip?`<button class="skipx" title="Togli questa seduta dalla settimana" onclick="wkSkipAdd('${wkKey}',${si})">✕</button>`:''}</div>`;
+          return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.done?s.d:hrTag(s.d)}</span><div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">${badge}</span></div></div>${canSkip?`<span class="sbtns"><button class="fxbtn" title="Cambia seduta: modifica, sposta, alleggerisci, sostituisci" onclick="fxOpen('${wkKey}',${si})">⋯</button><button class="skipx" title="Togli questa seduta dalla settimana" onclick="wkSkipAdd('${wkKey}',${si})">✕</button></span>`:''}</div>`;
         }).join('')}
+        ${(!w.hist&&w.w!==nAll&&iso(sunW)>=todayS)?`<p class="fxrow"><button onclick="fxAdd('${wkKey}')">＋ Aggiungi seduta</button>${w.flex?`<button onclick="fxReset('${wkKey}')">↺ Ripristina la settimana del piano</button>`:''}</p>`:''}
         ${(!w.hist&&w.w!==nAll&&(wkSkips()[wkKey]||[]).length)?`<p class="skiprow"><span>Tolte a mano:</span>${(wkSkips()[wkKey]||[]).map((k,ki)=>`<button onclick="wkSkipDel('${wkKey}',${ki})" title="Rimetti questa seduta">↺ ${k.split('|')[1]} (${k.split('|')[0].slice(0,3).toLowerCase()})</button>`).join('')}</p>`:''}
       </div>`);
     }).join('')+`</div>`;
