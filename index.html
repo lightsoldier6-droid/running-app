@@ -1836,7 +1836,9 @@ function genPlan(silent,carry){
   const phC={base:0,speed:0,ispec:0,spec:0,taper:0};
   weeks.forEach(w=>{if(phC[w.phase]!=null)phC[w.phase]++});
   const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,maraExtraEasy,weeks,GP,GT,E,I,T,interRaces,iSpec,readiness,ph:{baseW:phC.base,speedW:phC.speed,ispecW:phC.ispec,specW:phC.spec,taper:phC.taper}};
-  LS('rp_plan',plan);rPlan(plan);rTrack();rToday();
+  LS('rp_plan',plan);
+  if(!silent)monSyncFuture(); // piano generato a mano (es. con una gara intermedia): il Monitor lo segue
+  rPlan(plan);rTrack();rToday();
   return plan;
 }
 /* ---------- modifiche manuali alle settimane (scarico / gara al volo) ---------- */
@@ -1860,6 +1862,7 @@ function setWkEdit(key,val){
   const ed=wkEdits();
   if(!val)delete ed[key];else ed[key]=val;
   LS('rp_wkedit',ed);
+  monSyncFuture(); // la modifica deve arrivare anche a Oggi e al Monitor, che leggono monitor.sessions
   const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
 }
 // applica gli override a una copia del piano puro: usata da rPlan, rTrack, rToday, planToSessions
@@ -2074,7 +2077,7 @@ function applyWkOv(pl){
    quindi sopravvive ai rebuild e ai riscritti dal reale. Chiave della seduta: `giorno|nome`. */
 function wkSkips(){return LS('rp_wkskip')||{}}
 function wkSkipKey(s){return `${s.t}|${s.n}`}
-function wkSkipSave(sp){LS('rp_wkskip',sp);const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();if(typeof rToday==='function')rToday()}}
+function wkSkipSave(sp){LS('rp_wkskip',sp);monSyncFuture();const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();if(typeof rToday==='function')rToday()}}
 function wkSkipAdd(key,i){ // i = indice della seduta nella settimana COSÌ COM'È RESA ORA
   const pl=applyWkEdits(LS('rp_plan'));if(!pl)return;
   const w=pl.weeks.find(x=>wkSunISO(pl,x)===key);if(!w||!w.sess[i])return;
@@ -2251,9 +2254,32 @@ function rPlan(plan){
         ${editSel}
         ${w.raceNote?`<p style="font-size:11px;color:var(--dim);margin:6px 0 0;padding:6px 8px;border-left:3px solid var(--acc2,#2563eb);background:rgba(37,99,235,.07);border-radius:6px;line-height:1.4">🧠 ${w.raceNote}</p>`:''}
         <div class="vbar"><i style="width:${vpct}%;background:${phCol}"></i></div>
+        ${(()=>{
+          // Corse dell'archivio agganciate alle sedute della settimana, con le stesse regole del Monitor:
+          // prima lo stesso giorno, poi il giorno più vicino e lo stesso tipo; una seduta futura si
+          // aggancia solo a una corsa dello stesso giorno. Prima il Piano segnava "✔ svolta" solo nelle
+          // settimane con "Riscrivi sulle corse svolte": con una gara al volo (o senza nulla) la corsa
+          // fatta martedì non compariva mai. Qui si SEGNA soltanto, la settimana non viene riscritta.
+          w._hit={};
+          const monS=iso(addD(sunW,-6)),sunS=iso(sunW);
+          const doneKeys=new Set(w.sess.filter(s=>s.done).map(s=>s.realDate));
+          const wr=runs.filter(r=>{const d=r.date.slice(0,10);return d>=monS&&d<=sunS&&d<=todayS&&!doneKeys.has(d)});
+          const pairs=[];
+          w.sess.forEach((s,si)=>{if(s.done||s.n.startsWith('GARA'))return;
+            const sdI=iso(addD(sunW,OFF[s.t]??0)),sc=planCls(s.n);
+            wr.forEach(r=>{const rd=r.date.slice(0,10);if(sdI>todayS&&rd!==sdI)return;
+              const rc=cls(r),same=rc===sc||(sc==='easy'&&rc==='long')||(sc==='long'&&rc==='easy');
+              const dd=Math.min(6,Math.abs(Math.round((day(rd)-day(sdI))/864e5)));
+              pairs.push({si,r,score:(6-dd)*10+(same?4:0)+1})})});
+          pairs.sort((a,b)=>b.score-a.score);const used=new Set();
+          pairs.forEach(p=>{if(w._hit[p.si]||used.has(p.r.date))return;w._hit[p.si]=p.r;used.add(p.r.date)});
+          return '';})()}
         ${w.sess.map((s,si)=>{const isRaceFinal=s.n.startsWith('GARA'),isr=isRaceFinal||s.race;
           const sd=isRaceFinal?race:addD(sunW,OFF[s.t]??0);
           const L=sLoad(s);
+          const hit=w._hit&&w._hit[si];
+          if(hit){const rd=day(hit.date.slice(0,10));
+            return `<div class="sess${isr?' race':''} done"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">✔ ${s.n}</span> <span class="sd">${hrTag(s.d)}</span><div class="smeta">svolta${iso(rd)!==iso(sd)?` ${['dom','lun','mar','mer','gio','ven','sab'][rd.getDay()]} ${rd.getDate()}`:''}: «${hit.title}» ${hit.km.toFixed(1)} km @ ${fmtP(pace(hit))}/km${hit.hr?` · FC ${hit.hr}`:''} · <span class="ldb l${L}">${DCL[cls(hit)]||'svolta'}</span></div></div></div>`}
           // Sulle sedute SVOLTE il "carico" era dedotto dal nome che hai dato tu alla corsa: si mostra
           // invece cosa è stata davvero (la classificazione che l'app calcola dai dati della corsa).
           const badge=s.done&&s.rcls?(DCL[s.rcls]||'svolta'):`carico ${LOADL[L]}`;
@@ -2361,7 +2387,7 @@ function updatePlan(){
   const np=genPlan(true,progressCarry(hist));if(!np)return;
   np.weeks=[...hist,...np.weeks];
   np.weeks.forEach((w,i)=>w.w=i+1);
-  LS('rp_plan',np);rPlan(np);rTrack();
+  LS('rp_plan',np);monSyncFuture();rPlan(np);rTrack();rToday();
   logRecal('repace');rMonitor();   // il box "Quando ricalibrare" riparte a contare da oggi
   alert(`Piano ricalibrato: VDOT ${np.vd}, volume di partenza ${document.getElementById('p-base').value} km (dai tuoi dati reali).${old.target?` Obiettivo mantenuto: ${old.target} (${np.mode}).`:` Modalità: ${np.mode}.`} ${np.weeks.length-hist.length} settimane rimanenti aggiornate, ${hist.length} passate conservate. Riesporta il .ics: contiene solo le settimane future.`);
 }
@@ -2576,6 +2602,42 @@ function monRemoveRun(k){
   if(!monitor)return;
   monitor.runs=(monitor.runs||[]).filter(x=>x!==k);
   LS('rp_monitor',monitor);rMonitor();
+}
+/* ---------- Piano → Monitor automatico (da OGGI in avanti) ----------
+   "Oggi", la striscia a pallini, gli avvisi e il Monitor leggono il calendario da monitor.sessions
+   (todaySessions). Prima una gara al volo, uno scarico, una seduta tolta o un piano rigenerato con una
+   gara intermedia cambiavano solo il tab Piano: il resto dell'app restava sul vecchio calendario finché
+   non premevi "↺ Aggiorna dal piano corrente". Ora ogni modifica fatta nel Piano si propaga da sola.
+   Regole (le stesse di monRecalibrate): il PASSATO del Monitor è il registro e non si tocca; da oggi in
+   avanti comanda il piano; le sedute "svolte" delle settimane riscritte sul reale entrano con la loro
+   data vera, e in quelle settimane le prescrizioni non corse decadono.
+   Il confine è il LUNEDÌ della settimana in corso, non oggi: se a metà settimana ci metti una gara,
+   cambia tutta la settimana (anche il martedì già passato), come fa "↺ Aggiorna dal piano corrente".
+   Altrimenti il martedì resterebbe la vecchia seduta e la corsa fatta risulterebbe di tipo diverso. */
+function monSyncFuture(){
+  if(!monitor||!monitor.sessions||!monitor.sessions.length)return false;
+  const pl=LS('rp_plan');if(!pl||!pl.weeks)return false;
+  const curMon=weekKey(todayISO());
+  const gen=planToSessions(pl,true);
+  const doneDates=new Set(gen.filter(s=>s.done).map(s=>s.date));
+  const realWeeks=new Set(Object.entries(wkEdits()).filter(([,v])=>String(v).split('+').includes('real')).map(([sun])=>weekKey(sun)));
+  const runDates=new Set(runs.map(r=>r.date.slice(0,10)));
+  const seen=new Set();
+  const past=monitor.sessions.filter(s=>{
+    if(s.date>=curMon||doneDates.has(s.date)||seen.has(s.date))return false;
+    if(realWeeks.has(weekKey(s.date))&&!runDates.has(s.date))return false;
+    seen.add(s.date);return true;
+  });
+  const fut=gen.filter(s=>s.date>=curMon||s.done);
+  const merged=[...past,...fut].sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  const wkKeys=[...new Set(merged.map(s=>weekKey(s.date)))].sort();
+  const wkNum={};wkKeys.forEach((k,i)=>wkNum[k]=i+1);
+  merged.forEach(s=>s.week=wkNum[weekKey(s.date)]);
+  monitor.sessions=merged;
+  monitor.syncedAt=new Date().toISOString();
+  LS('rp_monitor',monitor);
+  if(typeof rMonitor==='function')rMonitor();
+  return true;
 }
 // converte un piano rp_plan in sedute stile .ics. Di norma solo le settimane future: con withHist=true
 // restituisce anche quelle già concluse (`hist`), che servono a ricostruire lo storico del Monitor.
