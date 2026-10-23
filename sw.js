@@ -1,5 +1,5 @@
-const C = 'runplan-v113-palestra';
-const FILES = ['.', 'index.html', 'data.js', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png', 'gym-bridge.js', 'palestra/index.html', 'palestra/app.js', 'palestra/data.js', 'palestra/styles.css', 'palestra/icon-192.png', 'palestra/icon-512.png', 'palestra/icon.svg', 'palestra/manifest.webmanifest'];
+const C = 'runplan-v114';
+const FILES = ['.', 'index.html', 'data.js', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png', 'css/app.css', 'js/core.js', 'js/cloud.js', 'js/util.js', 'js/oggi.js', 'js/progressi.js', 'js/piano.js', 'js/monitor.js', 'js/dati.js', 'js/corsa.js', 'js/fc.js', 'js/import-fit.js', 'js/forma.js', 'js/gara.js', 'js/archivio.js', 'js/init.js', 'gym-bridge.js', 'palestra/index.html', 'palestra/app.js', 'palestra/data.js', 'palestra/styles.css', 'palestra/icon-192.png', 'palestra/icon-512.png', 'palestra/icon.svg', 'palestra/manifest.webmanifest'];
 const OPTIONAL = ['https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js','https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js'];
 // install: bypassa la cache HTTP del browser (cache:'reload') così in cache finisce sempre la versione fresca
 self.addEventListener('install', e => e.waitUntil(caches.open(C).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => caches.open(C).then(c => Promise.allSettled(OPTIONAL.map(url => c.add(new Request(url,{mode:'cors'})))))).then(() => self.skipWaiting())));

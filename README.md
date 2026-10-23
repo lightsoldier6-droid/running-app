@@ -61,3 +61,31 @@ Il pattern `NxM` definisce anche il sottotipo per il confronto "ultima vs simile
 ## Palestra · Passo
 
 La sezione **Palestra** aggiunge schede Total Body A/B, registro serie, sostituzioni durante la seduta, timer, cronologia e monitor con le corse esistenti. Il dettaglio palestra resta locale; il collegamento Firebase della corsa resta invariato. Vedi [PALESTRA.md](PALESTRA.md) per funzioni, backup, limiti e verifiche.
+
+## Struttura del codice e test
+
+Da v114 il codice non sta più tutto in `index.html`: lo stile è in `css/app.css` e la logica in `js/`, un file per area, caricati in quest'ordine:
+
+| File | Cosa contiene |
+|---|---|
+| `core.js` | tema, archivio locale (`LS`), dati esclusi e aggancio manuale |
+| `cloud.js` | accesso e sincronizzazione Firebase |
+| `util.js` | formati, classificazione delle corse, VDOT di Daniels, tab, grafici SVG |
+| `oggi.js` | tab Oggi: seduta del giorno, avvisi, carico e rischio |
+| `progressi.js` | tab Progressi |
+| `piano.js` | generatore del piano, modifiche alle settimane, FLEX, banca sedute |
+| `monitor.js` | Monitor: allineamento col piano, ricalibrazioni, `.ics` |
+| `dati.js` | tab Impostazioni |
+| `corsa.js` | analisi della singola corsa, parser .FIT, altri sport, meteo |
+| `fc.js` | motore fitness da FC e zone |
+| `import-fit.js` | import di .fit e archivi .zip |
+| `forma.js`, `gara.js`, `archivio.js` | tab Forma, Gara e archivio corse |
+| `init.js` | avvio |
+
+Sono script normali (non moduli): condividono le variabili globali come prima, quindi l'ordine conta. Un file nuovo va aggiunto sia in `index.html` sia nella lista `FILES` di `sw.js`, bumpando la versione della cache.
+
+Test, dalla cartella `running-app`:
+
+- `node tests/core.cjs` — calcoli: VDOT e passi, classificazione, carico, import .fit con i file di `tests/fixtures/`, che restano solo sul Mac perché contengono la traccia GPS (esclusi da Git; senza, quei due test vengono saltati).
+- `node tests/palestra.cjs` — modulo palestra.
+- `node tests/snapshot.cjs <url>/ prima.json` poi, dopo una modifica, `node tests/snapshot.cjs <url>/ dopo.json` e `node tests/snapshot.cjs --compare prima.json dopo.json` — fotografa tutti i tab con dati e data fissi: per un riordino del codice deve risultare IDENTICHE. Richiede `npm i playwright` e un server locale (`python3 -m http.server`).
