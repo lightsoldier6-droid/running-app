@@ -153,11 +153,28 @@ const GymEngine = (() => {
     return out;
   }
 
-  // la prossima scheda alterna A e B; nel blocco nuovo si riparte da A
-  function nextRoutine(history, pos) {
-    const last = history.filter(h => h.type === 'gym' && h.date >= pos.blockStart).sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0))[0];
-    return last && last.routine === 'A' ? 'B' : 'A';
+  // la prossima scheda segue l'ordine A → B → C (quelle attive); nel blocco nuovo si riparte dalla prima
+  function nextRoutine(history, pos, keys = ['A', 'B']) {
+    const last = history.filter(h => h.type === 'gym' && h.date >= pos.blockStart && keys.includes(h.routine)).sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0))[0];
+    return last ? keys[(keys.indexOf(last.routine) + 1) % keys.length] : keys[0];
   }
+
+  /* Dal programma dell'utente (movimenti e serie) alle sedute del blocco: per ogni voce l'esercizio
+     del blocco, ripetizioni e recupero. when: 'always' | 'potenza' (solo nel blocco Potenza).
+     In settimana gara niente salti. */
+  function buildSlots(entries, blockId, opts = {}) {
+    return (entries || []).filter(e => PATTERNS[e.p] && (e.when !== 'potenza' || blockId === 'potenza') && !(opts.race && PATTERNS[e.p].role === 'plyo')).map(e => {
+      const P = PATTERNS[e.p], d = P[blockId];
+      return { id: e.id, p: e.p, name: P.name, group: P.group, area: P.area, role: P.role, ex: d.ex, alt: d.alt, sets: e.sets, reps: d.reps, rest: d.rest, note: d.note || '' };
+    });
+  }
+  // serie a settimana per area, nel blocco indicato, con le sedute attive
+  function weeklyVolume(template, keys, blockId) {
+    const out = {};
+    for (const k of keys) for (const s of buildSlots(template[k], blockId)) out[s.area] = (out[s.area] || 0) + s.sets;
+    return out;
+  }
+  const minutes = slots => Math.round(slots.reduce((m, s) => m + s.sets * (s.rest + 40), 0) / 60 / 5) * 5 + 10;
 
   /* Giorni consigliati per la palestra nella settimana di corsa: forza nello stesso giorno delle sedute
      dure (dopo la corsa) o nei giorni di riposo, mai il giorno prima di una seduta dura, del lungo o
@@ -176,12 +193,15 @@ const GymEngine = (() => {
       if (d < 6 && by[d + 1] && by[d + 1].some(x => x.long)) v -= 4;
       return v;
     };
-    const ranked = [0, 1, 2, 3, 4, 5, 6].map(d => ({ d, v: score(d) })).filter(x => x.v > -50).sort((a, b) => b.v - a.v || a.d - b.d);
+    // solo giorni con punteggio positivo: dopo il lungo, prima di qualità/lungo/gara non si propone mai
+    const ranked = [0, 1, 2, 3, 4, 5, 6].map(d => ({ d, v: score(d) })).filter(x => x.v > 0).sort((a, b) => b.v - a.v || a.d - b.d);
     const pick = [];
     for (const c of ranked) if (pick.length < n && pick.every(p => Math.abs(p.d - c.d) >= 2)) pick.push(c);
+    // con 3 sedute a volte non c'è un giorno pieno di stacco fra tutte: si accettano anche giorni consecutivi
+    for (const c of ranked) if (pick.length < n && !pick.includes(c)) pick.push(c);
     return pick.sort((a, b) => a.d - b.d).map(p => ({ day: p.d, with: by[p.d].map(x => x.name), rest: !by[p.d].length }));
   }
 
-  return { iso, addDays, monday, weeksBetween, position, prescribe, lastPerformance, nextRoutine, suggestDays, e1rm, step, round, parseRange };
+  return { iso, addDays, monday, weeksBetween, position, prescribe, lastPerformance, nextRoutine, buildSlots, weeklyVolume, minutes, suggestDays, e1rm, step, round, parseRange };
 })();
 if (typeof module !== 'undefined') module.exports = GymEngine;

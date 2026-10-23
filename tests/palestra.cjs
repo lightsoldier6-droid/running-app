@@ -13,7 +13,7 @@ const read = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 function engine() {
   const c = { console, Date, Math, JSON, Intl };
   vm.createContext(c);
-  vm.runInContext(read('palestra/data.js') + read('palestra/engine.js') + ';this.E=GymEngine;this.B=BLOCKS;this.X=EXERCISES;this.W=BLOCK_WEEKS', c);
+  vm.runInContext(read('palestra/data.js') + read('palestra/engine.js') + ';this.E=GymEngine;this.B=BLOCKS;this.X=EXERCISES;this.W=BLOCK_WEEKS;this.P=PATTERNS;this.T=TEMPLATES;this.slots=(r,blk,o)=>GymEngine.buildSlots(TEMPLATES.equilibrato[r],blk,o)', c);
   return c;
 }
 const session = (variant, kg, reps, date, { rpe = 7, lo, hi, deload = false } = {}) => ({
@@ -33,14 +33,17 @@ test('programma: tre blocchi da 4 settimane, scarico nella quarta, poi si ricomi
   assert.deepEqual(at('2026-12-21'), ['potenza', 1, false, 1]);
   assert.deepEqual(at('2027-01-18'), ['base', 1, false, 2]);
   // ogni blocco cambia davvero esercizi o ripetizioni rispetto al precedente
+  const { slots, P, X } = engine();
   for (let i = 0; i < 3; i++) {
-    const a = B[i].routines.A.map(s => s.ex + s.reps), b = B[(i + 1) % 3].routines.A.map(s => s.ex + s.reps);
+    const a = slots('A', B[i].id).map(s => s.ex + s.reps), b = slots('A', B[(i + 1) % 3].id).map(s => s.ex + s.reps);
     assert.ok(a.filter(x => b.includes(x)).length <= 1, `${B[i].id} → ${B[(i + 1) % 3].id} troppo simili`);
   }
-  // tutti gli esercizi citati esistono e hanno almeno due alternative
-  for (const b of B) for (const r of ['A', 'B']) for (const s of b.routines[r]) {
-    for (const id of [s.ex, ...s.alt]) assert.ok(E && engine().X[id], `${id} non esiste`);
-    assert.ok(s.alt.length >= 2);
+  // ogni movimento ha un esercizio esistente e almeno due alternative in ogni blocco
+  for (const [id, p] of Object.entries(P)) for (const bl of B) {
+    const d = p[bl.id];
+    assert.ok(d && d.reps[0] <= d.reps[1] && d.rest > 0, `${id}/${bl.id}`);
+    for (const e of [d.ex, ...d.alt]) assert.ok(X[e], `${e} non esiste`);
+    assert.ok(d.alt.length >= 2);
   }
 });
 
@@ -55,7 +58,7 @@ test('taper e settimana gara della corsa mettono la palestra in scarico', () => 
 
 test('progressione doppia: ripetizioni, poi carico', () => {
   const { E, B, X } = engine();
-  const slot = B[0].routines.A[0], v = X[slot.ex], p = E.position(B, '2026-10-26', '2026-11-04', null);
+  const slot = engine().slots('A', 'base')[0], v = X[slot.ex], p = E.position(B, '2026-10-26', '2026-11-04', null);
   const first = E.prescribe(slot, v, p, []);
   assert.equal(first.kg, null);
   assert.deepEqual([...first.reps], [12, 12, 12]);
@@ -71,12 +74,12 @@ test('progressione doppia: ripetizioni, poi carico', () => {
   assert.equal(E.prescribe(slot, v, p, [session(v, 20, [12, 12, 12], '2026-10-28', { lo: 10, hi: 12, rpe: 9 })]).kg, 20);
   // bilanciere e macchine salgono di 2,5 kg
   const lat = X['lat-wide'];
-  assert.equal(E.prescribe(B[0].routines.A[4], lat, p, [session(lat, 40, [12, 12, 12], '2026-10-28', { lo: 10, hi: 12 })]).kg, 42.5);
+  assert.equal(E.prescribe(engine().slots('A', 'base')[4], lat, p, [session(lat, 40, [12, 12, 12], '2026-10-28', { lo: 10, hi: 12 })]).kg, 42.5);
 });
 
 test('scarico, cambio di blocco, corpo libero e assistenza', () => {
   const { E, B, X } = engine();
-  const slot = B[0].routines.A[0], v = X[slot.ex];
+  const slot = engine().slots('A', 'base')[0], v = X[slot.ex];
   const hist = [session(v, 24, [12, 11, 11], '2026-11-12', { lo: 10, hi: 12 })];
   const dl = E.prescribe(slot, v, E.position(B, '2026-10-26', '2026-11-18', null), hist);
   assert.equal(dl.sets, 2);
@@ -84,17 +87,17 @@ test('scarico, cambio di blocco, corpo libero e assistenza', () => {
   assert.equal(dl.trend, 'deload');
   // nel blocco Forza (5-6 rip.) il carico parte dalla stima del massimale; la seduta di scarico non conta
   const hist2 = [...hist, session(v, 21, [10, 10], '2026-11-18', { lo: 10, hi: 12, deload: true })];
-  const nb = E.prescribe({ ...B[1].routines.A[0], ex: 'goblet' }, v, E.position(B, '2026-10-26', '2026-11-25', null), hist2);
+  const nb = E.prescribe({ ...engine().slots('A', 'forza')[0], ex: 'goblet' }, v, E.position(B, '2026-10-26', '2026-11-25', null), hist2);
   assert.equal(nb.trend, 'new');
   assert.ok(nb.kg > 24 && nb.kg < 32, `stima ${nb.kg}`);
   // corpo libero: solo ripetizioni
   const db = X.deadbug, p = E.position(B, '2026-10-26', '2026-11-04', null);
-  const b = E.prescribe(B[0].routines.A[5], db, p, [session(db, 0, [9, 8], '2026-10-28', { lo: 8, hi: 10 })]);
+  const b = E.prescribe(engine().slots('A', 'base')[5], db, p, [session(db, 0, [9, 8], '2026-10-28', { lo: 8, hi: 10 })]);
   assert.equal(b.kg, null);
   assert.deepEqual([...b.reps], [9, 9]);
   // assistenza: al tetto si toglie assistenza
   const pa = X['pullup-assisted'];
-  const a = E.prescribe(B[1].routines.A[4], pa, E.position(B, '2026-10-26', '2026-12-02', null), [session(pa, 30, [8, 8, 8], '2026-11-25', { lo: 6, hi: 8 })]);
+  const a = E.prescribe(engine().slots('A', 'forza')[4], pa, E.position(B, '2026-10-26', '2026-12-02', null), [session(pa, 30, [8, 8, 8], '2026-11-25', { lo: 6, hi: 8 })]);
   assert.equal(a.kg, 25);
 });
 
@@ -111,6 +114,37 @@ test('giorni consigliati rispetto al piano di corsa', () => {
   const race = { sess: [{ day: 1, name: 'Richiami', hard: true }, { day: 3, name: 'Ritmo gara', hard: true }, { day: 6, name: 'GARA', hard: true, race: true }] };
   assert.deepEqual([...E.suggestDays(race, 1).map(x => x.day)], [1]);
   assert.equal(E.suggestDays(null), null);
+});
+
+test('programma dell’utente: movimenti, serie, blocchi, volume', () => {
+  const { E, slots, T } = engine();
+  // i salti ci sono solo nel blocco Potenza (impostazione predefinita) e mai in settimana gara
+  assert.equal(slots('A', 'base').some(s => s.role === 'plyo'), false);
+  assert.equal(slots('A', 'potenza')[0].role, 'plyo');
+  assert.equal(slots('A', 'potenza', { race: true }).some(s => s.role === 'plyo'), false);
+  // le serie sono quelle decise dall'utente, ripetizioni e recupero li decide il blocco
+  const tpl = { A: [{ id: 'x', p: 'squat', sets: 5, when: 'always' }], B: [], C: [] };
+  const f = E.buildSlots(tpl.A, 'forza');
+  assert.deepEqual([f[0].sets, ...f[0].reps, f[0].rest, f[0].ex], [5, 5, 6, 150, 'smith-squat']);
+  // volume per area, solo sulle sedute attive
+  const v2 = E.weeklyVolume(T.equilibrato, ['A', 'B'], 'base');
+  assert.equal(v2.Gambe, 12);
+  assert.equal(v2.Polpacci, 6);
+  assert.equal(v2.Salti, undefined);
+  assert.equal(E.weeklyVolume(T.equilibrato, ['A', 'B'], 'potenza').Salti, 6);
+  assert.equal(E.weeklyVolume(T.equilibrato, ['A', 'B', 'C'], 'base').Gambe, 18);
+  // rotazione delle schede: A → B → C → A, e nel blocco nuovo si riparte da A
+  const p = E.position(engine().B, '2026-10-26', '2026-10-30', null);
+  const h = r => ({ type: 'gym', routine: r, date: '2026-10-28', endedAt: Date.parse('2026-10-28T19:00:00') });
+  assert.equal(E.nextRoutine([h('B')], p, ['A', 'B', 'C']), 'C');
+  assert.equal(E.nextRoutine([h('C')], p, ['A', 'B', 'C']), 'A');
+  assert.equal(E.nextRoutine([h('B')], p, ['A']), 'A');
+  assert.equal(E.nextRoutine([], p, ['A', 'B', 'C']), 'A');
+  // tre sedute: tre giorni consigliati
+  const wk = { sess: [{ day: 1, name: 'Easy', hard: false }, { day: 3, name: 'Fartlek', hard: true }, { day: 6, name: 'Lungo', hard: true, long: true }] };
+  const d3 = E.suggestDays(wk, 3).map(x => x.day);
+  assert.equal(d3.length, 3);
+  assert.ok(!d3.includes(6) && !d3.includes(5) && !d3.includes(2), `giorni ${d3}`);
 });
 
 // ---- interfaccia, con un DOM finto ----
@@ -158,7 +192,7 @@ test('seduta: si parte dal programma, si spuntano le serie, si salva con blocco 
   assert.equal(run('state.active.exercises[1].sets.length'), 2);
   run('finish(7, "ok")');
   const saved = JSON.parse(store['passo-v1']);
-  assert.equal(saved.version, 2);
+  assert.equal(saved.version, 3);
   assert.equal(saved.history.length, 1);
   assert.equal(saved.history[0].blockName, 'Base');
   assert.equal(saved.history[0].week, 1);
@@ -166,6 +200,43 @@ test('seduta: si parte dal programma, si spuntano le serie, si salva con blocco 
   assert.equal(run('GymEngine.nextRoutine(state.history, pos())'), 'B');
   // il backup esportato si reimporta
   run('validateBackup(JSON.parse(JSON.stringify(state)))');
+});
+
+test('editor: sedute a settimana, serie, movimenti, modelli', () => {
+  const { run, click, store, els } = app();
+  run('navigate("programma")');
+  assert.match(els['#main'].innerHTML, /Sedute a settimana/);
+  assert.match(els['#main'].innerHTML, /Serie a settimana/);
+  click('per-week', { index: '3' });
+  assert.deepEqual([...run('routineKeys()')], ['A', 'B', 'C']);
+  assert.match(els['#main'].innerHTML, /Total Body C/);
+  const s0 = run('state.program.template.A[1].sets');
+  click('tpl-sets', { routine: 'A', index: '1', d: '1' });
+  assert.equal(run('state.program.template.A[1].sets'), s0 + 1);
+  for (let i = 0; i < 10; i++) click('tpl-sets', { routine: 'A', index: '1', d: '1' });
+  assert.equal(run('state.program.template.A[1].sets'), 8); // massimo 8
+  click('tpl-add-p', { routine: 'A', id: 'bicipiti' });
+  assert.equal(run('state.program.template.A.at(-1).p'), 'bicipiti');
+  click('tpl-when', { routine: 'A', index: '0' });
+  assert.equal(run('state.program.template.A[0].when'), 'always'); // salti anche fuori da Potenza
+  run('start("A")');
+  assert.equal(run('state.active.exercises[0].role'), 'plyo');
+  assert.equal(run('state.active.exercises.at(-1).variant.id'), 'curl-db');
+  assert.equal(run('state.active.exercises[1].sets.length'), 8); // le serie decise nell'editor (squat)
+  run('state.active=null');
+  run('confirmation=null'); click('preset', { id: 'breve' }); click('confirm');
+  assert.equal(run('state.program.template.A.length'), 5);
+  assert.equal(JSON.parse(store['passo-v1']).program.perWeek, 3);
+  run('validateBackup(JSON.parse(JSON.stringify(state)))');
+});
+
+test('i dati della versione precedente (v2) passano al programma personalizzabile senza perdere scelte', () => {
+  const v2 = { version: 2, program: { start: '2026-10-26', picks: { base: { 'a-squat': 'legpress' } } }, custom: {}, history: [], active: null, timer: null, settings: { sound: true } };
+  const { run } = app({ 'passo-v1': JSON.stringify(v2) });
+  assert.equal(run('state.version'), 3);
+  assert.equal(run('state.program.perWeek'), 2);
+  assert.equal(run('state.program.picks.base["a-squat"]'), 'legpress');
+  assert.equal(run('pickOf(BLOCKS[0], slotsFor(pos(), "A")[0])'), 'legpress');
 });
 
 test('i dati del vecchio modulo (v1) vengono migrati: si tengono solo le sedute di palestra', () => {
@@ -178,7 +249,7 @@ test('i dati del vecchio modulo (v1) vengono migrati: si tengono solo le sedute 
     ],
   };
   const { run } = app({ 'passo-v1': JSON.stringify(v1) });
-  assert.equal(run('state.version'), 2);
+  assert.equal(run('state.version'), 3);
   assert.equal(run('state.history.length'), 1);
   assert.equal(run('state.settings.sound'), false);
   assert.equal(run('state.program.start'), '2026-10-19');

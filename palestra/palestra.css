@@ -107,3 +107,17 @@ label.btn2.gfile{background:var(--soft)}
 
 #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;background:var(--txt);color:var(--card);padding:9px 14px;border-radius:12px;font-size:13.5px;transition:.2s;z-index:40;max-width:90%;text-align:center}
 #toast.show{opacity:1;transform:translateX(-50%)}
+
+/* editor del programma */
+.grow-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.grow-row span{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
+.grow-row b{font-weight:600;font-size:15px}
+.grow-row small{font-size:12.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grow-row.off b{color:var(--dim)}
+.gstep{display:flex;align-items:center;gap:2px;background:var(--soft);border-radius:999px;padding:2px}
+.gstep button{width:32px;height:32px;border:none;border-radius:50%;background:var(--card);font-size:18px;line-height:1;cursor:pointer;color:var(--txt)}
+.gstep b{min-width:24px;text-align:center;font-family:var(--disp);font-size:18px}
+.gseg{max-width:240px}
+.gseg span{font-size:17px}
+.v-ok{color:var(--z3)}.v-lo{color:var(--z2)}.v-hi{color:var(--z4)}
+.card>.btn{margin-top:12px}

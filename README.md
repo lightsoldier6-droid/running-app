@@ -60,7 +60,7 @@ Il pattern `NxM` definisce anche il sottotipo per il confronto "ultima vs simile
 
 ## Palestra
 
-Il tab **Palestra** propone due sedute Total Body (A e B) a settimana dentro un programma a blocchi: Base, Forza e Potenza, 4 settimane ciascuno (3 di carico crescente + 1 di scarico), poi si ricomincia. Ogni esercizio ha la prescrizione calcolata dalle sedute precedenti (progressione doppia: ripetizioni, poi carico). Scarico automatico in taper e settimana gara, giorni consigliati letti dal piano di corsa. Le sedute finite entrano in calendario e carico di RunPlan; i dati restano sul dispositivo. Dettagli in [PALESTRA.md](PALESTRA.md).
+Il tab **Palestra** propone da 1 a 3 sedute Total Body a settimana dentro un programma a blocchi; movimenti e serie di ogni seduta li decide l'utente, gli esercizi li sceglie l'app. Blocchi Base, Forza e Potenza da 4 settimane ciascuno (3 di carico crescente + 1 di scarico), poi si ricomincia. Ogni esercizio ha la prescrizione calcolata dalle sedute precedenti (progressione doppia: ripetizioni, poi carico). Scarico automatico in taper e settimana gara, giorni consigliati letti dal piano di corsa. Le sedute finite entrano in calendario e carico di RunPlan; i dati restano sul dispositivo. Dettagli in [PALESTRA.md](PALESTRA.md).
 
 ## Struttura del codice e test
 
