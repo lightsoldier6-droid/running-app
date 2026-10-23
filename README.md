@@ -58,9 +58,9 @@ L'app classifica dalla parola chiave nel nome, in quest'ordine di priorità:
 
 Il pattern `NxM` definisce anche il sottotipo per il confronto "ultima vs simile": una `8x200` viene confrontata con l'ultima seduta di 200, non con una 10x400. La parola chiave vince sul pattern: `fartlek 8x1.fit` è Qualità, non Interval.
 
-## Palestra · Passo
+## Palestra
 
-La sezione **Palestra** aggiunge schede Total Body A/B, registro serie, sostituzioni durante la seduta, timer, cronologia e monitor con le corse esistenti. Il dettaglio palestra resta locale; il collegamento Firebase della corsa resta invariato. Vedi [PALESTRA.md](PALESTRA.md) per funzioni, backup, limiti e verifiche.
+Il tab **Palestra** propone due sedute Total Body (A e B) a settimana dentro un programma a blocchi: Base, Forza e Potenza, 4 settimane ciascuno (3 di carico crescente + 1 di scarico), poi si ricomincia. Ogni esercizio ha la prescrizione calcolata dalle sedute precedenti (progressione doppia: ripetizioni, poi carico). Scarico automatico in taper e settimana gara, giorni consigliati letti dal piano di corsa. Le sedute finite entrano in calendario e carico di RunPlan; i dati restano sul dispositivo. Dettagli in [PALESTRA.md](PALESTRA.md).
 
 ## Struttura del codice e test
 
@@ -87,5 +87,5 @@ Sono script normali (non moduli): condividono le variabili globali come prima, q
 Test, dalla cartella `running-app`:
 
 - `node tests/core.cjs` — calcoli: VDOT e passi, classificazione, carico, import .fit con i file di `tests/fixtures/`, che restano solo sul Mac perché contengono la traccia GPS (esclusi da Git; senza, quei due test vengono saltati).
-- `node tests/palestra.cjs` — modulo palestra.
+- `node tests/palestra.cjs` — palestra: blocchi, progressione, giorni consigliati, seduta, migrazione dei dati vecchi, collegamento con RunPlan.
 - `node tests/snapshot.cjs <url>/ prima.json` poi, dopo una modifica, `node tests/snapshot.cjs <url>/ dopo.json` e `node tests/snapshot.cjs --compare prima.json dopo.json` — fotografa tutti i tab con dati e data fissi: per un riordino del codice deve risultare IDENTICHE. Richiede `npm i playwright` e un server locale (`python3 -m http.server`).
