@@ -762,7 +762,7 @@ const LS=(k,v)=>{
   // Monitor è più vecchio del piano (cioè se recuperare butterebbe via una ricalibrazione appena fatta)
   if(k==='rp_plan'&&v&&typeof v==='object')v.savedAt=new Date().toISOString();
   localStorage.setItem(k,JSON.stringify(v));
-  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit'||k==='rp_wkskip'||k==='rp_flex') pushCloud();
+  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit'||k==='rp_wkskip'||k==='rp_flex'||k==='rp_wx') pushCloud();
   return v;
 };
 let edits=LS('rp_edits')||{}; // rinomine ed eliminazioni manuali, sopravvivono ai rebuild
@@ -862,6 +862,7 @@ function startCloudSync(uid){
     if(payload.wkedit!==undefined)localStorage.setItem('rp_wkedit',JSON.stringify(payload.wkedit));
     if(payload.wkskip!==undefined)localStorage.setItem('rp_wkskip',JSON.stringify(payload.wkskip));
     if(payload.flex!==undefined)localStorage.setItem('rp_flex',JSON.stringify(payload.flex));
+    if(payload.wx!==undefined)localStorage.setItem('rp_wx',JSON.stringify(payload.wx));
     location.reload();
   },err=>console.warn('cloud sync',err));
 }
@@ -872,7 +873,7 @@ function pushCloud(){
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{
     fbDb.collection('users').doc(fbAuth.currentUser.uid).set({
-      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics'),wkedit:LS('rp_wkedit'),wkskip:LS('rp_wkskip'),flex:LS('rp_flex')}),
+      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics'),wkedit:LS('rp_wkedit'),wkskip:LS('rp_wkskip'),flex:LS('rp_flex'),wx:LS('rp_wx')}),
       writer:cloudSessionId,
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true}).catch(e=>console.warn('cloud push',e));
@@ -3611,7 +3612,7 @@ function resetData(){if(confirm('Tornare ai dati iniziali? Import manuali, rinom
 function rManage(){
   document.getElementById('dt-manage').innerHTML=runs.filter(manOk).slice(-40).reverse().map(r=>{const k=r.date+'|'+r.km;
     return `<div class="shoecard"><div style="flex:1"><b>${r.title}</b> <span class="badge ${cls(r)}">${CLSN[cls(r)]}</span><br>
-      <span class="muted">${r.date.slice(0,10)} · ${r.km.toFixed(1)} km · ${fmtP(pace(r))}/km${r.hr?' · FC '+r.hr:''}${X[r.date]&&X[r.date].hist?' · <b class="xok">FC 1s</b>':''}${r.nh?' · <b class="down">FC esclusa</b>':''}${r.np&&!r.tm?' · <b class="down">passo escluso</b>':''}${r.nv?' · <b class="down">km esclusi</b>':''}${runLink(r)?' · 🔗 '+(runLink(r)==='none'?'extra':'agganciata'):''}</span></div>
+      <span class="muted">${r.date.slice(0,10)} · ${r.km.toFixed(1)} km · ${fmtP(pace(r))}/km${r.hr?' · FC '+r.hr:''}${X[r.date]&&X[r.date].hist?' · <b class="xok">FC 1s</b>':''}${r.nh?' · <b class="down">FC esclusa</b>':''}${r.np&&!r.tm?' · <b class="down">passo escluso</b>':''}${r.nv?' · <b class="down">km esclusi</b>':''}${runLink(r)?' · 🔗 '+(runLink(r)==='none'?'extra':'agganciata'):''}${(()=>{const w=wxDB[r.date],e=wxEffect(w);return e?` · ${Math.round(w.t)}°C${e.pct>=2.5?` <b style="color:${wxLvlCol(e.lvl)}">meteo ${e.lvl}</b>`:''}`:''})()}</span></div>
       <button class="btn btn2" style="width:auto;margin:0 0 0 8px;padding:8px 10px;font-size:12px" onclick="anaOpen('${r.date}')">Analizza</button>
       <button class="btn btn2" style="width:auto;margin:0 0 0 8px;padding:8px 10px;font-size:12px" onclick="renameRun('${k}')">✎</button>
       <button class="btn btn2" style="width:auto;margin:0 0 0 6px;padding:8px 10px;font-size:12px" onclick="delRun('${k}')">✕</button></div>`}).join('');
@@ -3817,6 +3818,89 @@ function repVerdict(pres,mr){
       (spreadPct<=1.5?'esecuzione da metronomo.':spreadPct<=3?'buona regolarità.':'partenza troppo generosa: meglio conservativo e chiudere in progressione.');
   return{txt:v,avg,inB,spread,spreadPct,band};
 }
+/* ---------- meteo della corsa ed "effetto meteo" (ripreso da RunZones) ----------
+   Meteo orario da Open-Meteo (gratuito, senza chiave, chiamabile dal browser): archivio ERA5 per il
+   passato, previsione con date passate per gli ultimi giorni (l'archivio arriva con ~5 giorni di
+   ritardo). Posizione: il punto di partenza salvato dal .fit; le corse importate senza GPS (CSV, archivio
+   vecchio) usano la località predefinita, Lecce, modificabile. I valori sono mediati sulla durata della
+   corsa (5 campioni interpolati fra le ore). Cache in rp_wx, sincronizzata nel cloud.
+   Effetto sul passo: regola temperatura + punto di rugiada in °F (Hadley), più un piccolo costo per il
+   freddo sotto i 5 °C e per il vento sopra i 12 km/h (percorso misto: il vento contro non si recupera
+   tutto a favore). È una stima: serve a leggere le corse estive, non a correggere i dati. */
+const WX_H='temperature_2m,apparent_temperature,relative_humidity_2m,dew_point_2m,wind_speed_10m,wind_direction_10m,precipitation';
+const WX_HOME={lat:40.35,lon:18.17,name:'Lecce'};
+let wxDB=LS('rp_wx')||{};
+let wxBusy=false;
+const wxHome=()=>(st&&st.wxHome)||WX_HOME;
+const wxPos=r=>r.lat!=null&&r.lon!=null?{lat:r.lat,lon:r.lon,src:'gps'}:{lat:wxHome().lat,lon:wxHome().lon,src:'home'};
+const wxT=sx=>{const m=String(sx).match(/(\d+)-(\d+)-(\d+)[T ](\d+):(\d+)/);return m?Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5]):NaN}; // ora locale "ingenua"
+const WX_DIR=['N','NE','E','SE','S','SO','O','NO'];
+async function wxGet(url){const r=await fetch(url);if(!r.ok)throw new Error('meteo '+r.status);return r.json()}
+function wxAt(H,t){ // valori interpolati all'istante t (ms)
+  const h0=Math.floor(t/3600000),f=t/3600000-h0,a=H[h0],b=H[h0+1]||a;if(!a)return null;
+  const o={};WX_H.split(',').forEach(k=>{const x=a[k],y=b?b[k]:null;o[k]=x==null?null:y==null?x:(k==='wind_direction_10m'?x:x+(y-x)*f)});return o}
+function wxOfRun(H,r){
+  const t0=wxT(r.date),dur=(r.sec||0)*1000;if(isNaN(t0))return null;
+  const S=[0,1,2,3,4].map(k=>wxAt(H,t0+dur*k/4)).filter(Boolean);if(!S.length||S[0].temperature_2m==null)return null;
+  const av=k=>{const v=S.map(x=>x[k]).filter(v=>v!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+  const r1=v=>v==null?null:Math.round(v*10)/10;
+  return{t:r1(av('temperature_2m')),at:r1(av('apparent_temperature')),rh:Math.round(av('relative_humidity_2m')),dp:r1(av('dew_point_2m')),
+    ws:r1(av('wind_speed_10m')),wd:S[2]?S[2].wind_direction_10m:S[0].wind_direction_10m,pr:r1(S.reduce((a,x)=>a+(x.precipitation||0),0)/S.length*Math.max(1,dur/3600000)),
+    tmax:r1(Math.max(...S.map(x=>x.temperature_2m).filter(v=>v!=null)))};
+}
+async function wxSync(force){
+  if(wxBusy||!navigator.onLine)return;
+  const now=Date.now(),todayS=todayISO();
+  const need=runs.filter(r=>daysAgo(r)<730&&r.date.slice(0,10)<=todayS&&(force||!wxDB[r.date]||(wxDB[r.date].fail&&now-wxDB[r.date].fail>864e5)));
+  if(!need.length)return;
+  wxBusy=true;let changed=0;
+  try{
+    const groups={};need.forEach(r=>{const p=wxPos(r),k=p.lat.toFixed(2)+','+p.lon.toFixed(2);(groups[k]=groups[k]||{p,rs:[]}).rs.push(r)});
+    for(const {p,rs} of Object.values(groups)){
+      const ds=rs.map(r=>r.date.slice(0,10)).sort(),from=ds[0],to=ds[ds.length-1];
+      const cut=addDaysISO(todayS,-6),H={};
+      const put=j=>{if(!j||!j.hourly)return;const T=j.hourly.time;T.forEach((t,i)=>{const h=Math.floor(wxT(t)/3600000);
+        const o={};let ok=false;WX_H.split(',').forEach(k=>{o[k]=j.hourly[k][i];if(o[k]!=null)ok=true});if(ok&&(!H[h]||H[h].temperature_2m==null))H[h]=o})};
+      const q=`latitude=${p.lat}&longitude=${p.lon}&hourly=${WX_H}&timezone=Europe%2FRome`;
+      if(from<=cut)put(await wxGet(`https://archive-api.open-meteo.com/v1/archive?${q}&start_date=${from}&end_date=${to<cut?to:cut}`).catch(e=>{console.warn(e);return null}));
+      const fFrom=from>addDaysISO(todayS,-60)?from:addDaysISO(todayS,-60);
+      if(to>addDaysISO(todayS,-12))put(await wxGet(`https://api.open-meteo.com/v1/forecast?${q}&start_date=${fFrom}&end_date=${todayS}`).catch(e=>{console.warn(e);return null}));
+      rs.forEach(r=>{const w=wxOfRun(H,r);wxDB[r.date]=w?{...w,src:p.src,lat:p.lat,lon:p.lon}:{fail:now};changed++});
+    }
+  }finally{wxBusy=false}
+  if(changed){LS('rp_wx',wxDB);try{rManage();if(curPane==='runs')rAna()}catch(e){console.warn(e)}}
+}
+function wxEffect(w){
+  if(!w||w.t==null)return null;
+  const F=c=>c*9/5+32,sum=F(w.t)+F(w.dp??w.t);
+  const B=[[100,0],[110,.5],[120,1],[130,2],[140,3],[150,4.5],[160,6],[170,8],[180,10]];
+  let heat=0;if(sum>=180)heat=10+(sum-180)*.2;else for(let i=1;i<B.length;i++)if(sum<B[i][0]){heat=sum<=B[0][0]?0:B[i-1][1]+(B[i][1]-B[i-1][1])*(sum-B[i-1][0])/(B[i][0]-B[i-1][0]);break}
+  const cold=w.t<5?(5-w.t)*.15:0,wind=w.ws>12?Math.pow(w.ws-12,2)*.0025:0,pct=heat+cold+wind;
+  return{pct,heat,cold,wind,sum,lvl:pct<1?'minimo':pct<2.5?'lieve':pct<5?'moderato':'forte'};
+}
+const wxLvlCol=l=>({minimo:'var(--acc)',lieve:'var(--z3)',moderato:'var(--warn)',forte:'var(--red)'})[l];
+async function wxSetHome(){
+  const q=prompt('Località da usare per le corse senza GPS (es. Lecce, Roma, Milano):',wxHome().name||'');if(!q||!q.trim())return;
+  try{const j=await wxGet('https://geocoding-api.open-meteo.com/v1/search?count=1&language=it&name='+encodeURIComponent(q.trim()));
+    const g=j.results&&j.results[0];if(!g)return alert('Località non trovata.');
+    st.wxHome={lat:+g.latitude.toFixed(2),lon:+g.longitude.toFixed(2),name:g.name+(g.admin1?' ('+g.admin1+')':'')};LS('rp_st',st);
+    Object.keys(wxDB).forEach(k=>{if(wxDB[k].src==='home'||wxDB[k].fail)delete wxDB[k]});LS('rp_wx',wxDB);
+    rAna();await wxSync();
+  }catch(e){alert('Meteo non raggiungibile: '+e.message)}
+}
+function runWxCard(r){
+  const w=wxDB[r.date];
+  if(daysAgo(r)>=730)return '';
+  if(!w||w.fail){return `<div class="card"><h2>Meteo</h2><p class="muted">${w&&w.fail?'Meteo non disponibile per questa corsa (riprovo domani).':'Scarico il meteo di questa corsa…'}</p></div>`}
+  const e=wxEffect(w),p=pace(r),adj=e&&!r.np?p/(1+e.pct/100):null;
+  const st2=(v,l)=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`;
+  const why=[e.heat>=.3?`caldo umido (temperatura + punto di rugiada = ${Math.round(e.sum)} °F): +${e.heat.toFixed(1)}%`:'',e.cold>=.3?`freddo: +${e.cold.toFixed(1)}%`:'',e.wind>=.3?`vento ${Math.round(w.ws)} km/h: +${e.wind.toFixed(1)}%`:''].filter(Boolean).join(' · ');
+  return `<div class="card"><h2>Meteo</h2>
+    <div class="grid3">${st2(Math.round(w.t)+'°C',`percepiti ${Math.round(w.at)}°${w.tmax!=null&&w.tmax-w.t>=1?` · max ${Math.round(w.tmax)}°`:''}`)}${st2(w.rh+'%',`umidità · rugiada ${Math.round(w.dp)}°`)}${st2(Math.round(w.ws)+' km/h',`vento da ${WX_DIR[Math.round((w.wd||0)/45)%8]}${w.pr>=.1?` · pioggia ${w.pr} mm`:''}`)}</div>
+    <p style="margin:10px 0 4px"><span class="phb" style="background:${wxLvlCol(e.lvl)};color:#fff">Effetto meteo ${e.lvl}</span> <b>≈ +${e.pct.toFixed(1)}%</b> sul passo${why?` <span class="muted">— ${why}</span>`:''}</p>
+    ${adj&&e.pct>=1?`<p class="muted">A parità di sforzo, i tuoi <b>${fmtP(p)}/km</b> valgono circa <b>${fmtP(adj)}/km</b> in condizioni ideali (10–12 °C, aria secca, poco vento).</p>`:''}
+    <p class="muted" style="font-size:11.5px;margin-top:6px">Meteo orario Open-Meteo mediato sulla durata della corsa · posizione: ${w.src==='gps'?'partenza registrata nel file':`${fxEsc(wxHome().name||'predefinita')} (predefinita: la corsa non ha GPS salvato)`} · <a href="#" onclick="wxSetHome();return false">cambia località predefinita</a></p></div>`;
+}
 /* ---------- dettaglio corsa: seduta del piano + dati esclusi ---------- */
 function runCtlCard(r){
   const d0=r.date.slice(0,10),lk=runLink(r),g=(st.ign||{})[r.date]||{};
@@ -3960,6 +4044,7 @@ function rAna(){
         :` Efficienza in linea col tuo standard (${myMb.toFixed(2)} m/battito).`;
   }
   if(hrp)PARA.push(hrp);
+  {const w=wxDB[r.date],e=wxEffect(w);if(e&&e.pct>=2.5&&!r.np)PARA.push(`<b>Meteo:</b> ${Math.round(w.t)} °C con rugiada a ${Math.round(w.dp)} °C${w.ws>20?` e vento a ${Math.round(w.ws)} km/h`:''} — effetto ${e.lvl}, circa +${e.pct.toFixed(1)}% sul passo. In condizioni ideali lo stesso sforzo valeva ~${fmtP(pace(r)/(1+e.pct/100))}/km: tienine conto prima di giudicare passo e FC di questa corsa.`)}
   // 3b. beneficio fisiologico prevalente: zona più vicina al passo del LAVORO (lap attivi, recuperi esclusi)
   // → mostrato come callout in evidenza in cima alla lettura, anche per le gare
   let benefit=null;
@@ -4100,7 +4185,9 @@ function rAna(){
     html+=`<div class="card lapcard"><h2>Lap <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· tocca un lap per i dettagli</span></h2><div class="laprow">${chips}</div><div id="lap-detail"></div><p class="muted" style="margin-top:8px">${sum.join(' · ')}</p></div>`;
   }
   try{html+=anaXCard(r)}catch(e){console.warn('anaXCard',e)}
+  try{html+=runWxCard(r)}catch(e){console.warn('runWxCard',e)}
   try{html+=runCtlCard(r)}catch(e){console.warn('runCtlCard',e)}
+  if(!wxDB[r.date]&&daysAgo(r)<730)setTimeout(()=>wxSync(),0);
   el.innerHTML=html;
 }
 /* ===== FIT: lettura completa (sessione, lap, record secondo per secondo) ===== */
@@ -4612,6 +4699,12 @@ async function ingestFitBuf(buf,name,ctx){
   if(!old){const t=dt.getTime();old=runs.find(r=>r.date.slice(0,10)===key.slice(0,10)&&Math.abs(day(r.date).getTime()-t)<=5*60000&&Math.abs(r.km-km)<=Math.max(.3,km*.03))}
   const k=old?old.date:key;
   if(rows.length)lapsDB[k]={laps:rows};
+  // punto di partenza (semicircoli → gradi), solo per il meteo: arrotondato al centesimo (~1 km)
+  const semi=v=>v==null?null:(v>0x7FFFFFFF?v-0x100000000:v)*180/2147483648;
+  let la=semi(sess[3]),lo=semi(sess[4]);
+  if(la==null||lo==null){const r0=recs.find(x=>x[0]!=null&&x[1]!=null);if(r0){la=semi(r0[0]);lo=semi(r0[1])}}
+  const pos=la!=null&&lo!=null&&Math.abs(la)<=90&&Math.abs(lo)<=180?{lat:+la.toFixed(2),lon:+lo.toFixed(2)}:null;
+  if(old&&pos&&old.lat==null){old.lat=pos.lat;old.lon=pos.lon;if(wxDB[k]&&wxDB[k].src==='home')delete wxDB[k]}
   const x=fitX(recs,{hrmax:st.hrmax});if(x){X[k]=x;ctx.nx++}
   const base=String(name||'').replace(/\.fit$/i,'');
   const title=genericFitName(base)?fitTitle(rows,km,k):base;
@@ -4621,7 +4714,7 @@ async function ingestFitBuf(buf,name,ctx){
       cad:sess[18]!=null?Math.round((sess[18]+(sess[92]??0)/128)*2):null,
       stl:sess[134]!=null?+(sess[134]/10000).toFixed(2):null,vr:sess[132]!=null?+(sess[132]/100).toFixed(2):null,
       vo:sess[89]!=null?+(sess[89]/100).toFixed(2):null,gct:sess[91]!=null?Math.round(sess[91]/10):null,
-      asc:sess[22]??0,tm:sess[6]===1?1:0});
+      asc:sess[22]??0,tm:sess[6]===1?1:0,...(pos&&sess[6]!==1?pos:{})});
     ctx.nr++;
   }else{if(genericFitName(old.title))old.title=title;ctx.nu++}
 }
@@ -5268,6 +5361,7 @@ function refresh(){zCache=null;applyRunFlags();rDash();rLoad();rProg();rData();r
   rTrack();rMonitor();
   try{rGoal()}catch(e){console.warn('rGoal',e)}
   try{rOutlook()}catch(e){console.warn('rOutlook',e)}
+  setTimeout(()=>{wxSync().catch(e=>console.warn('wxSync',e))},1500);
   try{rFit()}catch(e){console.warn('rFit',e)}
   try{rAlerts()}catch(e){console.warn('rAlerts',e)}
   try{rMore()}catch(e){console.warn('rMore',e)}
