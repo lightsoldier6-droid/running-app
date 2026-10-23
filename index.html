@@ -515,6 +515,8 @@ details.wkd-past[open]>summary{margin-bottom:8px}
 .chr{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5}
 .chr b{color:var(--txt)}
 .gauge{margin-top:10px}
+
+#tab-gym.on{display:block;grid-template-columns:none}#tab-gym{width:100%}nav{z-index:20}nav button{min-width:0}@media(max-width:380px){nav button{font-size:9px}}
 </style>
 </head>
 <body>
@@ -745,6 +747,7 @@ details.wkd-past[open]>summary{margin-bottom:8px}
   </div>
 </div>
 
+<section class="tab" id="tab-gym"><iframe id="gym-frame" title="Palestra: schede, seduta e monitor" data-src="palestra/index.html?embed=runplan" style="border:0;width:100%;height:calc(100dvh - 165px);min-height:440px;display:block" allow="screen-wake-lock"></iframe><noscript>Per il registro palestra è necessario JavaScript.</noscript></section>
 </main>
 <nav>
   <button class="on" data-g="oggi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Oggi</button>
@@ -752,6 +755,7 @@ details.wkd-past[open]>summary{margin-bottom:8px}
   <button data-g="gara"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2 4 2 4H5"/></svg>Gara</button>
   <button data-g="forma"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>Forma</button>
   <button data-g="prog"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Progressi</button>
+  <button data-g="gym"><svg viewBox="0 0 24 24"><path d="M7 5v14M3 8v8M17 5v14M21 8v8M7 12h10"/></svg>Palestra</button>
   <button data-g="corse"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Corse</button>
 </nav>
 
@@ -759,6 +763,7 @@ details.wkd-past[open]>summary{margin-bottom:8px}
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="data.js"></script>
+<script src="gym-bridge.js"></script>
 <script>
 /* ---------- tema chiaro/scuro ---------- */
 function applyTheme(t){
@@ -967,11 +972,12 @@ function workTarget(sess){
 }
 
 /* ---------- tabs ---------- */
-const GROUPS={oggi:['dash'],piano:['plan','mon'],gara:['gara'],forma:['fit','zon'],prog:['prog'],corse:['runs'],imp:['data']};
-const PTITLE={dash:'Oggi',fit:'Forma',zon:'Forma',prog:'Progressi',gara:'Gara',plan:'Piano',mon:'Piano',runs:'Corse',data:'Impostazioni'};
+const GROUPS={oggi:['dash'],piano:['plan','mon'],gara:['gara'],forma:['fit','zon'],prog:['prog'],corse:['runs'],imp:['data'],gym:['gym']};
+const PTITLE={dash:'Oggi',fit:'Forma',zon:'Forma',prog:'Progressi',gara:'Gara',plan:'Piano',mon:'Piano',runs:'Corse',data:'Impostazioni',gym:'Palestra'};
 let curPane='dash';
 function showPane(p){
   curPane=p;
+  if(p==='gym'){const f=document.getElementById('gym-frame');if(!f.getAttribute('src'))f.src=f.dataset.src;}
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.id==='tab-'+p));
   const g=Object.keys(GROUPS).find(k=>GROUPS[k].includes(p));
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.g===g));
@@ -1280,7 +1286,7 @@ function rLoad(){
     </div>
     ${gauge}
     <p style="margin-top:10px">${verdict}</p>
-    ${(()=>{const x7=xts.filter(x=>daysAgo(x)<7);if(!x7.length)return'';const mn=x7.reduce((a,x)=>a+x.min,0),lx=x7.reduce((a,x)=>a+xtLoad(x),0),lr=runs.filter(r=>daysAgo(r)<7).reduce((a,r)=>a+runLoad(r),0);
+    ${(()=>{const x7=allXts().filter(x=>daysAgo(x)<7);if(!x7.length)return'';const mn=x7.reduce((a,x)=>a+x.min,0),lx=x7.reduce((a,x)=>a+xtLoad(x),0),lr=runs.filter(r=>daysAgo(r)<7).reduce((a,r)=>a+runLoad(r),0);
       return `<p class="muted" style="margin-top:6px">Altri sport negli ultimi 7 giorni: ${x7.length} sedute · ${Math.floor(mn/60)}h${String(mn%60).padStart(2,'0')} (${[...new Set(x7.map(x=>XT_SP[x.sport][0].toLowerCase()))].join(', ')}) — carico ≈ ${Math.round(lx)} TRIMP, ${lr?Math.round(lx/lr*100)+'% di quello della corsa':'senza corse nello stesso periodo'}. Conta in forma e fatica, non nei km qui sopra.</p>`})()}
     ${ramp!=null?`<p class="muted" style="margin-top:4px">Vs i 7 giorni precedenti: ${ramp>=0?'+':''}${ramp.toFixed(0)}% km (${winP} ${lastWk.toFixed(0)} km → ${winA} ${acute.toFixed(0)} km). Sopra +10% è il limite prudente.</p>`:''}
     <details class="pinfo"><summary>Come si calcola</summary><p class="muted" style="margin-top:4px">Sono 7 giorni mobili (${winA}), non la settimana lunedì-domenica: con la settimana ancora a metà il confronto per settimane di calendario direbbe sempre "in calo". Il rapporto è fra i km di questi 7 giorni e la media settimanale delle ultime 4 (acute:chronic workload ratio). Fascia consigliata 0.8–1.3.</p></details>`;
@@ -3949,6 +3955,7 @@ function rNotes(){
    Entrano in forma/fatica/freschezza (CTL/ATL/TSB) e nel calendario; il carico acuto/cronico in km resta della corsa. */
 const XT_SP={gym:['Palestra','🏋️',6],bike:['Bici','🚴',4],walk:['Camminata','🚶',2],hike:['Escursione','🥾',4],swim:['Nuoto','🏊',5],other:['Altro','➕',4]};
 let xts=LS('rp_xt')||[];
+function allXts(){return [...xts,...(window.runPlanGymActivities?window.runPlanGymActivities():[])].sort((a,b)=>a.date.localeCompare(b.date));}
 function xtLoad(x){
   const f=q=>q*.64*Math.exp(1.92*q);
   const qh=x.hr?Math.max(0,Math.min(1,(x.hr-st.hrrest)/(st.hrmax-st.hrrest))):null;
@@ -3964,7 +3971,7 @@ function xtAdd(){
 function xtDel(id){if(!confirm('Togliere questa attività?'))return;xts=xts.filter(x=>x.id!==id);LS('rp_xt',xts);refresh()}
 function rXt(){
   const el=document.getElementById('xt-out');if(!el)return;
-  const today=todayISO(),w4=xts.filter(x=>daysAgo(x)<28);
+  const today=todayISO(),w4=allXts().filter(x=>daysAgo(x)<28);
   const bySp={};w4.forEach(x=>{bySp[x.sport]=(bySp[x.sport]||0)+x.min});
   el.innerHTML=`<div class="xtf">
       <input type="date" id="xt-d" value="${today}"><input type="time" id="xt-t" value="18:00">
@@ -3975,8 +3982,8 @@ function rXt(){
       <input type="text" id="xt-n" placeholder="nota (facolt.)">
       <button class="btn" style="margin:0" onclick="xtAdd()">Aggiungi</button></div>
     ${w4.length?`<p class="muted" style="margin:8px 0 4px">Ultime 4 settimane: ${Object.entries(bySp).map(([k,m])=>`${XT_SP[k][1]} ${XT_SP[k][0].toLowerCase()} ${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}`).join(' · ')}</p>`:''}
-    ${xts.slice(-15).reverse().map(x=>`<div class="shoecard"><div style="flex:1"><b>${XT_SP[x.sport][1]} ${XT_SP[x.sport][0]}</b> <span class="muted">${x.date.slice(0,10)} · ${x.min}'${x.hr?' · FC '+x.hr:''}${x.rpe?' · RPE '+x.rpe:''}${x.km?' · '+x.km+' km':''} · carico ${Math.round(xtLoad(x))}${x.note?' · '+fxEsc(x.note):''}${x.src==='fit'?' · da .fit':''}</span></div>
-      <button class="btn btn2" style="width:auto;margin:0 0 0 8px;padding:8px 10px;font-size:12px" onclick="xtDel('${x.id}')">✕</button></div>`).join('')||'<p class="muted" style="margin-top:8px">Nessuna attività. Le sedute di palestra, bici o camminata importate da .fit compaiono qui da sole.</p>'}
+    ${allXts().slice(-15).reverse().map(x=>`<div class="shoecard"><div style="flex:1"><b>${XT_SP[x.sport][1]} ${XT_SP[x.sport][0]}</b> <span class="muted">${x.date.slice(0,10)} · ${x.min}'${x.hr?' · FC '+x.hr:''}${x.rpe?' · RPE '+x.rpe:''}${x.km?' · '+x.km+' km':''} · carico ${Math.round(xtLoad(x))}${x.note?' · '+fxEsc(x.note):''}${x.src==='fit'?' · da .fit':x.src==='passo'?' · dal registro palestra (locale)':''}</span></div>
+      <button class="btn btn2" style="width:auto;margin:0 0 0 8px;padding:8px 10px;font-size:12px" onclick="${x.src==='passo'?"showPane('gym')":"xtDel('"+x.id+"')"}">${x.src==='passo'?'Apri':'✕'}</button></div>`).join('')||'<p class="muted" style="margin-top:8px">Nessuna attività. Le sedute di palestra, bici o camminata importate da .fit compaiono qui da sole.</p>'}
     <p class="muted" style="font-size:11.5px;margin-top:6px">Carico in TRIMP, come per la corsa: dalla FC media se c'è, altrimenti dalla fatica percepita (per la palestra conta la maggiore delle due). Entra in forma, fatica e freschezza e nel calendario; il carico acuto/cronico in km resta solo della corsa.</p>`;
 }
 /* ---------- meteo della corsa ed "effetto meteo" (ripreso da RunZones) ----------
@@ -5340,7 +5347,7 @@ function rCal(){
   const rows=ws.map(w=>{let km=0,n=0,min=0;
     let xmin=0;
     const cells=[0,1,2,3,4,5,6].map(k=>{const iso=addDaysISO(w,k);const rr=runs.filter(r=>r.date.slice(0,10)===iso);
-      const xx=xts.filter(x=>x.date.slice(0,10)===iso);xmin+=xx.reduce((a,x)=>a+x.min,0);
+      const xx=allXts().filter(x=>x.date.slice(0,10)===iso);xmin+=xx.reduce((a,x)=>a+x.min,0);
       const xh=xx.map(x=>`<span class="calx" title="${XT_SP[x.sport][0]} · ${x.min}'">${XT_SP[x.sport][1]}</span>`).join('');
       km+=rr.reduce((a,r)=>a+vk(r),0);n+=rr.length;min+=rr.reduce((a,r)=>a+r.sec/60,0);
       if(iso>today)return'<span class="calc fut"></span>';
@@ -5367,7 +5374,7 @@ function runLoad(r){ // TRIMP di Banister (minuti × riserva cardiaca pesata)
 }
 function loadSeries(){
   if(!runs.length)return[];const byD={};runs.forEach(r=>{const k=r.date.slice(0,10);byD[k]=(byD[k]||0)+runLoad(r)});
-  xts.forEach(x=>{const k=x.date.slice(0,10);byD[k]=(byD[k]||0)+xtLoad(x)}); // altri sport: stesso TRIMP
+  allXts().forEach(x=>{const k=x.date.slice(0,10);byD[k]=(byD[k]||0)+xtLoad(x)}); // altri sport: stesso TRIMP
   const out=[];let d=runs[0].date.slice(0,10),ctl=0,atl=0;const end=todayISO();
   while(d<=end){const l=byD[d]||0;ctl+=(l-ctl)/42;atl+=(l-atl)/7;out.push({d,l,ctl,atl,tsb:ctl-atl});d=addDaysISO(d,1)}
   return out;

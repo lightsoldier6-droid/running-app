@@ -57,3 +57,7 @@ L'app classifica dalla parola chiave nel nome, in quest'ordine di priorità:
 | nessuna parola chiave | Easy | `giro mattina.fit` |
 
 Il pattern `NxM` definisce anche il sottotipo per il confronto "ultima vs simile": una `8x200` viene confrontata con l'ultima seduta di 200, non con una 10x400. La parola chiave vince sul pattern: `fartlek 8x1.fit` è Qualità, non Interval.
+
+## Palestra · Passo
+
+La sezione **Palestra** aggiunge schede Total Body A/B, registro serie, sostituzioni durante la seduta, timer, cronologia e monitor con le corse esistenti. Il dettaglio palestra resta locale; il collegamento Firebase della corsa resta invariato. Vedi [PALESTRA.md](PALESTRA.md) per funzioni, backup, limiti e verifiche.
