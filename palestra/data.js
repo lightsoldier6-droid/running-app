@@ -1,23 +1,156 @@
-const v=(id,name,gear,loadType='weight',note='')=>({id,name,gear,loadType,note});
-const ex=(id,name,group,sets,reps,rest,variants,note='')=>({id,name,group,sets,reps,rest,variants,note});
-const DEFAULT_ROUTINES={A:{name:'Total Body A',focus:'Spinta, trazione e stabilità',color:'green',exercises:[
-ex('a1','Leg press','Gambe',3,'8–10',120,[v('legpress','Leg press','Macchina'),v('goblet','Goblet squat','Manubrio'),v('split','Split squat','Manubri')],'Nelle varianti unilaterali le ripetizioni sono per lato.'),
-ex('a2','Nordic curl assistito','Gambe',2,'6–8',120,[v('nordic','Nordic curl assistito','Appoggio sicuro','body'),v('legcurl','Leg curl','Macchina'),v('slider','Leg curl con slider','Slider','body')],'Nordic con assistenza e movimento controllato; riduci l’escursione se necessario.'),
-ex('a3','Calf raise a una gamba','Gambe',3,'12–15',60,[v('calf-single','Calf raise a una gamba','Manubrio'),v('calf-stand','Calf raise in piedi','Macchina'),v('calf-press','Calf raise alla pressa','Macchina')],'Ripetizioni per lato nella versione a una gamba.'),
-ex('a4','Panca inclinata con manubri','Petto',3,'8–12',90,[v('incline-db','Panca inclinata con manubri','Manubri'),v('incline-machine','Chest press inclinata','Macchina'),v('incline-bb','Panca inclinata con bilanciere','Bilanciere')]),
-ex('a5','Trazioni assistite','Dorso',3,'8–10',90,[v('pullup-assisted','Trazioni assistite','Macchina','assistance'),v('lat-wide','Lat machine presa larga','Cavo'),v('lat-neutral','Lat machine presa neutra','Cavo')],'Trazioni: registra i kg di assistenza. Meno assistenza significa più carico.'),
-ex('a6','Alzate laterali','Spalle',2,'12–15',60,[v('lateral-machine','Alzate laterali alla macchina','Macchina'),v('lateral-db','Alzate laterali con manubri','Manubri'),v('lateral-cable','Alzate laterali al cavo','Cavo')]),
-ex('a7','Pushdown con corda','Tricipiti',2,'10–12',60,[v('pushdown-rope','Pushdown con corda','Cavo'),v('pushdown-bar','Pushdown con barra','Cavo'),v('skullcrusher','Skullcrusher con manubri','Manubri')]),
-ex('a8','Dead bug','Core',2,'8–10',45,[v('deadbug','Dead bug','Tappetino','body'),v('birddog','Bird dog','Tappetino','body'),v('heel-tap','Heel tap supino','Tappetino','body')],'Ripetizioni per lato, senza perdere il controllo del bacino.')
-]},B:{name:'Total Body B',focus:'Catena posteriore e controllo',color:'orange',exercises:[
-ex('b1','Hip thrust','Gambe',3,'8–12',120,[v('hip-machine','Hip thrust alla macchina','Macchina'),v('hip-bb','Hip thrust con bilanciere','Bilanciere'),v('bridge-db','Glute bridge con manubrio','Manubrio')]),
-ex('b2','Affondi indietro','Gambe',2,'8–10',90,[v('reverse-lunge','Affondi indietro','Manubri'),v('step-up','Step-up basso','Manubri'),v('split','Split squat','Manubri')],'Ripetizioni per lato. Inizia a corpo libero per trovare il controllo.'),
-ex('b3','Calf raise da seduto','Gambe',3,'12–15',60,[v('calf-seated','Calf raise da seduto','Macchina'),v('calf-db-seated','Calf raise seduto con manubri','Manubri'),v('calf-knee','Calf raise a ginocchia flesse','Appoggio','body')]),
-ex('b4','Chest press','Petto',3,'8–12',90,[v('chest-machine','Chest press','Macchina'),v('bench-db','Panca piana con manubri','Manubri'),v('pushup','Piegamenti sulle braccia','Tappetino','body')]),
-ex('b5','Rematore al cavo','Dorso',3,'8–12',90,[v('row-cable','Rematore al cavo da seduto','Cavo'),v('row-db','Rematore con manubrio','Manubrio'),v('row-machine','Rematore alla macchina','Macchina')],'Nel rematore a un braccio le ripetizioni sono per lato.'),
-ex('b6','Lento avanti da seduto','Spalle',2,'8–12',90,[v('shoulder-machine','Lento avanti alla macchina','Macchina'),v('shoulder-db','Shoulder press con manubri','Manubri'),v('landmine','Landmine press a un braccio','Bilanciere')]),
-ex('b7','Curl bicipiti','Bicipiti',2,'10–12',60,[v('curl-db','Curl con manubri','Manubri'),v('curl-cable','Curl al cavo','Cavo'),v('curl-hammer','Curl a martello','Manubri')]),
-ex('b8','Bird dog','Core',2,'8–10',45,[v('birddog','Bird dog','Tappetino','body'),v('deadbug','Dead bug','Tappetino','body'),v('heel-tap','Heel tap supino','Tappetino','body')],'Ripetizioni per lato, movimento lento e controllato.')
-]}};
-const PLAN_OPTIONS={easy:'Corsa facile',quality:'Corsa di qualità',long:'Lungo',A:'Total Body A',B:'Total Body B',rest:'Riposo'};
-const DEFAULT_PLAN=['easy','A','quality','easy','B','rest','long'];
+'use strict';
+/* Programma di forza per un runner: due sedute Total Body (A e B) a settimana, in blocchi di 4 settimane
+   (3 di carico progressivo + 1 di scarico). Ogni blocco cambia esercizi e schema di ripetizioni; dopo il
+   terzo si ricomincia dal primo con i carichi raggiunti. Gli id delle varianti sono stabili: lo storico
+   di un esercizio resta suo anche quando torna in un blocco successivo. */
+
+// Libreria esercizi. loadType: weight = kg | body = corpo libero (si progredisce con le ripetizioni)
+// | assistance = kg di assistenza (si progredisce togliendo assistenza). side: ripetizioni per lato.
+const X = (id, name, gear, loadType = 'weight', side = false) => ({ id, name, gear, loadType, side });
+const EXERCISES = Object.fromEntries(
+  [
+    // squat e varianti
+    X('goblet', 'Goblet squat', 'Manubrio'),
+    X('legpress', 'Leg press', 'Macchina'),
+    X('smith-squat', 'Squat al multipower', 'Macchina'),
+    X('squat-bb', 'Back squat', 'Bilanciere'),
+    // una gamba
+    X('split', 'Split squat', 'Manubri', 'weight', true),
+    X('bulgarian', 'Squat bulgaro', 'Manubri', 'weight', true),
+    X('step-up', 'Step-up', 'Manubri', 'weight', true),
+    X('reverse-lunge', 'Affondi indietro', 'Manubri', 'weight', true),
+    // stacchi e femorali
+    X('rdl-db', 'Stacco rumeno con manubri', 'Manubri'),
+    X('rdl-bb', 'Stacco rumeno con bilanciere', 'Bilanciere'),
+    X('trapbar', 'Stacco con trap bar', 'Bilanciere'),
+    X('sl-rdl', 'Stacco rumeno a una gamba', 'Manubrio', 'weight', true),
+    X('legcurl', 'Leg curl', 'Macchina'),
+    X('nordic', 'Nordic curl assistito', 'Appoggio sicuro', 'body'),
+    // anca
+    X('hip-machine', 'Hip thrust alla macchina', 'Macchina'),
+    X('hip-bb', 'Hip thrust con bilanciere', 'Bilanciere'),
+    X('bridge-db', 'Glute bridge con manubrio', 'Manubrio'),
+    // polpacci
+    X('calf-stand', 'Calf raise in piedi', 'Macchina'),
+    X('calf-single', 'Calf raise a una gamba', 'Manubrio', 'weight', true),
+    X('calf-press', 'Calf raise alla pressa', 'Macchina'),
+    X('calf-seated', 'Calf raise da seduto', 'Macchina'),
+    // spinta
+    X('incline-db', 'Panca inclinata con manubri', 'Manubri'),
+    X('bench-db', 'Panca piana con manubri', 'Manubri'),
+    X('chest-machine', 'Chest press', 'Macchina'),
+    X('pushup', 'Piegamenti sulle braccia', 'Tappetino', 'body'),
+    X('shoulder-db', 'Shoulder press con manubri', 'Manubri'),
+    X('shoulder-machine', 'Lento avanti alla macchina', 'Macchina'),
+    X('pushpress-db', 'Push press con manubri', 'Manubri'),
+    X('landmine', 'Landmine press a un braccio', 'Bilanciere', 'weight', true),
+    // trazione
+    X('lat-wide', 'Lat machine presa larga', 'Cavo'),
+    X('lat-neutral', 'Lat machine presa neutra', 'Cavo'),
+    X('pullup-assisted', 'Trazioni assistite', 'Macchina', 'assistance'),
+    X('row-cable', 'Rematore al cavo da seduto', 'Cavo'),
+    X('row-db', 'Rematore con manubrio', 'Manubrio', 'weight', true),
+    X('chest-row', 'Rematore con appoggio al petto', 'Manubri'),
+    X('row-machine', 'Rematore alla macchina', 'Macchina'),
+    // core
+    X('deadbug', 'Dead bug', 'Tappetino', 'body', true),
+    X('birddog', 'Bird dog', 'Tappetino', 'body', true),
+    X('heel-tap', 'Heel tap supino', 'Tappetino', 'body', true),
+    X('pallof', 'Pallof press', 'Cavo', 'weight', true),
+    X('cable-chop', 'Woodchop al cavo', 'Cavo', 'weight', true),
+    X('abwheel', 'Rollout con ruota', 'Ruota', 'body'),
+    // salti (pliometria): qualità prima della quantità
+    X('box-jump', 'Box jump', 'Box', 'body'),
+    X('broad-jump', 'Salto in lungo da fermo', 'Corpo libero', 'body'),
+    X('pogo', 'Pogo jumps', 'Corpo libero', 'body'),
+    X('split-jump', 'Salti in affondo alternati', 'Corpo libero', 'body', true),
+    X('skater', 'Salti laterali (skater)', 'Corpo libero', 'body', true),
+  ].map(x => [x.id, x]),
+);
+
+// Slot di una seduta: s(id, gruppo, ruolo, esercizio, [alternative], serie, [rip. min, max], recupero, nota)
+// ruolo: plyo (salti, a inizio seduta) | main (fondamentale) | acc (complementare) | calf | core
+const s = (id, group, role, ex, alt, sets, reps, rest, note = '') => ({ id, group, role, ex, alt, sets, reps, rest, note });
+
+const BLOCKS = [
+  {
+    id: 'base',
+    name: 'Base',
+    title: 'Base · adattamento',
+    why: 'Ripetizioni medie e carichi moderati: prepara tendini e tecnica e costruisce la base per i blocchi pesanti.',
+    rpe: ['7', '7–8', '8'],
+    routines: {
+      A: [
+        s('a-squat', 'Gambe', 'main', 'goblet', ['legpress', 'split'], 3, [10, 12], 90),
+        s('a-hinge', 'Gambe', 'main', 'rdl-db', ['legcurl', 'sl-rdl'], 3, [10, 12], 90, 'Schiena neutra, scendi finché senti tirare i femorali.'),
+        s('a-calf', 'Polpacci', 'calf', 'calf-stand', ['calf-single', 'calf-press'], 3, [12, 15], 60, 'Due secondi in discesa, pausa in basso.'),
+        s('a-push', 'Petto', 'acc', 'incline-db', ['chest-machine', 'pushup'], 3, [10, 12], 75),
+        s('a-pull', 'Dorso', 'acc', 'lat-wide', ['lat-neutral', 'pullup-assisted'], 3, [10, 12], 75),
+        s('a-core', 'Core', 'core', 'deadbug', ['birddog', 'heel-tap'], 2, [8, 10], 45, 'Bacino fermo: se la schiena si stacca dal tappetino, accorcia il movimento.'),
+      ],
+      B: [
+        s('b-single', 'Gambe', 'main', 'step-up', ['reverse-lunge', 'split'], 3, [10, 12], 90, 'Gradino all’altezza del ginocchio; spingi col piede sopra.'),
+        s('b-hip', 'Gambe', 'main', 'hip-machine', ['hip-bb', 'bridge-db'], 3, [10, 12], 90),
+        s('b-calf', 'Polpacci', 'calf', 'calf-seated', ['calf-press', 'calf-single'], 3, [12, 15], 60, 'Ginocchio piegato: lavora il soleo, il polpaccio che regge di più in corsa.'),
+        s('b-pull', 'Dorso', 'acc', 'row-cable', ['row-db', 'row-machine'], 3, [10, 12], 75),
+        s('b-push', 'Spalle', 'acc', 'shoulder-db', ['shoulder-machine', 'landmine'], 2, [10, 12], 75),
+        s('b-core', 'Core', 'core', 'pallof', ['birddog', 'deadbug'], 2, [10, 12], 45, 'Resisti alla rotazione: il busto non deve girare.'),
+      ],
+    },
+  },
+  {
+    id: 'forza',
+    name: 'Forza',
+    title: 'Forza · carichi alti',
+    why: 'Poche ripetizioni, carichi alti e recuperi lunghi: è il blocco che migliora di più l’economia di corsa.',
+    rpe: ['7', '7–8', '8'],
+    routines: {
+      A: [
+        s('a-squat', 'Gambe', 'main', 'smith-squat', ['legpress', 'squat-bb'], 4, [5, 6], 150, 'Scendi controllato, sali deciso.'),
+        s('a-hinge', 'Gambe', 'main', 'nordic', ['legcurl', 'sl-rdl'], 3, [4, 6], 120, 'Scendi più lento che puoi; usa le mani per risalire.'),
+        s('a-calf', 'Polpacci', 'calf', 'calf-single', ['calf-stand', 'calf-press'], 4, [8, 10], 75, 'Manubrio nella mano dello stesso lato; tieniti con l’altra.'),
+        s('a-push', 'Petto', 'acc', 'bench-db', ['chest-machine', 'incline-db'], 3, [6, 8], 120),
+        s('a-pull', 'Dorso', 'acc', 'pullup-assisted', ['lat-neutral', 'lat-wide'], 3, [6, 8], 120),
+        s('a-core', 'Core', 'core', 'abwheel', ['deadbug', 'pallof'], 3, [6, 10], 60, 'Fermati prima che la schiena si inarchi.'),
+      ],
+      B: [
+        s('b-single', 'Gambe', 'main', 'bulgarian', ['split', 'step-up'], 3, [6, 8], 120),
+        s('b-hip', 'Gambe', 'main', 'rdl-bb', ['trapbar', 'rdl-db'], 4, [5, 6], 150),
+        s('b-calf', 'Polpacci', 'calf', 'calf-seated', ['calf-press', 'calf-single'], 4, [8, 10], 75),
+        s('b-pull', 'Dorso', 'acc', 'row-db', ['chest-row', 'row-cable'], 3, [6, 8], 90),
+        s('b-push', 'Spalle', 'acc', 'shoulder-db', ['landmine', 'shoulder-machine'], 3, [6, 8], 90),
+        s('b-core', 'Core', 'core', 'cable-chop', ['pallof', 'birddog'], 3, [8, 10], 60),
+      ],
+    },
+  },
+  {
+    id: 'potenza',
+    name: 'Potenza',
+    title: 'Potenza · forza esplosiva',
+    why: 'Salti a inizio seduta e salita veloce nei fondamentali: allena la reattività di tendini e piedi.',
+    rpe: ['7', '7–8', '8'],
+    routines: {
+      A: [
+        s('a-plyo', 'Salti', 'plyo', 'box-jump', ['broad-jump', 'pogo'], 3, [5, 6], 90, 'Atterra morbido e scendi dal box camminando. Qualità, non fatica.'),
+        s('a-squat', 'Gambe', 'main', 'smith-squat', ['legpress', 'goblet'], 3, [4, 6], 150, 'Salita il più veloce possibile, discesa controllata.'),
+        s('a-hinge', 'Gambe', 'main', 'sl-rdl', ['rdl-db', 'legcurl'], 3, [6, 8], 90),
+        s('a-calf', 'Polpacci', 'calf', 'calf-single', ['calf-stand', 'calf-press'], 3, [8, 10], 75),
+        s('a-push', 'Spalle', 'acc', 'pushpress-db', ['shoulder-db', 'landmine'], 3, [5, 6], 90, 'Piccola piegata delle gambe e spinta esplosiva.'),
+        s('a-pull', 'Dorso', 'acc', 'pullup-assisted', ['lat-neutral', 'lat-wide'], 3, [5, 6], 120),
+        s('a-core', 'Core', 'core', 'pallof', ['deadbug', 'birddog'], 2, [10, 12], 45),
+      ],
+      B: [
+        s('b-plyo', 'Salti', 'plyo', 'split-jump', ['skater', 'broad-jump'], 3, [5, 6], 90, 'Cambio gamba in volo, atterraggio stabile.'),
+        s('b-single', 'Gambe', 'main', 'step-up', ['bulgarian', 'reverse-lunge'], 3, [5, 6], 120, 'Salita esplosiva sul gradino.'),
+        s('b-hip', 'Gambe', 'main', 'hip-bb', ['hip-machine', 'trapbar'], 3, [5, 6], 120),
+        s('b-calf', 'Polpacci', 'calf', 'pogo', ['calf-seated', 'calf-stand'], 3, [15, 20], 75, 'Saltelli rapidi sugli avampiedi, ginocchia quasi tese, contatti brevi.'),
+        s('b-pull', 'Dorso', 'acc', 'row-db', ['chest-row', 'row-cable'], 3, [6, 8], 90),
+        s('b-push', 'Petto', 'acc', 'bench-db', ['pushup', 'chest-machine'], 3, [6, 8], 90),
+        s('b-core', 'Core', 'core', 'abwheel', ['deadbug', 'pallof'], 2, [8, 10], 60),
+      ],
+    },
+  },
+];
+
+const BLOCK_WEEKS = 4; // 3 di carico + 1 di scarico
+const ROUTINE_NAMES = { A: 'Total Body A', B: 'Total Body B' };
