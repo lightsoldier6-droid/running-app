@@ -79,6 +79,9 @@ svg text{fill:var(--dim);font-size:9px}
 .smeta{color:var(--dim);font-size:11px;margin-top:2px}
 .skipx{flex:0 0 auto;align-self:center;background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;font-size:12px;line-height:1;padding:4px 6px;cursor:pointer;opacity:.55}
 .skipx:hover{opacity:1;color:var(--red,#c0392b);border-color:currentColor}
+.ign{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line);font-size:13px;line-height:1.4;cursor:pointer}
+.ign input{width:18px;height:18px;margin-top:2px;flex:0 0 auto;accent-color:var(--red,#e5342a)}
+.ign span{color:var(--dim)}.ign b{color:var(--txt)}
 .sbtns{display:flex;gap:4px;align-self:center;flex:0 0 auto}
 .fxbtn{background:none;border:1px solid var(--line);color:var(--dim);border-radius:6px;font-size:13px;line-height:1;padding:3px 7px;cursor:pointer}
 .fxbtn:hover{color:var(--acc2);border-color:currentColor}
@@ -598,6 +601,7 @@ details.wkd-past[open]>summary{margin-bottom:8px}
   <div class="seg"><span data-p="plan">Settimane</span><span data-p="mon">Aderenza</span></div>
   <div id="p-gmode"></div>
   <div id="p-out"></div>
+  <div class="card"><h2>Previsione gara</h2><div id="p-outlook"></div></div>
   <div class="card"><h2>Obiettivo: cosa serve</h2><div id="p-goalgap"></div></div>
   <div class="card"><h2>Progressione vs piano</h2><div id="p-track"></div></div>
   <details class="card fold"><summary><h2>Guida alle sedute (ai tuoi ritmi)</h2></summary><div id="p-guide"></div></details>
@@ -770,6 +774,29 @@ let runs=(()=>{ // unione seed (aggiornato dallo script di sync) + import manual
   fin.sort((a,b)=>a.date<b.date?-1:1);return fin})();
 let lapsDB=Object.assign({},typeof SEED_LAPS!=='undefined'?SEED_LAPS:{},LS('rp_lapsdb')||{});
 let st=LS('rp_st')||{hrmax:188,hrrest:53};
+/* ---------- dati esclusi a mano e aggancio manuale al piano (ripresi da RunZones) ----------
+   st.ign[run.date] = {hr,pace,vol}: la corsa resta, ma il dato sbagliato smette di alimentare le analisi.
+     · FC esclusa  → niente zone, minuti di soglia, forma da FC, previsioni da FC (km e passo restano)
+     · passo escluso → fuori da VDOT, migliori tratti, passo per zona, efficienza (FC e km restano)
+     · km esclusi  → fuori dal volume settimanale e dal carico (FC e passo restano)
+   Si applica come flag sull'oggetto corsa (nh / np / nv), così le funzioni esistenti filtrano con un test.
+   st.links[run.date] = 'AAAA-MM-GG' (seduta del piano a cui la corsa va agganciata) | 'none' (corsa extra). */
+function applyRunFlags(){
+  const IG=st.ign||{};
+  (typeof runs!=='undefined'?runs:[]).forEach(r=>{
+    const g=IG[r.date]||{};
+    if(g.hr){if(!('_hr' in r)){r._hr=r.hr??null;r._hrmax=r.hrmax??null}r.hr=null;r.hrmax=null;r.nh=true}
+    else{if('_hr' in r){r.hr=r._hr;r.hrmax=r._hrmax;delete r._hr;delete r._hrmax}delete r.nh}
+    r.np=!!(r.tm||g.pace);r.nv=!!g.vol;
+  });
+}
+const vk=r=>r.nv?0:r.km; // km che contano per volume e carico
+const runLink=r=>((st&&st.links)||{})[r.date]||null;
+const runDay=r=>{const l=runLink(r);return l&&l!=='none'?l:r.date.slice(0,10)}; // giorno di piano a cui la corsa vale
+function setRunIgn(date,k,on){st.ign=st.ign||{};const g=st.ign[date]=st.ign[date]||{};if(on)g[k]=1;else delete g[k];
+  if(!Object.keys(g).length)delete st.ign[date];LS('rp_st',st);zCache=null;refresh()}
+function setRunLink(date,v){st.links=st.links||{};if(v)st.links[date]=v;else delete st.links[date];LS('rp_st',st);refresh()}
+applyRunFlags();
 let monitor=LS('rp_monitor')||null; // piano .ics caricato per il monitoraggio
 
 /* ---------- cloud sync (Firebase) ---------- */
@@ -893,13 +920,16 @@ const vdotOf=(km,sec)=>{const t=sec/60,v=km*1000/t;return vo2(v)/pct(t)};
 const vAt=(f,vd)=>{const c=4.6+f*vd,v=(-0.182258+Math.sqrt(0.182258**2+4*0.000104*c))/(2*0.000104);return 60000/v};
 function predict(km,vd){let lo=km*2.2,hi=km*12;for(let i=0;i<60;i++){const m=(lo+hi)/2;vdotOf(km,m*60)>vd?lo=m:hi=m}return lo*60}
 function parseHMS(s){const a=String(s).trim().split(':');if(!a.length||a.some(x=>x===''||isNaN(+x)))return null;const n=a.map(Number);let sec;if(n.length===3)sec=n[0]*3600+n[1]*60+n[2];else if(n.length===2)sec=n[0]*60+n[1];else if(n.length===1)sec=n[0];else return null;return sec>0?sec:null}
-function bestVdot(list){let b=null;for(const r of list){if(r.km<3||r.tm)continue;if(typeof st!=='undefined'&&st&&st.races&&st.races[r.date]==='n')continue;const v=vdotOf(r.km,r.sec);if(!b||v>b)b=v}return b}
+function bestVdot(list){let b=null;for(const r of list){if(r.km<3||r.np)continue;if(typeof st!=='undefined'&&st&&st.races&&st.races[r.date]==='n')continue;const v=vdotOf(r.km,r.sec);if(!b||v>b)b=v}return b}
 const curVdot=()=>bestVdot(runs.filter(r=>daysAgo(r)<90))||bestVdot(runs);
 function paces(vd){return{E:[vAt(.62,vd),vAt(.70,vd)],M:vAt(.82,vd),T:vAt(.88,vd),I:vAt(.975,vd),R:vAt(1.07,vd)}}
 // target di una seduta a ripetute preso dalla seduta PIANIFICATA (tag I/R/T/M e range di passo),
 // non indovinato dalla distanza della ripetuta (un 6×2' Interval fa frazioni ~490m ma non è ripetute R).
 function plannedFor(dateISO){
-  const ds=(dateISO||'').slice(0,10);
+  // aggancio manuale (st.links, chiave = data completa della corsa): vince sull'abbinamento per data
+  const lk=(typeof st!=='undefined'&&st&&st.links&&st.links[dateISO])||null;
+  if(lk==='none')return null;
+  const ds=lk||(dateISO||'').slice(0,10);
   const src=(typeof monitor!=='undefined'&&monitor&&monitor.sessions)||[];
   return src.find(s=>(s.date||'').slice(0,10)===ds)||null;
 }
@@ -1040,7 +1070,7 @@ function weekKey(d){const dt=day(d);const mon=new Date(dt);mon.setDate(dt.getDat
 const MESI=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
 const labDay=k=>{const p=k.split('-');return +p[2]+' '+MESI[+p[1]-1]}; // '2026-07-06' -> '6 lug'
 const labMonth=k=>{const p=k.split('-');return MESI[+p[1]-1]+' '+p[0].slice(2)}; // '2026-07' -> 'lug 26'
-function weeklyKm(list){list=list||runs;const m={};list.forEach(r=>{const k=weekKey(r.date);m[k]=(m[k]||0)+r.km});return Object.entries(m).sort()}
+function weeklyKm(list){list=list||runs;const m={};list.forEach(r=>{const k=weekKey(r.date);m[k]=(m[k]||0)+vk(r)});return Object.entries(m).sort()}
 function groupAvg(list,val,wt){ // media per settimana o mese; wt opzionale = peso (media ponderata, es. km)
   const wk=rangeSpan(list)<=150;
   const m={};
@@ -1060,7 +1090,7 @@ function monthlyVdot(list){
 function pbs(){
   const t={'5 km':5,'10 km':10,'Mezza':21.0975};const rows=[];
   for(const[n,d]of Object.entries(t)){
-    let best=null;runs.forEach(r=>{if(r.km>=d*0.98&&!r.tm){const est=r.sec*(d/r.km);if(!best||est<best.sec)best={sec:est,r}}});
+    let best=null;runs.forEach(r=>{if(r.km>=d*0.98&&!r.np){const est=r.sec*(d/r.km);if(!best||est<best.sec)best={sec:est,r}}});
     if(best)rows.push(`<tr><td>${n}</td><td class="r">${fmtD(best.sec)}</td><td class="r pace">${fmtP(best.sec/d)}/km</td><td class="r muted">${best.r.date.slice(0,10)}</td></tr>`)}
   return rows.join('')}
 
@@ -1069,10 +1099,10 @@ function rDash(){
   const vd=curVdot();
   const vPrev=bestVdot(runs.filter(r=>daysAgo(r)>=90&&daysAgo(r)<180));
   // finestre di giorni pieni: 0..6 = ultimi 7 giorni (oggi compreso), 7..13 = i 7 precedenti
-  const w7=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+r.km,0);
-  const w7p=runs.filter(r=>daysAgo(r)>=7&&daysAgo(r)<14).reduce((s,r)=>s+r.km,0);
-  const m28=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+r.km,0);
-  const m28p=runs.filter(r=>daysAgo(r)>=28&&daysAgo(r)<56).reduce((s,r)=>s+r.km,0);
+  const w7=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+vk(r),0);
+  const w7p=runs.filter(r=>daysAgo(r)>=7&&daysAgo(r)<14).reduce((s,r)=>s+vk(r),0);
+  const m28=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+vk(r),0);
+  const m28p=runs.filter(r=>daysAgo(r)>=28&&daysAgo(r)<56).reduce((s,r)=>s+vk(r),0);
   const delta=(a,b,u='')=>b?`<span class="${a>=b?'up':'down'}">${a>=b?'▲':'▼'} ${Math.abs(a-b).toFixed(1)}${u}</span>`:'';
   document.getElementById('d-vdot').textContent=vd?vd.toFixed(1):'–';
   document.getElementById('d-vdot-d').innerHTML=delta(vd||0,vPrev,'');
@@ -1124,7 +1154,7 @@ function rToday(){
     target=up;const gg=Math.round((day(up.date)-day(todayS))/864e5);
     label=gg<=1?'Domani':`Tra ${gg} giorni`;
   }
-  const doneToday=todayList.length&&runs.some(r=>r.date.slice(0,10)===todayS);
+  const doneToday=todayList.length&&runs.some(r=>runDay(r)===todayS&&runLink(r)!=='none');
   const dt=day(target.date),isQ=['int','qual','race'].includes(target.cls);
   const zi=sessZone(target.work,target.cls),Z=Zcur();
   const pr=String(target.work||'').match(/(\d:\d\d)\s*[–-]\s*(\d:\d\d)/);
@@ -1137,17 +1167,17 @@ function rToday(){
   // settimana lun-dom a pallini
   const mon=dOnly(mondayOf(todayS));const cells=[];
   for(let k=0;k<7;k++){const d=new Date(mon);d.setDate(mon.getDate()+k);const iso=isoLoc(d);
-    const ss=sessions.filter(s=>s.date===iso),rr=runs.filter(r=>r.date.slice(0,10)===iso);
-    const rkm=rr.reduce((a,r)=>a+r.km,0),pkm=ss.reduce((a,s)=>a+(+s.km||0),0);
+    const ss=sessions.filter(s=>s.date===iso),rr=runs.filter(r=>runDay(r)===iso);
+    const rkm=rr.reduce((a,r)=>a+vk(r),0),pkm=ss.reduce((a,s)=>a+(+s.km||0),0);
     let c='',t='';
-    if(rr.length){c=ss.length?'done':'extra';t=Math.round(rkm)}
+    if(rr.length){c=ss.length&&rr.some(r=>runLink(r)!=='none')?'done':'extra';t=Math.round(rkm)}
     else if(ss.length&&iso<todayS){c='miss';t=Math.round(pkm)||'·'}
     else if(iso===todayS&&ss.length){c='now';t=Math.round(pkm)||'·'}
     else if(ss.length){c='pl';t=Math.round(pkm)||'·'}
     const nm=ss.length?ss[0].name.split(/[ -]/)[0].toLowerCase():'';
     cells.push(`<div class="wd">${['Lun','Mar','Mer','Gio','Ven','Sab','Dom'][k]}<div class="wdot ${c}" title="${ss.map(s=>s.name).join(', ')}">${t}</div><b>${iso===todayS?'oggi':nm.slice(0,7)}</b></div>`)}
   const wPl=sessions.filter(s=>mondayOf(s.date)===mondayOf(todayS)).reduce((a,s)=>a+(+s.km||0),0);
-  const wDo=runs.filter(r=>mondayOf(r.date)===mondayOf(todayS)).reduce((a,r)=>a+r.km,0);
+  const wDo=runs.filter(r=>mondayOf(r.date)===mondayOf(todayS)).reduce((a,r)=>a+vk(r),0);
   // proiezione a fine settimana: sedute rimaste del piano, e al ritmo dei giorni passati
   const ranToday=runs.some(r=>r.date.slice(0,10)===todayS);
   const left=sessions.filter(s=>mondayOf(s.date)===mondayOf(todayS)&&(s.date>todayS||(s.date===todayS&&!ranToday))).reduce((a,s)=>a+(+s.km||0),0);
@@ -1158,7 +1188,7 @@ function rToday(){
   el.innerHTML=html;
 }
 function rOggiExtra(){
-  const acute=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+r.km,0),chr=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+r.km,0)/4;
+  const acute=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+vk(r),0),chr=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+vk(r),0)/4;
   const a=document.getElementById('d-acwr');
   if(a){if(chr>=1){const q=acute/chr;a.textContent=q.toFixed(2);a.style.color=q>1.5?'var(--z5)':q>1.3||q<.8?'var(--warn)':'';
       document.getElementById('d-acwr-d').innerHTML=`<span class="muted">${q>1.5?'picco':q>1.3?'alto':q>=.8?'ottimale':q>=.5?'in calo':'molto basso'}</span>`}else a.textContent='–'}
@@ -1181,11 +1211,11 @@ function rAlerts(){
   const ss=todaySessions()||[];
   const lastMon=addDaysISO(mondayOf(todayS),-7);
   const pl=ss.filter(s=>mondayOf(s.date)===lastMon).reduce((a,s)=>a+(+s.km||0),0);
-  const dn=runs.filter(r=>mondayOf(r.date)===lastMon).reduce((a,r)=>a+r.km,0);
+  const dn=runs.filter(r=>mondayOf(r.date)===lastMon).reduce((a,r)=>a+vk(r),0);
   if(pl>0&&dn/pl<.8)add('warn',`<b>Settimana scorsa al ${Math.round(dn/pl*100)}%</b> dei km previsti (${dn.toFixed(0)} di ${pl.toFixed(0)}).`);
-  const miss=ss.filter(s=>mondayOf(s.date)===mondayOf(todayS)&&s.date<todayS&&!runs.some(r=>r.date.slice(0,10)===s.date));
+  const miss=ss.filter(s=>mondayOf(s.date)===mondayOf(todayS)&&s.date<todayS&&!runs.some(r=>runDay(r)===s.date&&runLink(r)!=='none'));
   miss.forEach(s=>{const d=day(s.date);add('warn',`<b>${s.name} di ${['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'][d.getDay()]} non registrata.</b> Se l'hai fatta, importa il .fit in Corse.`)});
-  const acute=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+r.km,0),chr=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+r.km,0)/4;
+  const acute=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+vk(r),0),chr=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+vk(r),0)/4;
   if(chr>=1&&acute/chr>1.3)add(acute/chr>1.5?'bad':'warn',`<b>Carico alto:</b> ${acute.toFixed(0)} km negli ultimi 7 giorni contro una media di ${chr.toFixed(0)}.`);
   const r12=runs.filter(r=>daysAgo(r)<84&&!r.tm),x12=r12.filter(r=>X[r.date]&&X[r.date].hist).length;
   if(r12.length&&x12/r12.length<.6)add('info',`<b>FC secondo per secondo su ${x12} delle ${r12.length} corse recenti.</b> Importa l'archivio .zip in Corse per completare le analisi.`);
@@ -1197,12 +1227,12 @@ function rAlerts(){
 /* ---------- carico e rischio infortuni (acute:chronic) ---------- */
 function rLoad(){
   const el=document.getElementById('d-load');if(!el)return;
-  const acute=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+r.km,0);
-  const chronic28=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+r.km,0);
+  const acute=runs.filter(r=>daysAgo(r)<7).reduce((s,r)=>s+vk(r),0);
+  const chronic28=runs.filter(r=>daysAgo(r)<28).reduce((s,r)=>s+vk(r),0);
   const chronic=chronic28/4;
   if(chronic<1){el.innerHTML='<p class="muted">Servono corse nelle ultime 4 settimane per stimare il carico.</p>';return}
   const ratio=acute/chronic;
-  const lastWk=runs.filter(r=>daysAgo(r)>=7&&daysAgo(r)<14).reduce((s,r)=>s+r.km,0);
+  const lastWk=runs.filter(r=>daysAgo(r)>=7&&daysAgo(r)<14).reduce((s,r)=>s+vk(r),0);
   // le date delle due finestre, scritte in chiaro: sono 7 giorni MOBILI, non la settimana lun-dom,
   // e senza dirlo il confronto sembra sbagliato a chi ragiona per settimane di calendario
   const dLbl=k=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-k);return `${d.getDate()}/${d.getMonth()+1}`};
@@ -1253,10 +1283,10 @@ function rProg(){
   chart('c-vol',wk,{bar:true,color:'var(--acc2)',unit:'km a settimana',ylab:v=>v.toFixed(0),avg:true,
     each:'Ogni barra = km di una settimana (lun–dom)'+(wkRaw.length&&wkRaw[wkRaw.length-1][0]===curWk?'; l’ultima, più chiara, è quella in corso':''),
     extra:(l4.length?`media ultime 4 concluse <b>${Math.round(mean(l4))} km</b>`:'')+(wMax[0]?` · più alta ${Math.round(wMax[1])} km (${labDay(wMax[0])})`:'')});
-  const ge=groupAvg(list.filter(r=>cls(r)==='easy'&&!r.tm),r=>pace(r),r=>r.km); // ponderata sui km = sec totali/km totali
+  const ge=groupAvg(list.filter(r=>cls(r)==='easy'&&!r.np),r=>pace(r),r=>r.km); // ponderata sui km = sec totali/km totali
   chart('c-easy',ge,{ylab:fmtP,pace:true,invertY:true,better:'down',up:'↑ più veloce',unit:'min/km',color:'var(--warn)',
     each:`Ogni punto = passo medio delle corse facili ${ge.per==='mese'?'del mese':'della settimana'} (pesato sui km)`});
-  const gf=groupAvg(list.filter(r=>cls(r)==='easy'&&r.hr&&!r.tm),r=>r.km*1000/(r.hr*r.sec/60),r=>r.hr*r.sec/60); // ponderata sui battiti = metri totali/battiti totali
+  const gf=groupAvg(list.filter(r=>cls(r)==='easy'&&r.hr&&!r.np),r=>r.km*1000/(r.hr*r.sec/60),r=>r.hr*r.sec/60); // ponderata sui battiti = metri totali/battiti totali
   chart('c-eff',gf,{ylab:v=>v.toFixed(2),unit:'metri per battito',better:'up',dfmt:v=>v.toFixed(2),
     each:`Ogni punto = corse facili ${gf.per==='mese'?'del mese':'della settimana'}`});
   const mk=document.getElementById('pr-metric').value||'cad';const M=DYN[mk];
@@ -1323,7 +1353,7 @@ function rRecap(){
   const easyA=A.filter(r=>cls(r)==='easy'),easyB=B.filter(r=>cls(r)==='easy');
   const wpace=a=>wavg(a,r=>r.sec,r=>r.km); // sec totali / km totali
   const eff=a=>wavg(a.filter(r=>r.hr),r=>r.km*1000,r=>r.hr*r.sec/60); // metri totali / battiti totali
-  const wkKm=a=>{if(a.length<2)return null;const d=(day(a[a.length-1].date)-day(a[0].date))/864e5+1;return a.reduce((s,r)=>s+r.km,0)/Math.max(1,d/7)};
+  const wkKm=a=>{if(a.length<2)return null;const d=(day(a[a.length-1].date)-day(a[0].date))/864e5+1;return a.reduce((s,r)=>s+vk(r),0)/Math.max(1,d/7)};
   const vA=wkKm(A);
   // il passo easy non si giudica "più veloce = meglio": conta quanto sta dentro la fascia E prescritta dal VDOT del momento
   const eRange=vd=>vd?paces(vd).E:null; // [lento, veloce]
@@ -2627,11 +2657,11 @@ function rPlan(plan){
           w._hit={};
           const monS=iso(addD(sunW,-6)),sunS=iso(sunW);
           const doneKeys=new Set(w.sess.filter(s=>s.done).map(s=>s.realDate));
-          const wr=runs.filter(r=>{const d=r.date.slice(0,10);return d>=monS&&d<=sunS&&d<=todayS&&!doneKeys.has(d)});
+          const wr=runs.filter(r=>{const d=runDay(r);return d>=monS&&d<=sunS&&r.date.slice(0,10)<=todayS&&!doneKeys.has(r.date.slice(0,10))&&runLink(r)!=='none'});
           const pairs=[];
           w.sess.forEach((s,si)=>{if(s.done||s.n.startsWith('GARA'))return;
             const sdI=iso(addD(sunW,OFF[s.t]??0)),sc=planCls(s.n);
-            wr.forEach(r=>{const rd=r.date.slice(0,10);if(sdI>todayS&&rd!==sdI)return;
+            wr.forEach(r=>{const rd=r.date.slice(0,10),lk=runLink(r);if(lk){if(lk===sdI)pairs.push({si,r,score:1000});return}if(sdI>todayS&&rd!==sdI)return;
               const rc=cls(r),same=rc===sc||(sc==='easy'&&rc==='long')||(sc==='long'&&rc==='easy');
               const dd=Math.min(6,Math.abs(Math.round((day(rd)-day(sdI))/864e5)));
               pairs.push({si,r,score:(6-dd)*10+(same?4:0)+1})})});
@@ -2675,7 +2705,7 @@ function rTrack(){
     if(sMon>todayS)return;
     const cur=sSun>=todayS;
     const rr=runs.filter(r=>{const d=r.date.slice(0,10);return d>=sMon&&d<=sSun});
-    const aKm=rr.reduce((a,r)=>a+r.km,0),pKm=w.vol;
+    const aKm=rr.reduce((a,r)=>a+vk(r),0),pKm=w.vol;
     const qPlan=w.sess.filter(s=>QUAL.some(q=>s.n.startsWith(q))).length;
     const qDone=rr.filter(r=>['int','qual','race'].includes(cls(r))).length;
     const lPlan=w.sess.some(s=>s.n.startsWith('Lungo')||s.n.startsWith('Simulazione')||s.n.startsWith('Big workout')||s.n.startsWith('GARA'));
@@ -3307,7 +3337,7 @@ function rMonitor(){
   wkeys.forEach(k=>{
     const sess=wmap[k].slice().sort((a,b)=>day(a.date)-day(b.date));
     const monISO=weekKey(sess[0].date),sunISO=isoOf(addD(day(monISO),6));
-    const weekRuns=pool.filter(r=>{const d=r.date.slice(0,10);return d>=monISO&&d<=sunISO});
+    const weekRuns=pool.filter(r=>{const d=runDay(r);return d>=monISO&&d<=sunISO}); // una corsa agganciata a mano vale nella settimana della sua seduta
     // abbinamento globale: valuto TUTTE le coppie (seduta, corsa) della settimana e assegno
     // in ordine di punteggio decrescente. La vicinanza di data pesa più del tipo di seduta,
     // così una corsa fatta di domenica non finisce nello slot del giovedì solo perché
@@ -3318,7 +3348,9 @@ function rMonitor(){
       const sFut=s.date>todayS;
       weekRuns.forEach(r=>{
         if(usedRuns.has(r.date))return;
-        const rd=r.date.slice(0,10);
+        const rd=r.date.slice(0,10),lk=runLink(r);
+        if(lk==='none')return;                                                   // dichiarata extra
+        if(lk){if(lk===s.date)pairs.push({si,r,score:1000});return}              // agganciata a mano: solo alla sua seduta
         if(sFut&&rd!==s.date)return; // una seduta futura non può essere "svolta" da una corsa passata
         const rc=cls(r);
         const sameCls=rc===s.cls||(s.cls==='easy'&&rc==='long')||(s.cls==='long'&&rc==='easy');
@@ -3334,7 +3366,7 @@ function rMonitor(){
     const matchedDates=new Set(Object.values(matches).map(r=>r.date));
     const extra=weekRuns.filter(r=>!matchedDates.has(r.date));
     const plannedKm=sess.reduce((a,s)=>a+(s.km||0),0);
-    const actualKm=weekRuns.reduce((a,r)=>a+r.km,0);
+    const actualKm=weekRuns.reduce((a,r)=>a+vk(r),0);
     const qPlan=sess.filter(s=>['int','qual','race'].includes(s.cls)).length;
     const qDone=weekRuns.filter(r=>['int','qual','race'].includes(cls(r))).length;
     const lPlan=sess.some(s=>['long','race'].includes(s.cls));
@@ -3579,7 +3611,7 @@ function resetData(){if(confirm('Tornare ai dati iniziali? Import manuali, rinom
 function rManage(){
   document.getElementById('dt-manage').innerHTML=runs.filter(manOk).slice(-40).reverse().map(r=>{const k=r.date+'|'+r.km;
     return `<div class="shoecard"><div style="flex:1"><b>${r.title}</b> <span class="badge ${cls(r)}">${CLSN[cls(r)]}</span><br>
-      <span class="muted">${r.date.slice(0,10)} · ${r.km.toFixed(1)} km · ${fmtP(pace(r))}/km${r.hr?' · FC '+r.hr:''}${X[r.date]&&X[r.date].hist?' · <b class="xok">FC 1s</b>':''}</span></div>
+      <span class="muted">${r.date.slice(0,10)} · ${r.km.toFixed(1)} km · ${fmtP(pace(r))}/km${r.hr?' · FC '+r.hr:''}${X[r.date]&&X[r.date].hist?' · <b class="xok">FC 1s</b>':''}${r.nh?' · <b class="down">FC esclusa</b>':''}${r.np&&!r.tm?' · <b class="down">passo escluso</b>':''}${r.nv?' · <b class="down">km esclusi</b>':''}${runLink(r)?' · 🔗 '+(runLink(r)==='none'?'extra':'agganciata'):''}</span></div>
       <button class="btn btn2" style="width:auto;margin:0 0 0 8px;padding:8px 10px;font-size:12px" onclick="anaOpen('${r.date}')">Analizza</button>
       <button class="btn btn2" style="width:auto;margin:0 0 0 8px;padding:8px 10px;font-size:12px" onclick="renameRun('${k}')">✎</button>
       <button class="btn btn2" style="width:auto;margin:0 0 0 6px;padding:8px 10px;font-size:12px" onclick="delRun('${k}')">✕</button></div>`}).join('');
@@ -3785,6 +3817,28 @@ function repVerdict(pres,mr){
       (spreadPct<=1.5?'esecuzione da metronomo.':spreadPct<=3?'buona regolarità.':'partenza troppo generosa: meglio conservativo e chiudere in progressione.');
   return{txt:v,avg,inB,spread,spreadPct,band};
 }
+/* ---------- dettaglio corsa: seduta del piano + dati esclusi ---------- */
+function runCtlCard(r){
+  const d0=r.date.slice(0,10),lk=runLink(r),g=(st.ign||{})[r.date]||{};
+  const ss=(todaySessions()||[]).filter(s=>Math.abs(daysBetween(d0,s.date))<=4).sort((a,b)=>a.date<b.date?-1:1);
+  const auto=(()=>{const L=st.links;if(!L||!L[r.date])return plannedFor(r.date);const v=L[r.date];delete L[r.date];const p=plannedFor(r.date);L[r.date]=v;return p})();
+  const DL=iso=>{const d=dOnly(iso);return `${['dom','lun','mar','mer','gio','ven','sab'][d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`};
+  const opt=(v,t)=>`<option value="${v}"${(lk||'')===v?' selected':''}>${t}</option>`;
+  const sw=(k,t,d)=>`<label class="ign"><input type="checkbox" ${g[k]?'checked':''} onchange="setRunIgn('${r.date}','${k}',this.checked)"><span><b>${t}</b><br>${d}</span></label>`;
+  return `<div class="card"><h2>Piano e dati della corsa</h2>
+    <label class="muted" style="display:block;font-size:12px;margin-bottom:4px">Seduta del piano a cui vale questa corsa</label>
+    <select onchange="setRunLink('${r.date}',this.value)">
+      ${opt('',`Automatico${auto?` — ${DL(auto.date)} · ${auto.name}`:' — nessuna seduta lo stesso giorno'}`)}
+      ${ss.map(s=>opt(s.date,`${DL(s.date)} · ${s.name}${s.km?` (≈${s.km} km)`:''}`)).join('')}
+      ${opt('none','Nessuna: corsa extra, non a piano')}
+    </select>
+    <p class="muted" style="margin:6px 0 12px;font-size:12px">Serve quando l’abbinamento automatico sbaglia (es. la seduta del martedì corsa il mercoledì). Monitor, Piano, Oggi e l’analisi della seduta seguono la tua scelta.</p>
+    <div class="muted" style="font-size:12px;margin-bottom:4px">Escludi un dato registrato male — la corsa resta in archivio, il dato smette solo di alimentare le analisi</div>
+    ${sw('hr','FC esclusa','Niente zone, minuti di soglia, forma e previsioni da FC. Km e passo restano.')}
+    ${sw('pace','Passo escluso','Fuori da VDOT, migliori tratti, passo per zona ed efficienza (es. GPS sballato in pista o tra i palazzi). FC e km restano.')}
+    ${sw('vol','Km esclusi','Non contano nel volume settimanale e nel carico (es. distanza doppia o sbagliata). FC e passo restano.')}
+  </div>`;
+}
 function rAna(){
   const el=document.getElementById('a-out');
   const key=document.getElementById('a-sel').value;
@@ -3820,7 +3874,7 @@ function rAna(){
   // 1. contesto
   const DN=['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
   const dt=day(r.date);
-  const wkTot=runs.filter(x=>weekKey(x.date)===weekKey(r.date)).reduce((s,x)=>s+x.km,0);
+  const wkTot=runs.filter(x=>weekKey(x.date)===weekKey(r.date)).reduce((s,x)=>s+vk(x),0);
   const idx=runs.findIndex(x=>x.date===r.date);
   const prev=idx>0?runs[idx-1]:null;
   let ctx=`${CLSN[c]}${stp?' ('+stp+')':''} di ${r.km.toFixed(1)} km, ${DN[dt.getDay()]} ${dt.getHours()<12?'mattina':dt.getHours()<18?'pomeriggio':'sera'}, passo medio ${fmtP(pace(r))}/km, in una settimana da ${wkTot.toFixed(0)} km totali.`;
@@ -3899,7 +3953,7 @@ function rAna(){
       if(hA.length&&hB.length){const m=a=>a.reduce((x,y)=>x+y)/a.length;const dr=(m(hB)-m(hA))/m(hA)*100;
         hrp+=` La deriva cardiaca tra prima e seconda parte è ${dr>=0?'+':''}${dr.toFixed(1)}%: ${dr<3?'tenuta aerobica ottima':dr<6?'nella norma per questo tipo di sforzo':'alta — caldo, disidratazione o sforzo oltre la condizione attuale'}.`}
     }
-    const myMb=mb(r),refMb=(()=>{let m=0,b=0;runs.filter(x=>cls(x)==='easy'&&x.hr&&!x.tm).forEach(x=>{m+=x.km*1000;b+=x.hr*x.sec/60});return b?m/b:null})();
+    const myMb=mb(r),refMb=(()=>{let m=0,b=0;runs.filter(x=>cls(x)==='easy'&&x.hr&&!x.np).forEach(x=>{m+=x.km*1000;b+=x.hr*x.sec/60});return b?m/b:null})();
     if(myMb&&refMb&&(c==='easy'||c==='long'))
       hrp+=myMb>refMb*1.03?` Efficienza ${myMb.toFixed(2)} m/battito contro una tua media di ${refMb.toFixed(2)}: il motore sta crescendo.`
         :myMb<refMb*0.97?` Efficienza ${myMb.toFixed(2)} m/battito, sotto la tua media (${refMb.toFixed(2)}): giornata pesante, caldo o percorso ostico.`
@@ -3954,7 +4008,7 @@ function rAna(){
   if(cvd){
     if(ago<=14)now=`È una corsa recente (${ago<=1?'ultimi giorni':ago+' giorni fa'}): pesa direttamente sulla stima attuale della tua forma (VDOT ${cvd.toFixed(1)}).`;
     else{
-      const around=bestVdot(runs.filter(x=>Math.abs(day(x.date)-dt)<=30*864e5&&!x.tm));
+      const around=bestVdot(runs.filter(x=>Math.abs(day(x.date)-dt)<=30*864e5&&!x.np));
       if(around){const d=cvd-around;
         now=`Questa corsa ha ${ago} giorni: all'epoca il tuo VDOT era ~${around.toFixed(1)}, oggi è ${cvd.toFixed(1)}${Math.abs(d)<0.3?' — condizione stabile da allora':d>0?` — da allora sei cresciuto di ${d.toFixed(1)} punti`:` — allora eri più in forma di ${Math.abs(d).toFixed(1)} punti: c'è margine da recuperare`}.`}
     }
@@ -4046,6 +4100,7 @@ function rAna(){
     html+=`<div class="card lapcard"><h2>Lap <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· tocca un lap per i dettagli</span></h2><div class="laprow">${chips}</div><div id="lap-detail"></div><p class="muted" style="margin-top:8px">${sum.join(' · ')}</p></div>`;
   }
   try{html+=anaXCard(r)}catch(e){console.warn('anaXCard',e)}
+  try{html+=runCtlCard(r)}catch(e){console.warn('runCtlCard',e)}
   el.innerHTML=html;
 }
 /* ===== FIT: lettura completa (sessione, lap, record secondo per secondo) ===== */
@@ -4287,7 +4342,7 @@ function xFlag(r,x){
   if(x.cov<.7)return 'FC presente solo nel '+Math.round(x.cov*100)+'% della corsa';
   if(x.art>.12*x.mov)return Math.round(x.art/60)+' min di FC scartati (picchi o aggancio alla cadenza)';
   return null}
-function xOf(r){const x=X[r.date];if(!x||!x.hist||r.tm)return null;
+function xOf(r){const x=X[r.date];if(!x||!x.hist||r.tm||r.nh)return null;
   if(xFlag(r,x)&&!(st.hrok&&st.hrok[r.date]))return null;return x}
 // corse con dati FC in una finestra di giorni che termina in 'end' (ISO, default oggi)
 function xRuns(days,end){end=end||todayISO();
@@ -4302,7 +4357,7 @@ const fmtMin=s=>Math.round(s/60)+"'";
 const RACE_D=[5,10,15,21.0975,42.195];
 function raceState(r){return st.races&&st.races[r.date]}
 function raceCands(){
-  const yr=runs.filter(r=>daysAgo(r)<540&&!r.tm&&r.km>=3);
+  const yr=runs.filter(r=>daysAgo(r)<540&&!r.np&&r.km>=3);
   const out=[];
   yr.forEach(r=>{
     const s=raceState(r);
@@ -4329,7 +4384,7 @@ function zoneAnchor(){
   // di 75-130' (mezza) ~3 bpm sotto. Si prende la stima più alta degli ultimi 120 giorni (forma attuale).
   const out=[];
   runs.forEach(r=>{
-    if(r.tm||daysAgo(r)>180)return;
+    if(r.tm||r.nh||daysAgo(r)>180)return;
     const s=raceState(r);if(s==='n')return;
     if(!(s==='y'||cls(r)==='race'))return;
     const x=X[r.date];let hr=null,min=r.sec/60;
@@ -4385,7 +4440,7 @@ function weekZones(n){
 function aeroBands(Z){Z=Z||Zcur();const t=Z.c[3];return[[t-32,t-24],[t-24,t-16],[t-16,t-8],[t-8,t]]}
 function bandEst(sec,m,hm){const v=m/(sec/60),f=(hm-st.hrrest)/(st.hrmax-st.hrrest);if(f<=.3)return null;return(vo2(v)-3.5)/f+3.5}
 function aeroWin(end,days){
-  days=days||28;const rs=xRuns(days,end),B=aeroBands();
+  days=days||28;const rs=xRuns(days,end).filter(r=>!r.np),B=aeroBands();
   return B.map(([a,b])=>{let s=0,m=0,nr=0;rs.forEach(r=>{const[ss,mm]=histSum(X[r.date],a,b);if(ss>=60)nr++;s+=ss;m+=mm});
     const ok=s>=600&&nr>=2;return{a,b,s,m,nr,ok,pace:m>0?s/(m/1000):null,est:ok?bandEst(s,m,(a+b)/2):null}});
 }
@@ -4403,9 +4458,9 @@ function aeroMoved(){
 }
 /* ---------- 4. curva passo-FC (bande di 5 bpm, ≥3 corse) ---------- */
 function curveWin(end){
-  end=end||todayISO();let days=40,rs=xRuns(days,end);
+  end=end||todayISO();let days=40,rs=xRuns(days,end).filter(r=>!r.np);
   const tot=()=>rs.reduce((s,r)=>s+X[r.date].hist.s.reduce((a,b)=>a+b,0),0);
-  while(tot()<60000&&days<120){days+=7;rs=xRuns(days,end)}
+  while(tot()<60000&&days<120){days+=7;rs=xRuns(days,end).filter(r=>!r.np)}
   const pts=[];
   for(let a=100;a<200;a+=5){let s=0,m=0,nr=0;rs.forEach(r=>{const[ss,mm]=histSum(X[r.date],a,a+5);if(ss>=90)nr++;s+=ss;m+=mm});
     if(nr>=3&&s>=300&&m>0)pts.push({a,pace:s/(m/1000),s,nr})}
@@ -4417,35 +4472,35 @@ function curveBest(){ // finestre di 40 giorni negli ultimi 18 mesi, a passi di 
   return best;
 }
 function zonePaceWin(i,end){const Z=Zcur(),[a,b]=zRange(i,Z);const c=curveWin(end);let s=0,m=0;
-  xRuns(c.days,end).forEach(r=>{const[ss,mm]=histSum(X[r.date],a,b==null?250:b+1);s+=ss;m+=mm});
+  xRuns(c.days,end).forEach(r=>{if(r.np)return;const[ss,mm]=histSum(X[r.date],a,b==null?250:b+1);s+=ss;m+=mm});
   return s>=600&&m>0?s/(m/1000):null}
 /* ---------- 5. tenute: tratti continui nella stessa banda di 5 bpm ---------- */
 function holdsWin(days,minSec){
-  const rs=xRuns(days),byB={};
+  const rs=xRuns(days).filter(r=>!r.np),byB={};
   rs.forEach(r=>(X[r.date].holds||[]).forEach(([b,s,m])=>{if(s<minSec)return;const o=byB[b]=byB[b]||{n:0,s:0,m:0};o.n++;o.s+=s;o.m+=m}));
   return Object.entries(byB).map(([b,o])=>({b:+b,...o,pace:o.m?o.s/(o.m/1000):null})).sort((a,b)=>a.b-b.b);
 }
 /* ---------- 6. quanto costa ogni passo (bande di 20s, dalla traccia ogni 30s) ---------- */
 function paceCost(days){
-  const rs=xRuns(days),bk={};
+  const rs=xRuns(days).filter(r=>!r.np),bk={};
   rs.forEach(r=>{const t=X[r.date].tr;if(!t)return;t.p.forEach((p,i)=>{if(!p||p<180||p>480)return;const b=Math.floor(p/20)*20;
     const o=bk[b]=bk[b]||{n:0,h:0,hn:0};o.n++;if(t.h[i]){o.h+=t.h[i];o.hn++}})});
   return Object.entries(bk).map(([b,o])=>({b:+b,min:o.n*.5/(days/7),hr:o.hn?o.h/o.hn:null})).filter(o=>o.min>=1).sort((a,b)=>a.b-b.b);
 }
 /* ---------- 7. passo accumulato: i minuti più veloci della settimana, sommati ---------- */
 function accWeek(w){
-  const ms=[];runs.forEach(r=>{if(mondayOf(r.date)!==w||r.tm)return;const x=X[r.date];if(x&&x.fast)ms.push(...x.fast)});
+  const ms=[];runs.forEach(r=>{if(mondayOf(r.date)!==w||r.np)return;const x=X[r.date];if(x&&x.fast)ms.push(...x.fast)});
   ms.sort((a,b)=>b-a);const out={};
   for(const L of[3000,5000,10000]){let d=0,t=0;for(const v of ms){if(d+v>=L){t+=(L-d)/v;d=L;break}d+=v;t++}
     out[L]=d>=L?t*60/(L/1000):null}
   return out;
 }
 /* ---------- 8. migliori tratti ---------- */
-function bestIn(days){const o={};runs.forEach(r=>{if(days&&daysAgo(r)>=days)return;const x=X[r.date];if(!x||!x.best||r.tm)return;
+function bestIn(days){const o={};runs.forEach(r=>{if(days&&daysAgo(r)>=days)return;const x=X[r.date];if(!x||!x.best||r.np)return;
   for(const k in x.best)if(!o[k]||x.best[k]<o[k].s)o[k]={s:x.best[k],r}});return o}
 /* ---------- 9. capacità ripetibile, guardrail, esposizione, divario di resistenza ---------- */
 function weeklySeries(){
-  if(!runs.length)return[];const m={};runs.forEach(r=>{const k=mondayOf(r.date);m[k]=(m[k]||0)+r.km});
+  if(!runs.length)return[];const m={};runs.forEach(r=>{const k=mondayOf(r.date);m[k]=(m[k]||0)+vk(r)});
   const out=[];let w=mondayOf(runs[0].date);const cur=mondayOf(todayISO());
   while(w<=cur){out.push({w,km:m[w]||0});w=addDaysISO(w,7)}return out;
 }
@@ -4805,6 +4860,50 @@ function anaXCard(r){
 }
 
 /* ---------- Piano: obiettivo, richiesta della gara, dose di intensità ---------- */
+/* ---------- previsione gara dalla soglia recente (ripresa dal "Race outlook" di RunZones) ----------
+   Il VDOT da gara invecchia: d'inverno, senza gare, resta fermo. Qui la stima viene dal lavoro a LT2
+   delle ULTIME 3 SETTIMANE: passo tenuto con la FC dentro la fascia LT2 (dalla traccia secondo per
+   secondo, solo corse con FC e passo affidabili). Il passo di soglia si converte in VDOT (quello per cui
+   il passo T di Daniels coincide) e da lì nel tempo di gara. Prova sufficiente = almeno 20' in fascia,
+   in almeno 2 corse con 5' ciascuna. Se manca, lo si dice invece di dare un numero. */
+function lt2Evidence(end,days){
+  end=end||todayISO();days=days||21;
+  const[a,b]=zRange(3);let s=0,m=0,n=0;
+  xRuns(days,end).forEach(r=>{if(r.np)return;const[ss,mm]=histSum(X[r.date],a,b==null?250:b+1);if(ss>=300){n++;s+=ss;m+=mm}});
+  return{s,m,n,ok:s>=1200&&n>=2&&m>0,pace:m>0?s/(m/1000):null};
+}
+function vdotFromT(tSec){let lo=20,hi=90;for(let i=0;i<50;i++){const v=(lo+hi)/2;paces(v).T>tSec?lo=v:hi=v}return(lo+hi)/2}
+function rOutlook(){
+  const el=document.getElementById('p-outlook');if(!el)return;
+  const g=goalTarget();
+  if(!g){el.innerHTML='<p class="muted">Genera o apri un piano per avere la previsione sulla gara obiettivo.</p>';return}
+  const gName=g.km>=42?'maratona':g.km>=21?'mezza':g.km+' km',todayS=todayISO(),raceDone=g.date<todayS;
+  const asOf=raceDone?addDaysISO(g.date,-1):todayS;
+  const ev=lt2Evidence(asOf),cv=curVdot();
+  const proj=ev.ok?(()=>{const v=vdotFromT(ev.pace);return{v,t:predict(g.km,v),lo:predict(g.km,vdotFromT(ev.pace-3)),hi:predict(g.km,vdotFromT(ev.pace+3))}})():null;
+  const fromRace=cv?predict(g.km,cv):null;
+  // storico: la stessa stima a 3, 6 e 9 settimane fa
+  const hist=[21,42,63].map(k=>{const e=lt2Evidence(addDaysISO(asOf,-k));return{k,t:e.ok?predict(g.km,vdotFromT(e.pace)):null}});
+  const dl=t=>{const d=t-g.sec,a=Math.abs(d);return `<span class="${d<=0?'up':'down'}">${d<=0?'−':'+'}${fmtD(a)}</span>`};
+  // durata: per la maratona la soglia non basta, serve il lungo
+  const longR=runs.filter(r=>daysBetween(r.date.slice(0,10),asOf)>=0&&daysBetween(r.date.slice(0,10),asOf)<42&&!r.nv).reduce((a,r)=>Math.max(a,r.km),0);
+  const durNote=g.km>=42&&(proj||fromRace)&&longR>0&&longR<28?`<p class="fx-warn">⚠️ Il lungo più lungo delle ultime 6 settimane è di ${longR.toFixed(0)} km: per la maratona la stima vale solo se la resistenza arriva (lunghi da 28–32 km). Senza, aspettati qualche minuto in più.</p>`:'';
+  // esito, a gara corsa
+  const res=raceDone?runs.filter(r=>r.date.slice(0,10)===g.date&&r.km>=g.km*.95).sort((a,b)=>b.km-a.km)[0]:null;
+  let html='';
+  if(res){const t=res.sec*(g.km/res.km);
+    html+=`<div class="grid3"><div class="stat"><b>${fmtD(t)}</b><span>Risultato del ${g.date}</span></div><div class="stat"><b>${fmtD(g.sec)}</b><span>Obiettivo · ${dl(t)}</span></div><div class="stat"><b>${proj?fmtD(proj.t):'–'}</b><span>Previsione alla vigilia</span></div></div>`;
+  }
+  html+=`<div class="grid3">
+    <div class="stat"><b>${proj?fmtD(proj.t):'–'}</b><span>${proj?`Dalla soglia recente · ${fmtD(proj.lo)}–${fmtD(proj.hi)}`:'Dalla soglia recente'}</span></div>
+    <div class="stat"><b>${fmtD(g.sec)}</b><span>Obiettivo ${gName}${proj?' · '+dl(proj.t):''}</span></div>
+    <div class="stat"><b>${fromRace?fmtD(fromRace):'–'}</b><span>Dalle gare (VDOT ${cv?cv.toFixed(1):'–'})${fromRace?' · '+dl(fromRace):''}</span></div></div>`;
+  if(proj)html+=`<p class="muted" style="margin-top:8px">Ultime 3 settimane: <b>${Math.round(ev.s/60)}'</b> con la FC in LT2 (${zLab(3)}) in <b>${ev.n}</b> corse, a <b>${fmtP(ev.pace)}/km</b> → VDOT di soglia <b>${proj.v.toFixed(1)}</b>. ${Math.abs(proj.t-g.sec)<=g.sec*.01?'Sei in linea con l’obiettivo.':proj.t<g.sec?'La soglia attuale vale già più dell’obiettivo.':'Alla soglia attuale manca '+fmtD(proj.t-g.sec)+' per l’obiettivo: è normale lontano dalla gara, conta la tendenza.'}</p>`;
+  else html+=`<p class="fx-warn">Servono prove di soglia recenti. Nelle ultime 3 settimane ci sono <b>${Math.round(ev.s/60)}'</b> con la FC in LT2 (${zLab(3)}) in ${ev.n} corse con almeno 5' in fascia: ne servono almeno 20' in 2 corse. Un 2×15' (rec 3') con la FC tenuta in fascia basta. Non vuol dire che l’allenamento non funzioni: manca solo la misura.</p>`;
+  if(hist.some(h=>h.t))html+=`<p class="muted" style="margin-top:6px">Tendenza della stima dalla soglia: ${hist.slice().reverse().map(h=>`${h.k/7} sett. fa <b>${h.t?fmtD(h.t):'–'}</b>`).join(' · ')} · ora <b>${proj?fmtD(proj.t):'–'}</b></p>`;
+  html+=durNote+`<p class="muted" style="margin-top:6px;font-size:11.5px">Due stime: dalla soglia (le sedute misurate) e dalle gare (ultimo VDOT confermato). Quando sono vicine la previsione è solida; se divergono, la soglia è più aggiornata, le gare più sicure.</p>`;
+  el.innerHTML=html;
+}
 function rGoal(){
   const el=document.getElementById('p-goalgap');if(!el)return;
   const g=goalTarget();
@@ -4944,7 +5043,7 @@ function rRefs(){
 let effZ=1;
 function zoneWeekPace(i,n){
   const[a,b]=zRange(i);return weeksBack(n).map((w,k,arr)=>{const end=k===arr.length-1?todayISO():addDaysISO(w,6);
-    let s=0,m=0,nr=0;xRuns(14,end).forEach(r=>{const[ss,mm]=histSum(X[r.date],a,b==null?250:b+1);if(ss>=120)nr++;s+=ss;m+=mm});
+    let s=0,m=0,nr=0;xRuns(14,end).forEach(r=>{if(r.np)return;const[ss,mm]=histSum(X[r.date],a,b==null?250:b+1);if(ss>=120)nr++;s+=ss;m+=mm});
     return{w,s,nr,pace:s>=600&&m>0?s/(m/1000):null}})}
 function rEff(){
   const el=document.getElementById('f-eff');if(!el)return;
@@ -4979,7 +5078,7 @@ function rCal(){
   const head=`<div class="calr calh">${['L','M','M','G','V','S','D'].map(d=>`<span>${d}</span>`).join('')}<span>Sett.</span></div>`;
   const rows=ws.map(w=>{let km=0,n=0,min=0;
     const cells=[0,1,2,3,4,5,6].map(k=>{const iso=addDaysISO(w,k);const rr=runs.filter(r=>r.date.slice(0,10)===iso);
-      km+=rr.reduce((a,r)=>a+r.km,0);n+=rr.length;min+=rr.reduce((a,r)=>a+r.sec/60,0);
+      km+=rr.reduce((a,r)=>a+vk(r),0);n+=rr.length;min+=rr.reduce((a,r)=>a+r.sec/60,0);
       if(iso>today)return'<span class="calc fut"></span>';
       if(!rr.length)return'<span class="calc"><i class="cal0"></i></span>';
       return`<span class="calc">${rr.map(r=>{const kz=runKey(r),m=r.sec/60,rad=Math.max(4,Math.min(14,4+10*Math.sqrt(m/120)));
@@ -5013,14 +5112,14 @@ function blockStats(start,end,LS_){ // [start,end) ISO
   const wks=Math.max(1,daysBetween(start,end)/7);
   const Z=Zcur(),zs=[0,0,0,0,0];let nx=0;rs.forEach(r=>{const x=xOf(r);if(!x)return;nx++;zSecs(x,Z).s.forEach((v,i)=>zs[i]+=v)});
   const zt=zs.reduce((a,b)=>a+b,0);
-  const easy=rs.filter(r=>cls(r)==='easy'&&!r.tm&&r.km>=4);
+  const easy=rs.filter(r=>cls(r)==='easy'&&!r.np&&r.km>=4);
   const eff=easy.filter(r=>r.hr).map(r=>(1000/pace(r))*60/r.hr); // metri per battito
   const du=rs.map(r=>{const x=xOf(r);return x&&x.dec&&x.dec.cv<.08&&x.dec.min>=45&&zIdx(x.dec.hr,Z)<=2?x.dec.v:null}).filter(v=>v!=null);
   let b5=null;rs.forEach(r=>{const x=X[r.date];if(x&&x.best&&x.best[5000]&&(!b5||x.best[5000]<b5.s))b5={s:x.best[5000],r}});
   const ld=LS_.filter(o=>o.d<end);const last=ld[ld.length-1]||{ctl:0,atl:0,tsb:0};
   const ae=aeroIdx(aeroWin(addDaysISO(end,-1)));
   const cc={};rs.forEach(r=>{const c=cls(r);cc[c]=(cc[c]||0)+1});
-  return{n:rs.length,km:rs.reduce((a,r)=>a+r.km,0),kmW:rs.reduce((a,r)=>a+r.km,0)/wks,nW:rs.length/wks,hW:rs.reduce((a,r)=>a+r.sec,0)/3600/wks,
+  return{n:rs.length,km:rs.reduce((a,r)=>a+vk(r),0),kmW:rs.reduce((a,r)=>a+vk(r),0)/wks,nW:rs.length/wks,hW:rs.reduce((a,r)=>a+r.sec,0)/3600/wks,
     long:rs.reduce((a,r)=>Math.max(a,r.km),0),zp:zt?zs.map(v=>v/zt):null,above:zt?(zs[2]+zs[3]+zs[4])/zt:null,cov:rs.length?nx/rs.length:0,
     ep:easy.length?mean(easy.map(pace)):null,eh:easy.filter(r=>r.hr).length?mean(easy.filter(r=>r.hr).map(r=>r.hr)):null,eff:eff.length?mean(eff):null,
     du:du.length?median(du):null,b5,ctl:last.ctl,atl:last.atl,tsb:last.tsb,ae,cc,rs};
@@ -5155,7 +5254,7 @@ function rGuide(){
   <p class="muted" style="margin-top:10px"><b>Strutture del lungo</b> (fase specifica, in ordine di carico crescente): <b>facile</b> — costruisce base aerobica e tolleranza; <b>progressivo</b> — easy → steady → ritmo gara senza pause; <b>a blocchi RM</b> — 2-3 blocchi a ritmo gara intervallati da easy; <b>fast finish</b> — blocco unico in coda, sulle gambe già stanche; <b>a ritmo gara continuo</b> — blocco unico centrale, chiusura easy; <b>sopra/sotto RM</b> — alternanze appena sopra e appena sotto il ritmo gara, senza recupero vero; <b>big workout</b> — il picco, prova generale di ritmo, fueling e scarpe. Non tutti i lunghi sono qualificati: i lunghi facili intercalati servono a reggere il costo degli altri.</p>
   <p class="muted" style="margin-top:8px">Sedute dure: riscaldamento 10–15' in Z1 + allunghi, defaticamento 10' Z1. Intensità crescente: Z1 recupero &lt; Z2 fondo &lt; M &lt; T &lt; I/R. I passi seguono il tuo VDOT attuale (${vd.toFixed(1)}).</p>`;
 }
-function refresh(){zCache=null;rDash();rLoad();rProg();rData();rManage();rAnaSel();rAna();rGuide();rToday();
+function refresh(){zCache=null;applyRunFlags();rDash();rLoad();rProg();rData();rManage();rAnaSel();rAna();rGuide();rToday();
   const vd=curVdot();if(vd)document.getElementById('p-vdot').value=vd.toFixed(1);
   const wk=weeklyKm().slice(-4).map(([,v])=>v);
   document.getElementById('p-base').value=Math.round(wk.reduce((a,b)=>a+b,0)/Math.max(1,wk.length));
@@ -5168,6 +5267,7 @@ function refresh(){zCache=null;rDash();rLoad();rProg();rData();rManage();rAnaSel
   }else pout.innerHTML='';
   rTrack();rMonitor();
   try{rGoal()}catch(e){console.warn('rGoal',e)}
+  try{rOutlook()}catch(e){console.warn('rOutlook',e)}
   try{rFit()}catch(e){console.warn('rFit',e)}
   try{rAlerts()}catch(e){console.warn('rAlerts',e)}
   try{rMore()}catch(e){console.warn('rMore',e)}
