@@ -3,7 +3,7 @@
 (function(){
   const KEY='passo-v1';
   function gymState(){try{const s=JSON.parse(localStorage.getItem(KEY)||'null');return s?.version===1&&Array.isArray(s.history)?s:null;}catch{return null;}}
-  window.runPlanGymActivities=function(){const s=gymState();return (s?.history||[]).filter(h=>h.type==='gym'&&Number.isFinite(h.minutes)&&h.minutes>0&&Number.isFinite(h.rpe)&&h.rpe>=1&&h.rpe<=10&&/^\d{4}-\d{2}-\d{2}$/.test(h.date)&&typeof h.id==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(h.id)).map(h=>{const d=new Date(h.startedAt||h.endedAt),time=Number.isFinite(d.getTime())?`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`:'12:00';return {id:'passo-'+h.id,date:h.date+' '+time,sport:'gym',min:h.minutes,rpe:h.rpe,hr:null,note:'Total Body '+(h.routine==='B'?'B':'A'),src:'passo'};});};
+  window.runPlanGymActivities=function(){const s=gymState();return (s?.history||[]).filter(h=>h.type==='gym'&&Number.isFinite(h.minutes)&&h.minutes>0&&Number.isFinite(h.rpe)&&h.rpe>=1&&h.rpe<=10&&/^\d{4}-\d{2}-\d{2}$/.test(h.date)&&typeof h.id==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(h.id)).map(h=>{const d=new Date(h.startedAt||h.endedAt),time=Number.isFinite(d.getTime())?`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`:'12:00';return {id:'passo-'+h.id,date:h.date+' '+time,sport:'gym',min:Math.max(1,Math.round(h.minutes)),rpe:h.rpe,hr:null,note:'Total Body '+(h.routine==='B'?'B':'A'),src:'passo'};});};
   const safeHash=s=>{let h=2166136261;for(const c of s)h=Math.imul(h^c.charCodeAt(0),16777619);return (h>>>0).toString(36);};
   let lastGymSignature=JSON.stringify(window.runPlanGymActivities());
   window.RunPlanGym={
