@@ -28,24 +28,23 @@ const duration = s => {
 };
 
 /* ---------- stato e migrazione ---------- */
-const fresh = () => ({ version: 2, program: { start: E.monday(today()), picks: {} }, custom: {}, history: [], active: null, timer: null, settings: { sound: true } });
+const templateOf = name => clone({ A: TEMPLATES[name].A, B: TEMPLATES[name].B, C: TEMPLATES[name].C });
+const fresh = () => ({ version: 3, program: { start: E.monday(today()), picks: {}, perWeek: 2, template: templateOf('equilibrato') }, custom: {}, history: [], active: null, timer: null, settings: { sound: true } });
 function migrate(s) {
   if (!s || typeof s !== 'object') return fresh();
-  if (s.version === 2) return s;
   if (s.version === 1) {
     // v1 (modulo "Passo"): si tengono solo le sedute di palestra; il programma riparte dal blocco 1
     const gym = (s.history || []).filter(h => h.type === 'gym');
     const first = gym.map(h => h.date).sort()[0];
-    return {
-      version: 2,
-      program: { start: E.monday(first || today()), picks: {} },
-      custom: {},
-      history: gym,
-      active: s.active && s.active.type === 'gym' ? s.active : null,
-      timer: s.timer || null,
-      settings: { sound: s.settings?.sound !== false },
-    };
+    s = { version: 2, program: { start: E.monday(first || today()), picks: {} }, custom: {}, history: gym,
+      active: s.active && s.active.type === 'gym' ? s.active : null, timer: s.timer || null, settings: { sound: s.settings?.sound !== false } };
   }
+  if (s.version === 2) {
+    // v2: schede fisse A/B. Da v3 il programma (movimenti e serie) lo decide l'utente; si parte da
+    // quello che c'era, con gli stessi id delle voci così le scelte di esercizio restano valide
+    s = { ...s, version: 3, program: { ...s.program, perWeek: 2, template: templateOf('equilibrato') } };
+  }
+  if (s.version === 3) return s;
   throw Error('Formato dati non riconosciuto');
 }
 let state, storageOK = true;
@@ -76,6 +75,7 @@ function toast(s) {
 /* ---------- programma ---------- */
 const runWeek = d => { try { return bridge?.runWeek?.(d) || null; } catch { return null; } };
 const pos = () => E.position(BLOCKS, state.program.start, today(), runWeek(today()));
+const routineKeys = () => ROUTINE_KEYS.slice(0, state.program.perWeek || 2);
 const exercise = id => EXERCISES[id] || state.custom[id];
 const pickOf = (block, slot) => state.program.picks?.[block.id]?.[slot.id] || slot.ex;
 const variantsOf = slot => [slot.ex, ...slot.alt].map(exercise).filter(Boolean);
@@ -84,10 +84,7 @@ const lastGym = () => gymHistory().sort((a, b) => (b.endedAt || 0) - (a.endedAt 
 const doneSets = s => s.exercises.flatMap(e => e.sets).filter(x => x.done);
 const rangeText = (lo, hi) => (lo === hi ? `${lo}` : `${lo}–${hi}`);
 
-function slotsFor(p, routine) {
-  const list = p.block.routines[routine];
-  return p.race ? list.filter(x => x.role !== 'plyo') : list; // settimana gara: niente salti
-}
+const slotsFor = (p, routine) => E.buildSlots(state.program.template[routine], p.block.id, { race: p.race });
 function prescriptionText(presc, v) {
   if (!presc) return '';
   let t = `${presc.sets} × ${rangeText(presc.lo, presc.hi)}${v.side ? ' per lato' : ''}`;
@@ -115,7 +112,7 @@ function plannedExercise(slot, variant, p) {
   };
 }
 const plannedSession = (routine, p) => slotsFor(p, routine).map(slot => plannedExercise(slot, exercise(pickOf(p.block, slot)), p));
-const estMinutes = list => Math.round(list.reduce((m, e) => m + e.presc.sets * (e.rest + 40), 0) / 60 / 5) * 5 + 10;
+const estMinutes = list => E.minutes(list.map(e => ({ sets: e.presc.sets, rest: e.rest })));
 
 /* ---------- navigazione ---------- */
 const ROUTES = [['home', 'Oggi'], ['schede', 'Schede'], ['progressi', 'Progressi'], ['storico', 'Storico']];
@@ -128,10 +125,10 @@ function navigate(r) {
 }
 function render() {
   if (route === 'session' && !state.active) route = 'home';
-  if (![...ROUTES.map(r => r[0]), 'session'].includes(route)) route = 'home';
-  const cur = route === 'session' ? 'home' : route;
+  if (![...ROUTES.map(r => r[0]), 'session', 'programma'].includes(route)) route = 'home';
+  const cur = route === 'session' ? 'home' : route === 'programma' ? 'schede' : route;
   $('#subnav').innerHTML = ROUTES.map(([r, n]) => `<span data-route="${r}" class="${cur === r ? 'on' : ''}">${n}</span>`).join('');
-  $('#main').innerHTML = { home, schede, progressi, storico, session }[route]();
+  $('#main').innerHTML = { home, schede, progressi, storico, session, programma }[route]();
   tick();
 }
 
@@ -140,32 +137,32 @@ function home() {
   const p = pos(), a = state.active;
   if (a) {
     const done = doneSets(a).length, total = a.exercises.reduce((s, e) => s + e.sets.length, 0);
-    return `<section class="card hero"><div class="hl">Seduta in corso</div><div class="hn">${esc(ROUTINE_NAMES[a.routine])}</div>
+    return `<section class="card hero"><div class="hl">Seduta in corso</div><div class="hn">${esc(routineName(a.routine))}</div>
       <div class="hw">${done} di ${total} serie fatte · <span id="elapsed">${duration((Date.now() - a.startedAt) / 1000)}</span></div>
       <button class="btn hbtn" data-action="resume">Riprendi</button></section>${weekCard(p)}${programCard(p)}`;
   }
-  const r = E.nextRoutine(state.history, p), list = plannedSession(r, p);
+  const keys = routineKeys(), r = E.nextRoutine(state.history, p, keys), list = plannedSession(r, p);
   const ups = list.filter(e => e.presc.trend === 'up').length;
   return `<section class="card hero">
       <div class="hl">${esc(p.block.name)} · settimana ${p.week} di ${BLOCK_WEEKS}${p.deload ? ' · scarico' : ''}</div>
-      <div class="hn">${esc(ROUTINE_NAMES[r])}</div>
+      <div class="hn">${esc(routineName(r))}</div>
       <div class="hchips"><span class="hchip">${list.length} esercizi</span><span class="hchip">~${estMinutes(list)} min</span><span class="hchip">RPE ${esc(p.rpe)}</span>${ups ? `<span class="hchip">${ups} in progressione ↑</span>` : ''}</div>
       ${p.why ? `<div class="hw">${esc(p.why)}</div>` : ''}
       <div class="hlist">${list.map(e => `<div><span class="hn2">${esc(e.variant.name)}</span><b>${esc(prescriptionText(e.presc, e.variant))}</b>${trendBadge(e.presc.trend)}</div>`).join('')}</div>
-      <button class="btn hbtn" data-action="start" data-id="${r}">Inizia ${esc(ROUTINE_NAMES[r])}</button>
-      <button class="hlink" data-action="start-other" data-id="${r === 'A' ? 'B' : 'A'}">Oggi preferisci la ${r === 'A' ? 'B' : 'A'}?</button>
+      <button class="btn hbtn" data-action="start" data-id="${r}">Inizia ${esc(routineName(r))}</button>
+      ${keys.filter(k => k !== r).map(k => `<button class="hlink" data-action="start-other" data-id="${k}">Oggi preferisci la ${k}?</button>`).join('')}
     </section>${weekCard(p)}${programCard(p)}`;
 }
 function weekCard(p) {
   const week = gymHistory().filter(h => h.date >= p.weekStart && h.date <= E.addDays(p.weekStart, 6));
-  const target = p.race ? 1 : 2;
+  const target = p.race ? 1 : routineKeys().length;
   const rw = runWeek(today());
   const sug = E.suggestDays(rw, target);
   let days = '';
   if (sug && sug.length)
     days = `<p class="gline"><b>Giorni consigliati</b> ${sug.map(d => `${DAYS[d.day]} <span class="muted">(${d.rest ? 'riposo' : 'dopo ' + esc(d.with.join(', '))})</span>`).join(' · ')}</p>
       <p class="muted">Dal tuo piano di corsa: forza nei giorni duri dopo la corsa o nei giorni di riposo, mai il giorno prima di qualità, lungo o gara.</p>`;
-  else days = `<p class="muted">Due giorni non consecutivi, mai il giorno prima di una seduta di qualità o del lungo. Il giorno di una seduta dura, la forza va dopo la corsa.</p>`;
+  else days = `<p class="muted">Giorni non consecutivi, mai il giorno prima di una seduta di qualità o del lungo. Il giorno di una seduta dura, la forza va dopo la corsa.</p>`;
   const last = lastGym();
   const since = last ? Math.floor((Date.now() - (last.endedAt || Date.parse(last.date))) / 36e5) : null;
   return `<section class="card"><h2>Questa settimana</h2>
@@ -176,7 +173,7 @@ function programCard(p) {
   return `<section class="card"><h2>Il programma</h2>
     <div class="gblocks">${BLOCKS.map((b, i) => `<div class="${i === p.blockIndex ? 'on' : ''}"><b>${esc(b.name)}</b><span>${i === p.blockIndex ? `sett. ${p.week}/${BLOCK_WEEKS}` : i === (p.blockIndex + 1) % BLOCKS.length ? 'dal ' + dateLabel(p.nextBlockStart) : '4 sett.'}</span>${i === p.blockIndex ? `<div class="gpips">${Array.from({ length: BLOCK_WEEKS }, (_, w) => `<i class="${w + 1 < p.week ? 'past' : w + 1 === p.week ? 'now' : ''}${w + 1 === BLOCK_WEEKS ? ' dl' : ''}"></i>`).join('')}</div>` : ''}</div>`).join('')}</div>
     <p class="muted">${esc(p.block.why)} Ogni blocco dura 4 settimane: 3 di carico crescente e 1 di scarico. Poi cambiano esercizi e ripetizioni; dopo il terzo si riparte dal primo con i carichi raggiunti${p.cycle > 1 ? ` (ciclo ${p.cycle})` : ''}.</p>
-    <div class="grow"><button class="btn btn2 mini" data-action="program">Cambia settimana</button><button class="btn btn2 mini" data-action="settings">Impostazioni e backup</button></div></section>`;
+    <div class="grow"><button class="btn btn2 mini" data-action="editor">Movimenti e serie</button><button class="btn btn2 mini" data-action="program">Cambia settimana</button><button class="btn btn2 mini" data-action="settings">Impostazioni e backup</button></div></section>`;
 }
 
 /* ---------- Schede ---------- */
@@ -184,18 +181,74 @@ function schede() {
   const p = pos(), bi = schedeBlock ?? p.blockIndex, b = BLOCKS[bi];
   const view = { ...p, blockIndex: bi, block: b, deload: false, race: false, week: 1 };
   return `<div class="gpills">${BLOCKS.map((x, i) => `<span class="pill ${i === bi ? 'on' : ''}" data-action="schede-block" data-index="${i}">${esc(x.name)}${i === p.blockIndex ? ' · ora' : ''}</span>`).join('')}</div>
-    <section class="card"><h2>${esc(b.title)}</h2><p class="muted">${esc(b.why)} RPE di riferimento: ${b.rpe.join(' → ')}, scarico nella 4ª settimana.</p></section>
-    ${['A', 'B'].map(r => `<section class="card"><h2>${ROUTINE_NAMES[r]}</h2>${slotsFor(view, r).map(slot => {
+    <section class="card"><h2>${esc(b.title)}</h2><p class="muted">${esc(b.why)} RPE di riferimento: ${b.rpe.join(' → ')}, scarico nella 4ª settimana.</p>
+      <button class="btn" data-action="editor">Decidi movimenti e serie</button></section>
+    ${routineKeys().map(r => `<section class="card"><h2>${routineName(r)} · ~${E.minutes(slotsFor(view, r))} min</h2>${slotsFor(view, r).map(slot => {
       const v = exercise(pickOf(b, slot));
-      return `<button class="gslot" data-action="pick" data-id="${slot.id}" data-index="${bi}" data-routine="${r}"><span><b>${esc(v.name)}</b><small>${esc(slot.group)} · ${slot.sets} × ${rangeText(...slot.reps)}${v.side ? ' per lato' : ''} · recupero ${slot.rest}"</small></span><i>⇄</i></button>`;
+      return `<button class="gslot" data-action="pick" data-id="${slot.id}" data-index="${bi}" data-routine="${r}"><span><b>${esc(v.name)}</b><small>${esc(slot.name)} · ${slot.sets} × ${rangeText(...slot.reps)}${v.side ? ' per lato' : ''} · recupero ${slot.rest}"</small></span><i>⇄</i></button>`;
     }).join('')}${bi === p.blockIndex && !state.active ? `<button class="btn btn2" data-action="start" data-id="${r}">Inizia ${r}</button>` : ''}</section>`).join('')}
-    <p class="muted gfoot">Tocca un esercizio per sceglierne un altro per questo blocco. Manubri: peso del singolo manubrio. Ripetizioni per lato negli esercizi a una gamba o un braccio.</p>`;
+    <p class="muted gfoot">Qui decide l’app quale esercizio fare per ogni movimento; tocca un esercizio per sceglierne un altro per questo blocco. Manubri: peso del singolo manubrio. Ripetizioni per lato negli esercizi a una gamba o un braccio.</p>`;
 }
 function pickModal(bi, routine, slotId) {
-  const b = BLOCKS[bi], slot = b.routines[routine].find(x => x.id === slotId), cur = pickOf(b, slot);
-  openModal(`${esc(slot.group)} · ${b.name}`, `<p class="muted">Vale per tutte le sedute del blocco ${esc(b.name)}. Ogni esercizio ha il suo storico dei carichi.</p>
+  const b = BLOCKS[bi], slot = E.buildSlots(state.program.template[routine], b.id).find(x => x.id === slotId), cur = pickOf(b, slot);
+  openModal(`${esc(slot.name)} · ${b.name}`, `<p class="muted">Vale per tutte le sedute del blocco ${esc(b.name)}. Ogni esercizio ha il suo storico dei carichi.</p>
     <div class="glist">${variantsOf(slot).map(v => `<button data-action="pick-set" data-id="${slot.id}" data-index="${bi}" data-v="${v.id}" class="${v.id === cur ? 'on' : ''}"><span><b>${esc(v.name)}</b><small>${esc(v.gear)}${v.loadType === 'body' ? ' · corpo libero' : v.loadType === 'assistance' ? ' · kg di assistenza' : ''}</small></span><i>${v.id === cur ? '✓' : ''}</i></button>`).join('')}</div>
     ${slot.note ? `<p class="muted">${esc(slot.note)}</p>` : ''}`);
+}
+
+/* ---------- Programma: movimenti e serie decisi dall'utente ---------- */
+function programma() {
+  const p = pos(), keys = routineKeys(), tpl = state.program.template;
+  const vol = E.weeklyVolume(tpl, keys, p.block.id);
+  const card = k => {
+    const entries = tpl[k], slots = E.buildSlots(entries, p.block.id);
+    const sets = slots.reduce((n, x) => n + x.sets, 0);
+    return `<section class="card"><h2>${routineName(k)} · ${sets} serie · ~${E.minutes(slots)} min</h2>
+      ${entries.map((e, i) => {
+        const P = PATTERNS[e.p], d = P[p.block.id], v = exercise(state.program.picks?.[p.block.id]?.[e.id] || d.ex);
+        const off = e.when === 'potenza' && p.block.id !== 'potenza';
+        return `<div class="grow-row ${off ? 'off' : ''}"><span><b>${esc(P.name)}</b><small>${off ? 'solo nel blocco Potenza' : `${esc(v.name)} · ${rangeText(...d.reps)} rip.`}</small></span>
+          <div class="gstep"><button data-action="tpl-sets" data-routine="${k}" data-index="${i}" data-d="-1" aria-label="Una serie in meno">−</button><b>${e.sets}</b><button data-action="tpl-sets" data-routine="${k}" data-index="${i}" data-d="1" aria-label="Una serie in più">+</button></div>
+          <button class="gicon" data-action="tpl-menu" data-routine="${k}" data-index="${i}" aria-label="Opzioni">•••</button></div>`;
+      }).join('')}
+      <button class="btn btn2" data-action="tpl-add" data-routine="${k}">+ Aggiungi movimento</button></section>`;
+  };
+  const rows = AREAS.map(a => {
+    const n = vol[a.id] || 0, cls = n < a.lo ? 'lo' : n > a.hi ? 'hi' : 'ok';
+    if (!n && !a.lo) return '';
+    return `<tr><td>${a.id}</td><td class="r"><b class="v-${cls}">${n}</b></td><td class="r muted">${a.lo}–${a.hi}</td></tr>`;
+  }).join('');
+  return `<section class="card"><h2>Il tuo programma</h2>
+      <p class="muted">Decidi tu <b>cosa</b> allenare (i movimenti) e <b>quanto</b> (le serie). Gli esercizi li sceglie l’app per ogni blocco, insieme a ripetizioni, carichi e recuperi; in Schede puoi comunque cambiarli.</p>
+      <label>Sedute a settimana</label><div class="seg gseg">${[1, 2, 3].map(n => `<span data-action="per-week" data-index="${n}" class="${n === keys.length ? 'on' : ''}">${n}</span>`).join('')}</div>
+      <label>Parti da un modello</label><div class="gpills">${Object.entries(TEMPLATES).map(([id, x]) => `<span class="pill" data-action="preset" data-id="${id}">${esc(x.name)}</span>`).join('')}</div></section>
+    ${keys.map(card).join('')}
+    <section class="card"><h2>Serie a settimana · blocco ${esc(p.block.name)}</h2>
+      <table><tr><th>Area</th><th class="r">Tue</th><th class="r">Riferimento</th></tr>${rows}</table>
+      <p class="muted">Riferimento indicativo per chi corre e fa forza in parallelo: sotto il minimo lo stimolo è scarso, sopra il massimo la palestra inizia a togliere freschezza alla corsa. Nella settimana di scarico le serie calano da sole.</p></section>
+    <div class="grow"><button class="btn btn2 mini" data-action="go-schede">‹ Schede</button></div>`;
+}
+function tplMenu(k, i) {
+  const e = state.program.template[k][i], P = PATTERNS[e.p];
+  openModal(esc(P.name), `<p class="muted">${esc(P.hint)}</p>
+    <div class="glist">
+      <button data-action="tpl-move" data-routine="${k}" data-index="${i}" data-d="-1"><span><b>Sposta su</b></span><i>↑</i></button>
+      <button data-action="tpl-move" data-routine="${k}" data-index="${i}" data-d="1"><span><b>Sposta giù</b></span><i>↓</i></button>
+      <button data-action="tpl-when" data-routine="${k}" data-index="${i}"><span><b>${e.when === 'potenza' ? 'Fallo in tutti i blocchi' : 'Solo nel blocco Potenza'}</b><small>${e.when === 'potenza' ? 'Ora compare solo nelle 4 settimane di Potenza.' : 'Ora compare in tutti i blocchi.'}</small></span><i>⇄</i></button>
+      <button data-action="tpl-remove" data-routine="${k}" data-index="${i}"><span><b>Togli dalla seduta</b></span><i>×</i></button>
+    </div>`);
+}
+function tplAdd(k) {
+  const have = new Set(state.program.template[k].map(e => e.p));
+  openModal(`Aggiungi a ${routineName(k)}`, `<div class="glist">${PATTERN_ORDER.map(id => {
+    const P = PATTERNS[id];
+    return `<button data-action="tpl-add-p" data-routine="${k}" data-id="${id}" ${have.has(id) ? 'disabled' : ''}><span><b>${esc(P.name)}</b><small>${esc(P.area)} · ${esc(P.hint)}</small></span><i>${have.has(id) ? '✓' : '+'}</i></button>`;
+  }).join('')}</div>`);
+}
+function tplChanged(msg) {
+  save();
+  render();
+  if (msg) toast(msg);
 }
 
 /* ---------- Progressi ---------- */
@@ -239,13 +292,13 @@ function progressi() {
 function storico() {
   const g = gymHistory().sort((a, b) => b.date.localeCompare(a.date) || (b.endedAt || 0) - (a.endedAt || 0));
   if (!g.length) return `<section class="card"><h2>Storico</h2><p class="muted">Ancora nessuna seduta. La prima la trovi in Oggi.</p></section>`;
-  return `<section class="card"><h2>Sedute</h2>${g.map(h => `<button class="gslot" data-action="detail" data-id="${esc(h.id)}"><span><b>${esc(ROUTINE_NAMES[h.routine] || 'Seduta')}${h.blockName ? ` · ${esc(h.blockName)} sett. ${h.week}` : ''}${h.deload ? ' <span class="badge">scarico</span>' : ''}</b><small>${dateLabel(h.date)} · ${Math.round(h.minutes)} min · RPE ${h.rpe} · ${doneSets(h).length} serie</small></span><i>›</i></button>`).join('')}</section>
+  return `<section class="card"><h2>Sedute</h2>${g.map(h => `<button class="gslot" data-action="detail" data-id="${esc(h.id)}"><span><b>${esc(routineName(h.routine) || 'Seduta')}${h.blockName ? ` · ${esc(h.blockName)} sett. ${h.week}` : ''}${h.deload ? ' <span class="badge">scarico</span>' : ''}</b><small>${dateLabel(h.date)} · ${Math.round(h.minutes)} min · RPE ${h.rpe} · ${doneSets(h).length} serie</small></span><i>›</i></button>`).join('')}</section>
     <div class="grow"><button class="btn btn2 mini" data-action="settings">Impostazioni e backup</button></div>`;
 }
 function detailModal(id) {
   const h = state.history.find(x => x.id === id);
   if (!h) return;
-  openModal(`${esc(ROUTINE_NAMES[h.routine] || 'Seduta')} · ${dateLabel(h.date)}`, `<p class="muted">${Math.round(h.minutes)} min · RPE ${h.rpe}${h.blockName ? ` · ${esc(h.blockName)}, settimana ${h.week}` : ''}</p>
+  openModal(`${esc(routineName(h.routine) || 'Seduta')} · ${dateLabel(h.date)}`, `<p class="muted">${Math.round(h.minutes)} min · RPE ${h.rpe}${h.blockName ? ` · ${esc(h.blockName)}, settimana ${h.week}` : ''}</p>
     ${h.exercises.filter(e => e.sets.some(x => x.done)).map(e => `<div class="gdet"><b>${esc(e.variant.name)}</b><span>${e.sets.filter(x => x.done).map(x => (e.variant.loadType === 'body' ? `${x.reps}` : `${num(x.kg)}×${x.reps}`)).join(' · ')}${e.variant.loadType === 'assistance' ? ' (assist.)' : ''}</span></div>`).join('')}
     ${h.note ? `<p>${esc(h.note)}</p>` : ''}<button class="btn btn2" data-action="delete" data-id="${esc(h.id)}">Elimina seduta</button>`);
 }
@@ -254,7 +307,7 @@ function detailModal(id) {
 function session() {
   const a = state.active;
   const total = a.exercises.reduce((s, e) => s + e.sets.length, 0), done = doneSets(a).length;
-  return `<section class="card gsess"><div class="ghead"><div><div class="hl2">${a.blockName ? `${esc(a.blockName)} · sett. ${a.week}${a.deload ? ' · scarico' : ''}` : 'Seduta'}</div><div class="gtitle">${esc(ROUTINE_NAMES[a.routine])}</div>
+  return `<section class="card gsess"><div class="ghead"><div><div class="hl2">${a.blockName ? `${esc(a.blockName)} · sett. ${a.week}${a.deload ? ' · scarico' : ''}` : 'Seduta'}</div><div class="gtitle">${esc(routineName(a.routine))}</div>
       <div class="muted"><span id="elapsed">${duration((Date.now() - a.startedAt) / 1000)}</span> · ${done}/${total} serie</div></div>
       <button class="btn mini" data-action="finish">Termina</button></div>
       <div class="gbar"><i style="width:${total ? (done / total) * 100 : 0}%"></i></div>
@@ -345,7 +398,7 @@ function addToSession(variant) {
   render();
 }
 function guessGroup(v) {
-  for (const [b] of BLOCKS.entries()) for (const r of ['A', 'B']) for (const slot of BLOCKS[b].routines[r]) if ([slot.ex, ...slot.alt].includes(v.id)) return slot.group;
+  for (const P of Object.values(PATTERNS)) for (const bl of BLOCKS) if ([P[bl.id].ex, ...P[bl.id].alt].includes(v.id)) return P.group;
   return 'Core';
 }
 function customModal(mode, i = '') {
@@ -385,14 +438,19 @@ function validateBackup(raw) {
   const ok = x => { if (!x) throw Error('Backup non valido'); };
   const n = (x, a, b) => typeof x === 'number' && Number.isFinite(x) && x >= a && x <= b;
   const id = x => typeof x === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(x);
-  ok(s.version === 2 && s.program && /^\d{4}-\d{2}-\d{2}$/.test(s.program.start) && s.settings && Array.isArray(s.history) && s.history.length <= 10000);
+  ok(s.version === 3 && s.program && /^\d{4}-\d{2}-\d{2}$/.test(s.program.start) && [1, 2, 3].includes(s.program.perWeek) && s.settings && Array.isArray(s.history) && s.history.length <= 10000);
+  for (const k of ROUTINE_KEYS) {
+    const l = s.program.template?.[k];
+    ok(Array.isArray(l) && l.length >= 1 && l.length <= 30);
+    l.forEach(e => ok(e && id(e.id) && PATTERNS[e.p] && Number.isInteger(e.sets) && n(e.sets, 1, 8) && ['always', 'potenza'].includes(e.when)));
+  }
   const variant = v => ok(v && typeof v.id === 'string' && v.id.length <= 100 && typeof v.name === 'string' && v.name.length <= 90 && ['weight', 'body', 'assistance'].includes(v.loadType));
   const sets = l => { ok(Array.isArray(l) && l.length <= 50); l.forEach(x => ok(x && typeof x.done === 'boolean' && (!x.done || (n(x.reps, 1, 999) && n(Number(x.kg) || 0, 0, 2000))))); };
   for (const h of s.history) {
-    ok(id(h.id) && h.type === 'gym' && ['A', 'B'].includes(h.routine) && /^\d{4}-\d{2}-\d{2}$/.test(h.date) && n(h.minutes, 0.1, 1e6) && n(h.rpe, 1, 10) && Array.isArray(h.exercises));
+    ok(id(h.id) && h.type === 'gym' && ROUTINE_KEYS.includes(h.routine) && /^\d{4}-\d{2}-\d{2}$/.test(h.date) && n(h.minutes, 0.1, 1e6) && n(h.rpe, 1, 10) && Array.isArray(h.exercises));
     h.exercises.forEach(e => { variant(e.variant); sets(e.sets); });
   }
-  if (s.active) { ok(['A', 'B'].includes(s.active.routine) && Array.isArray(s.active.exercises)); s.active.exercises.forEach(e => { variant(e.variant); sets(e.sets); }); }
+  if (s.active) { ok(ROUTINE_KEYS.includes(s.active.routine) && Array.isArray(s.active.exercises)); s.active.exercises.forEach(e => { variant(e.variant); sets(e.sets); }); }
   return s;
 }
 
@@ -442,6 +500,53 @@ document.addEventListener('click', ev => {
     const bid = BLOCKS[i].id;
     state.program.picks[bid] = { ...(state.program.picks[bid] || {}), [k]: b.dataset.v };
     save(); close(); render(); return toast('Esercizio cambiato per questo blocco.');
+  }
+  if (act === 'editor') return navigate('programma');
+  if (act === 'go-schede') return navigate('schede');
+  if (act === 'per-week') {
+    state.program.perWeek = i;
+    return tplChanged(i === 1 ? 'Una seduta a settimana: sempre la A.' : `${i} sedute a settimana: ${ROUTINE_KEYS.slice(0, i).join(', ')}.`);
+  }
+  if (act === 'preset') {
+    const x = TEMPLATES[k];
+    return confirmAction(`Modello «${x.name}»`, `${esc(x.note)} Sostituisce movimenti e serie delle schede; storico e scelte degli esercizi restano.`, () => {
+      state.program.template = templateOf(k);
+      tplChanged(`Modello «${x.name}» applicato.`);
+    });
+  }
+  if (act.startsWith('tpl-')) {
+    const r = b.dataset.routine, list = state.program.template[r];
+    if (act === 'tpl-sets') {
+      const e = list[i];
+      e.sets = Math.min(8, Math.max(1, e.sets + Number(b.dataset.d)));
+      return tplChanged();
+    }
+    if (act === 'tpl-menu') return tplMenu(r, i);
+    if (act === 'tpl-add') return tplAdd(r);
+    if (act === 'tpl-add-p') {
+      const P = PATTERNS[k];
+      list.push({ id: 'u' + uid().replace(/[^a-zA-Z0-9]/g, '').slice(0, 10), p: k, sets: P.sets, when: P.when || 'always' });
+      close();
+      return tplChanged(`${P.name} aggiunto a ${routineName(r)}.`);
+    }
+    if (act === 'tpl-move') {
+      const t = i + Number(b.dataset.d);
+      if (t < 0 || t >= list.length) return close();
+      [list[i], list[t]] = [list[t], list[i]];
+      close();
+      return tplChanged();
+    }
+    if (act === 'tpl-when') {
+      list[i].when = list[i].when === 'potenza' ? 'always' : 'potenza';
+      close();
+      return tplChanged();
+    }
+    if (act === 'tpl-remove') {
+      if (list.length <= 1) return toast('Lascia almeno un movimento nella seduta.');
+      list.splice(i, 1);
+      close();
+      return tplChanged();
+    }
   }
   if (act === 'detail') return detailModal(k);
   if (act === 'delete') return confirmAction('Eliminare la seduta?', 'Sparisce dallo storico e dal carico di RunPlan.', () => { state.history = state.history.filter(h => h.id !== k); save(); render(); });
