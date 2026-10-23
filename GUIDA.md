@@ -17,16 +17,18 @@ Quando aggiorni i dati sul Mac (vedi §6), ritrascina la cartella su Netlify Dro
 
 ---
 
-## 1b. Navigazione (dalla versione v103)
+## 1b. Navigazione (dalla versione v112)
 
-La barra in basso ha 4 voci; quelle con due viste hanno un selettore in alto:
+La barra in basso ha 6 voci; quelle con due viste hanno un selettore in alto:
 
 | Voce | Contenuto |
 |---|---|
-| **Oggi** | Card della seduta del giorno (passo, fascia FC colorata, settimana a pallini), riquadri "Come stai" (carico, VDOT, indice aerobico, km), lista **Da tenere d'occhio** (lungo o LT2 mancanti, settimana sotto l'80%, sedute saltate, carico alto, FC mancante, gare da confermare). |
-| **Forma** | **Fitness** (le ex sezioni del tab Fitness) · **Progressi**. |
-| **Piano** | **Settimane** (piano con "sei qui", conto alla rovescia, settimane richiudibili, passate raggruppate) · **Aderenza** (l'ex Monitor). Generazione del piano in una sezione apribile in fondo. |
-| **Corse** | Importazione (.zip Garmin, .fit, .json), **Analisi della corsa** (ex tab Analisi; "Analizza" su ogni corsa dell'archivio la apre direttamente), archivio. |
+| **Oggi** | Card della seduta del giorno (passo, fascia FC, schema della seduta, settimana a pallini), **Carico e rischio infortuni** (con gli altri sport), **Come stai**, **Da tenere d'occhio**, **Cosa ho notato** (note automatiche sulle ultime 5 corse). |
+| **Piano** | **Settimane** (piano con "sei qui", schema di ogni seduta, menù ⋯ per cambiarla, progressione, guida alle sedute, generazione del piano) · **Aderenza** (l'ex Monitor). |
+| **Gara** | Previsione gara dalla soglia recente, obiettivo: cosa serve (sedute prova, errori da evitare), tempi previsti, passi di allenamento, ora/previsto/migliore/obiettivo, capacità e lacune, VDOT nel tempo (tutto lo storico), record personali, gare riconosciute. |
+| **Forma** | **Fitness** (fitness da FC, indice aerobico, efficienza a FC di riferimento, passo a ogni FC, passo accumulato, migliori tratti) · **Zone** (zone attuali, minuti per zona e di soglia, dove passi il tempo, costo del passo, piramide, qualità del segnale FC). |
+| **Progressi** | Analisi del blocco, periodo e bilancio, miglioramento dei passi, ultima corsa vs precedente, volume, passo e efficienza delle corse facili, dinamiche di corsa. |
+| **Corse** | Calendario, ultime corse, **Analisi della corsa** (meteo, piano e dati esclusi), altri sport, archivio, importazione (.zip Garmin, .fit, CSV). |
 | **⚙ in alto** | Impostazioni: FC max/riposo, zone FC (modifica/conferma), test, ripristino dati. |
 
 ### Novità v105 (fase specifica della maratona come RunZones)
