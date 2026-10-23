@@ -308,7 +308,7 @@ body.dark{--z1:#b7d3f6;--z2:#86b6ef;--z3:#5598e7;--z4:#3987e5;--z5:#256abf}
 .hrt{display:inline-block;font-size:10px;font-weight:600;color:var(--red);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-left:3px;white-space:nowrap}
 .zedit{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px 10px}.zedit label{margin:6px 0 3px}
 .btn.mini{width:auto;margin:0 0 0 4px;padding:4px 9px;font-size:12px}
-@media(min-width:900px){#tab-fit .card{order:10}.card:has(#f-cov){grid-column:1/-1;order:0}.card:has(#f-cap){grid-column:1/-1}.card:has(#p-goalgap){grid-column:1/-1}}
+@media(min-width:900px){#tab-fit .card{order:10}.card:has(#f-cov){grid-column:1/-1;order:0}.card:has(#f-cap){grid-column:1/-1}.card:has(#p-goalgap){grid-column:1/-1}.card:has(#p-outlook){grid-column:1/-1}}
 /* ===================== NUOVA GRAFICA =====================
    Il colore dice solo l'intensità: Z1 grigio-blu, Z2 blu, Z3 verde, Z4 arancio, Z5 rosso, ovunque.
    Il resto è inchiostro su fondo chiaro; numeri e titoli in Barlow Condensed. */
@@ -400,6 +400,7 @@ body.dark nav{background:color-mix(in srgb,var(--card) 92%,transparent)}
 nav button{font-size:11px;font-weight:600;color:var(--dim)}
 nav button.on{color:var(--txt)}
 nav button.on svg{stroke-width:2.4}
+@media(max-width:380px){nav button{font-size:10px;letter-spacing:-.01em}nav button svg{width:20px;height:20px}}
 /* sottosezioni */
 .seg{display:flex;background:var(--soft);border-radius:12px;padding:3px;gap:3px;margin:0 0 12px}
 .seg span{flex:1;text-align:center;font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.06em;text-transform:uppercase;padding:7px 0;border-radius:9px;color:var(--dim);cursor:pointer}
@@ -550,13 +551,9 @@ details.wkd-past[open]>summary{margin-bottom:8px}
   </div>
   <div class="card"><h2>Da tenere d'occhio</h2><div id="d-alerts"></div></div>
   <div class="card"><h2>Cosa ho notato</h2><div id="d-notes"></div></div>
-  <div class="card"><h2>Tempi previsti (VDOT attuale)</h2><div class="grid2" id="d-pred"></div></div>
-  <div class="card"><h2>Passi allenamento</h2><table id="d-paces"></table></div>
-  <div class="card"><h2>Ultime corse</h2><table id="d-recent"></table></div>
 </div>
 
 <div class="tab" id="tab-prog">
-  <div class="seg"><span data-p="fit">Fitness</span><span data-p="prog">Progressi</span></div>
   <div class="card"><h2>Analisi del blocco</h2><div id="b-wk" style="margin-bottom:10px"></div><div id="b-out"></div></div>
   <div class="card"><h2>Periodo</h2>
     <div id="pr-pills"><span class="pill" data-m="3">3 mesi</span><span class="pill" data-m="6">6 mesi</span><span class="pill" data-m="12">12 mesi</span><span class="pill on" data-m="0">Tutto</span></div>
@@ -568,7 +565,6 @@ details.wkd-past[open]>summary{margin-bottom:8px}
   <div class="card"><h2>Bilancio del periodo</h2><div id="c-recap"></div></div>
   <div class="card"><h2>Miglioramento passi di allenamento</h2><div id="c-paces"></div></div>
   <div class="card"><h2>Ultima corsa vs precedente simile</h2><div id="c-cmp"></div></div>
-  <div class="card"><h2>VDOT nel tempo</h2><div id="c-vdot"></div><p class="muted" style="margin-top:4px">Se la linea scende non è per forza forma persa: spesso in quei 60 giorni non c’erano gare o sforzi a tutta, e il VDOT viene da corse più tranquille.</p></div>
   <div class="card"><h2>Volume settimanale</h2><div id="c-vol"></div></div>
   <div class="card"><h2>Passo corse facili</h2><div id="c-easy"></div><p class="muted" style="margin-top:4px">Da leggere insieme all’efficienza qui sotto: un passo più veloce con la FC più alta non è un miglioramento.</p></div>
   <div class="card"><h2>Efficienza aerobica (corse facili)</h2><div id="c-eff"></div><p class="muted" style="margin-top:4px">Metri percorsi per ogni battito del cuore: se sale, corri alla stessa velocità con meno sforzo.</p></div>
@@ -583,35 +579,45 @@ details.wkd-past[open]>summary{margin-bottom:8px}
     <div id="c-dyn" style="margin-top:10px"></div>
     <p class="muted" id="dyn-note" style="margin-top:6px"></p>
   </div>
-  <div class="card"><h2>Record personali</h2><table id="c-pb"></table></div>
 </div>
 
 <div class="tab" id="tab-fit">
-  <div class="seg"><span data-p="fit">Fitness</span><span data-p="prog">Progressi</span></div>
+  <div class="seg"><span data-p="fit">Fitness</span><span data-p="zon">Zone</span></div>
   <div class="card"><h2>Fitness dalla frequenza cardiaca</h2><div id="f-cov"></div></div>
-  <div class="card"><h2>Zone attuali</h2><div id="f-zones"></div></div>
-  <div class="card"><h2>Minuti a settimana per zona</h2><div id="f-win" style="margin-bottom:10px"></div><div id="f-recipe"></div></div>
-  <div class="card"><h2>Minuti di soglia per settimana</h2><div id="f-thr"></div><p class="muted" id="f-thr-n" style="margin-top:6px"></p></div>
-  <div class="card"><h2>Ora, previsto, migliore, obiettivo</h2><div id="f-refs"></div></div>
   <div class="card"><h2>Indice aerobico (VDOT dalla FC)</h2><div id="f-aero"></div><div id="f-aerow" style="margin-top:10px"></div><div id="f-aero-c" style="margin-top:6px"></div></div>
   <div class="card"><h2>Efficienza a FC di riferimento</h2><div id="f-effz" style="margin-bottom:10px"></div><div id="f-eff"></div><div id="f-eff-c" style="margin-top:8px"></div></div>
   <div class="card"><h2>Passo a ogni FC</h2><div id="f-curve"></div><p class="muted" id="f-curve-n" style="margin-top:6px"></p></div>
-  <div class="card"><h2>Dove passi il tempo</h2><div id="f-holdp" style="margin-bottom:10px"></div><div id="f-holds"></div></div>
-  <div class="card"><h2>Quanto costa ogni passo</h2><div id="f-cost"></div><p class="muted" style="margin-top:6px">Minuti a settimana e FC media per fascia di passo, ultime 4 settimane.</p></div>
   <div class="card"><h2>Passo accumulato</h2><div id="f-acc"></div><div id="f-acc-c" style="margin-top:8px"></div></div>
   <div class="card"><h2>Migliori tratti</h2><div id="f-best"></div></div>
+</div>
+
+<div class="tab" id="tab-zon">
+  <div class="seg"><span data-p="fit">Fitness</span><span data-p="zon">Zone</span></div>
+  <div class="card"><h2>Zone attuali</h2><div id="f-zones"></div></div>
+  <div class="card"><h2>Minuti a settimana per zona</h2><div id="f-win" style="margin-bottom:10px"></div><div id="f-recipe"></div></div>
+  <div class="card"><h2>Minuti di soglia per settimana</h2><div id="f-thr"></div><p class="muted" id="f-thr-n" style="margin-top:6px"></p></div>
+  <div class="card"><h2>Dove passi il tempo</h2><div id="f-holdp" style="margin-bottom:10px"></div><div id="f-holds"></div></div>
+  <div class="card"><h2>Quanto costa ogni passo</h2><div id="f-cost"></div><p class="muted" style="margin-top:6px">Minuti a settimana e FC media per fascia di passo, ultime 4 settimane.</p></div>
   <div class="card"><h2>Piramide del tempo in zona</h2><div id="f-pyr"></div></div>
-  <div class="card"><h2>Capacità, lacune e resistenza</h2><div id="f-cap"></div></div>
-  <div class="card"><h2>Gare riconosciute</h2><div id="f-races"></div></div>
   <div class="card"><h2>Qualità del segnale FC</h2><div id="f-qual"></div></div>
+</div>
+
+<div class="tab" id="tab-gara">
+  <div class="card"><h2>Previsione gara</h2><div id="p-outlook"></div></div>
+  <div class="card"><h2>Obiettivo: cosa serve</h2><div id="p-goalgap"></div></div>
+  <div class="card"><h2>Tempi previsti (VDOT attuale)</h2><div class="grid2" id="d-pred"></div></div>
+  <div class="card"><h2>Passi allenamento</h2><table id="d-paces"></table></div>
+  <div class="card"><h2>Ora, previsto, migliore, obiettivo</h2><div id="f-refs"></div></div>
+  <div class="card"><h2>Capacità, lacune e resistenza</h2><div id="f-cap"></div></div>
+  <div class="card"><h2>VDOT nel tempo</h2><div id="c-vdot"></div><p class="muted" style="margin-top:4px">Se la linea scende non è per forza forma persa: spesso in quei 60 giorni non c’erano gare o sforzi a tutta, e il VDOT viene da corse più tranquille.</p></div>
+  <div class="card"><h2>Record personali</h2><table id="c-pb"></table></div>
+  <div class="card"><h2>Gare riconosciute</h2><div id="f-races"></div></div>
 </div>
 
 <div class="tab" id="tab-plan">
   <div class="seg"><span data-p="plan">Settimane</span><span data-p="mon">Aderenza</span></div>
   <div id="p-gmode"></div>
   <div id="p-out"></div>
-  <div class="card"><h2>Previsione gara</h2><div id="p-outlook"></div></div>
-  <div class="card"><h2>Obiettivo: cosa serve</h2><div id="p-goalgap"></div></div>
   <div class="card"><h2>Progressione vs piano</h2><div id="p-track"></div></div>
   <details class="card fold"><summary><h2>Guida alle sedute (ai tuoi ritmi)</h2></summary><div id="p-guide"></div></details>
   <details class="card fold" id="gen-card"><summary><h2>Genera un nuovo piano</h2></summary>
@@ -690,6 +696,18 @@ details.wkd-past[open]>summary{margin-bottom:8px}
 </div>
 
 <div class="tab" id="tab-runs">
+  <div class="card"><h2>Calendario</h2><div id="c-calw" style="margin-bottom:10px"></div><div id="c-cal"></div></div>
+  <div class="card"><h2>Ultime corse</h2><table id="d-recent"></table></div>
+  <div class="card"><h2>Analisi della corsa</h2>
+    <select id="a-sel"></select>
+    <div id="a-out" style="margin-top:10px"></div>
+  </div>
+  <div class="card"><h2>Altri sport</h2><div id="xt-out"></div></div>
+  <div class="card"><h2>Archivio</h2>
+    <p class="muted" style="margin-bottom:8px">Rinomina per correggere la categoria (parole chiave: gara, soglia, medio, progressivo, fartlek, 8x200, lungo) — niente da ricaricare.</p>
+    <div id="dt-filt"></div><p class="muted" id="dt-filtn" style="margin:6px 0 8px"></p>
+    <div id="dt-manage"></div>
+  </div>
   <div class="card"><h2>Importa corse</h2>
     <div class="drops">
       <label class="drop"><input type="file" id="dt-zip" accept=".zip,application/zip"><b>Archivio completo .zip</b><span>Export di Garmin («Esporta i tuoi dati») o di Strava, così com'è. FC secondo per secondo per tutto lo storico.</span></label>
@@ -697,17 +715,6 @@ details.wkd-past[open]>summary{margin-bottom:8px}
       <label class="drop"><input type="file" id="dt-file" accept=".csv"><b>CSV Attività</b><span>Il riepilogo di Garmin Connect: solo medie, niente FC secondo per secondo.</span></label>
     </div>
     <p class="muted" id="dt-zipst" style="margin-top:8px">Le corse già presenti vengono completate, quelle mancanti aggiunte. Gli archivi grandi meglio dal computer.</p>
-  </div>
-  <div class="card"><h2>Calendario</h2><div id="c-calw" style="margin-bottom:10px"></div><div id="c-cal"></div></div>
-  <div class="card"><h2>Altri sport</h2><div id="xt-out"></div></div>
-  <div class="card"><h2>Analisi della corsa</h2>
-    <select id="a-sel"></select>
-    <div id="a-out" style="margin-top:10px"></div>
-  </div>
-  <div class="card"><h2>Archivio</h2>
-    <p class="muted" style="margin-bottom:8px">Rinomina per correggere la categoria (parole chiave: gara, soglia, medio, progressivo, fartlek, 8x200, lungo) — niente da ricaricare.</p>
-    <div id="dt-filt"></div><p class="muted" id="dt-filtn" style="margin:6px 0 8px"></p>
-    <div id="dt-manage"></div>
   </div>
 </div>
 
@@ -741,8 +748,10 @@ details.wkd-past[open]>summary{margin-bottom:8px}
 </main>
 <nav>
   <button class="on" data-g="oggi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Oggi</button>
-  <button data-g="forma"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>Forma</button>
   <button data-g="piano"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Piano</button>
+  <button data-g="gara"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2 4 2 4H5"/></svg>Gara</button>
+  <button data-g="forma"><svg viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>Forma</button>
+  <button data-g="prog"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Progressi</button>
   <button data-g="corse"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Corse</button>
 </nav>
 
@@ -958,8 +967,8 @@ function workTarget(sess){
 }
 
 /* ---------- tabs ---------- */
-const GROUPS={oggi:['dash'],forma:['fit','prog'],piano:['plan','mon'],corse:['runs'],imp:['data']};
-const PTITLE={dash:'Oggi',fit:'Forma',prog:'Forma',plan:'Piano',mon:'Piano',runs:'Corse',data:'Impostazioni'};
+const GROUPS={oggi:['dash'],piano:['plan','mon'],gara:['gara'],forma:['fit','zon'],prog:['prog'],corse:['runs'],imp:['data']};
+const PTITLE={dash:'Oggi',fit:'Forma',zon:'Forma',prog:'Progressi',gara:'Gara',plan:'Piano',mon:'Piano',runs:'Corse',data:'Impostazioni'};
 let curPane='dash';
 function showPane(p){
   curPane=p;
@@ -1285,7 +1294,8 @@ function rProg(){
   const list=fRuns();
   // VDOT: con la linea dell'obiettivo del piano, se c'è
   let gV=null;try{const g=goalTarget();if(g)gV=vdotOf(g.km,g.sec)}catch(e){}
-  chart('c-vdot',monthlyVdot(list),{ylab:v=>v.toFixed(1),unit:'VDOT',better:'up',
+  chart('c-vdot',monthlyVdot(runs),{ // in Gara: tutto lo storico, non il periodo di Progressi
+   ylab:v=>v.toFixed(1),unit:'VDOT',better:'up',
     ref:gV?[{y:gV,lab:'obiettivo '+gV.toFixed(1),c:'var(--ok)'}]:[],
     each:'Ogni punto = la prestazione più forte (gara o sforzo massimo) dei 60 giorni prima di quella data, convertita in VDOT'});
   // volume: la settimana in corso è parziale, la segno più chiara
