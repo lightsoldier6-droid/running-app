@@ -4,7 +4,16 @@ Tab di RunPlan per la forza, pensato per chi prepara gare di corsa. Gira in un i
 
 ## Il programma
 
-Due sedute Total Body a settimana, A e B, alternate. Il programma è diviso in blocchi da 4 settimane: 3 di carico crescente (RPE 7 → 7–8 → 8) e la 4ª di scarico (una serie in meno, −10% del carico). Ogni blocco cambia esercizi e ripetizioni:
+**Lo decidi tu: cosa e quanto.** In *Schede → Decidi movimenti e serie* scegli:
+
+- **sedute a settimana**: 1, 2 o 3 (Total Body A, B, C, a rotazione);
+- **i movimenti di ogni seduta**: squat, una gamba, femorali, stacco e glutei, polpacci, soleo, salti (a due piedi o alternati), spinta orizzontale e verticale, trazione verticale e orizzontale, bicipiti, tricipiti, core anti-estensione e anti-rotazione; aggiungi, togli, riordina;
+- **quante serie** per ogni movimento (1–8);
+- per i salti, se farli sempre o solo nel blocco Potenza (predefinito).
+
+Si può partire da un modello (*Equilibrato*, *Più gambe*, *Breve*) e modificarlo. Sotto le schede c'è il conteggio delle **serie a settimana per area** (gambe, polpacci, spinta, trazione, braccia, core, salti) con un riferimento indicativo per chi corre.
+
+**L'app sceglie gli esercizi.** Per ogni movimento e ogni blocco propone l'esercizio, le ripetizioni e il recupero (`PATTERNS` in `palestra/data.js`); in *Schede* puoi sostituirlo con un'alternativa, per blocco. Il programma è diviso in blocchi da 4 settimane: 3 di carico crescente (RPE 7 → 7–8 → 8) e la 4ª di scarico (una serie in meno, −10% del carico):
 
 | Blocco | Ripetizioni | Scopo |
 |---|---|---|
@@ -12,7 +21,7 @@ Due sedute Total Body a settimana, A e B, alternate. Il programma è diviso in b
 | Forza | 4–6 / 6–8 | carichi alti e recuperi lunghi: economia di corsa |
 | Potenza | salti + 4–6 veloci | reattività di tendini e piedi |
 
-Dopo Potenza si riparte da Base con i carichi raggiunti. In **Schede** si può scegliere, per ogni blocco, un'alternativa a ciascun esercizio; in **Oggi → Cambia settimana** si sposta la posizione nel programma.
+Dopo Potenza si riparte da Base con i carichi raggiunti. In *Oggi → Cambia settimana* si sposta la posizione nel programma.
 
 ## Progressione
 
@@ -30,13 +39,13 @@ Per ogni esercizio la seduta parte già compilata (`palestra/engine.js`, funzion
 `gym-bridge.js` legge la settimana del piano di RunPlan (`RunPlanGym.runWeek`):
 
 - **taper e settimana gara**: la palestra va in scarico; in settimana gara una sola seduta, senza salti;
-- **giorni consigliati**: forza nei giorni duri dopo la corsa o nei giorni di riposo; mai il giorno prima di qualità, lungo o gara, né il giorno del lungo; almeno un giorno pieno tra le due sedute.
+- **giorni consigliati** (tanti quante le sedute): forza nei giorni duri dopo la corsa o nei giorni di riposo; mai il giorno prima di qualità, lungo o gara, né il giorno del lungo; possibilmente un giorno pieno fra una seduta e l'altra.
 
 Le sedute finite entrano in RunPlan come "altri sport" (calendario, carico TRIMP in Forma e fatica) tramite `runPlanGymActivities()`, in sola lettura.
 
 ## Dati
 
-Tutto in `localStorage['passo-v1']` (versione 2) su questo dispositivo: programma, scelte degli esercizi, storico, seduta in corso. Non va nel cloud: **Impostazioni e backup** esporta e importa un JSON. I dati del vecchio modulo (v1) vengono migrati da soli: si tengono le sedute di palestra, le corse registrate lì vengono scartate (le corse stanno in RunPlan).
+Tutto in `localStorage['passo-v1']` (versione 3) su questo dispositivo: programma, scelte degli esercizi, storico, seduta in corso. Non va nel cloud: **Impostazioni e backup** esporta e importa un JSON. I dati delle versioni precedenti vengono migrati da soli: dalla v1 si tengono le sedute di palestra (le corse registrate lì vengono scartate: stanno in RunPlan); dalla v2 si passa al programma personalizzabile partendo dal modello Equilibrato, con le scelte di esercizio già fatte.
 
 ## Test
 
