@@ -1,4 +1,4 @@
-const C = 'runplan-v116';
+const C = 'runplan-v117';
 const FILES = ['.', 'index.html', 'data.js', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png', 'css/app.css', 'js/core.js', 'js/cloud.js', 'js/util.js', 'js/oggi.js', 'js/progressi.js', 'js/piano.js', 'js/monitor.js', 'js/dati.js', 'js/corsa.js', 'js/fc.js', 'js/import-fit.js', 'js/forma.js', 'js/gara.js', 'js/archivio.js', 'js/init.js', 'gym-bridge.js', 'palestra/index.html', 'palestra/data.js', 'palestra/engine.js', 'palestra/app.js', 'palestra/palestra.css'];
 const OPTIONAL = ['https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js','https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js'];
 // install: bypassa la cache HTTP del browser (cache:'reload') così in cache finisce sempre la versione fresca
