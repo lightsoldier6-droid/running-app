@@ -8,7 +8,7 @@
   function gymState() {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || 'null');
-      return s && [1, 2, 3].includes(s.version) && Array.isArray(s.history) ? s : null;
+      return s && [1, 2, 3, 4].includes(s.version) && Array.isArray(s.history) ? s : null;
     } catch {
       return null;
     }
@@ -22,7 +22,7 @@
       .map(h => {
         const d = new Date(h.startedAt || h.endedAt);
         const time = Number.isFinite(d.getTime()) ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : '12:00';
-        const note = 'Total Body ' + (['A', 'B', 'C'].includes(h.routine) ? h.routine : 'A') + (h.blockName ? ' · ' + h.blockName : '');
+        const note = typeof h.name === 'string' && h.name ? h.name.slice(0, 60) : 'Total Body ' + (['A', 'B', 'C'].includes(h.routine) ? h.routine : 'A') + (h.blockName ? ' · ' + h.blockName : '');
         return { id: 'passo-' + h.id, date: h.date + ' ' + time, sport: 'gym', min: Math.max(1, Math.round(h.minutes)), rpe: h.rpe, hr: null, note, src: 'passo' };
       });
   };
