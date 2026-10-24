@@ -1,208 +1,193 @@
 'use strict';
-/* Palestra per un runner. Il programma lo decide l'utente a livello di MOVIMENTI e SERIE (cosa e
-   quanto allenare in ogni seduta); l'app sceglie l'esercizio adatto a ciascun blocco e ne calcola
-   carichi e ripetizioni. I blocchi durano 4 settimane (3 di carico + 1 di scarico) e ruotano:
-   Base → Forza → Potenza → Base… Gli id delle varianti sono stabili: lo storico di un esercizio resta
-   suo anche quando torna in un blocco successivo o in un'altra seduta. */
+/* Palestra di RunPlan: catalogo esercizi, muscoli, schede di esempio.
+   Le schede le compone l'utente scegliendo dal catalogo; l'app suggerisce carichi, ripetizioni,
+   progressione e settimane di scarico. Gli id degli esercizi sono stabili: lo storico di un esercizio
+   resta suo in qualunque scheda venga usato. */
 
-// Libreria esercizi. loadType: weight = kg | body = corpo libero (si progredisce con le ripetizioni)
-// | assistance = kg di assistenza (si progredisce togliendo assistenza). side: ripetizioni per lato.
-const X = (id, name, gear, loadType = 'weight', side = false) => ({ id, name, gear, loadType, side });
+// Muscoli (primari e secondari): id → nome
+const MUSCLES = {
+  petto: 'Petto', dorso: 'Dorsali', trapezi: 'Trapezi', spalle: 'Spalle', bicipiti: 'Bicipiti', tricipiti: 'Tricipiti',
+  avambracci: 'Avambracci', addome: 'Addome', lombari: 'Lombari', glutei: 'Glutei', quadricipiti: 'Quadricipiti',
+  femorali: 'Femorali', adduttori: 'Adduttori', abduttori: 'Abduttori', polpacci: 'Polpacci',
+};
+const EQUIPMENT = ['Bilanciere', 'Manubri', 'Kettlebell', 'Macchina', 'Cavo', 'Corpo libero', 'Elastico', 'Altro'];
+
+/* Esercizio: X(id, nome, muscolo primario, attrezzo, tipo di carico, per lato, [muscoli secondari])
+   tipo di carico: weight = kg | body = corpo libero (ripetizioni) | assistance = kg di assistenza |
+   time = secondi (plank e simili). per lato: ripetizioni contate per lato. */
+const X = (id, name, muscle, gear, loadType = 'weight', side = false, sec = []) => ({ id, name, muscle, gear, loadType, side, sec });
+const W = 'weight', BD = 'body', AS = 'assistance', TM = 'time';
 const EXERCISES = Object.fromEntries(
   [
-    X('goblet', 'Goblet squat', 'Manubrio'),
-    X('legpress', 'Leg press', 'Macchina'),
-    X('smith-squat', 'Squat al multipower', 'Macchina'),
-    X('squat-bb', 'Back squat', 'Bilanciere'),
-    X('split', 'Split squat', 'Manubri', 'weight', true),
-    X('bulgarian', 'Squat bulgaro', 'Manubri', 'weight', true),
-    X('step-up', 'Step-up', 'Manubri', 'weight', true),
-    X('reverse-lunge', 'Affondi indietro', 'Manubri', 'weight', true),
-    X('rdl-db', 'Stacco rumeno con manubri', 'Manubri'),
-    X('rdl-bb', 'Stacco rumeno con bilanciere', 'Bilanciere'),
-    X('trapbar', 'Stacco con trap bar', 'Bilanciere'),
-    X('sl-rdl', 'Stacco rumeno a una gamba', 'Manubrio', 'weight', true),
-    X('legcurl', 'Leg curl', 'Macchina'),
-    X('nordic', 'Nordic curl assistito', 'Appoggio sicuro', 'body'),
-    X('hip-machine', 'Hip thrust alla macchina', 'Macchina'),
-    X('hip-bb', 'Hip thrust con bilanciere', 'Bilanciere'),
-    X('bridge-db', 'Glute bridge con manubrio', 'Manubrio'),
-    X('calf-stand', 'Calf raise in piedi', 'Macchina'),
-    X('calf-single', 'Calf raise a una gamba', 'Manubrio', 'weight', true),
-    X('calf-press', 'Calf raise alla pressa', 'Macchina'),
-    X('calf-seated', 'Calf raise da seduto', 'Macchina'),
-    X('incline-db', 'Panca inclinata con manubri', 'Manubri'),
-    X('bench-db', 'Panca piana con manubri', 'Manubri'),
-    X('chest-machine', 'Chest press', 'Macchina'),
-    X('pushup', 'Piegamenti sulle braccia', 'Tappetino', 'body'),
-    X('shoulder-db', 'Shoulder press con manubri', 'Manubri'),
-    X('shoulder-machine', 'Lento avanti alla macchina', 'Macchina'),
-    X('pushpress-db', 'Push press con manubri', 'Manubri'),
-    X('landmine', 'Landmine press a un braccio', 'Bilanciere', 'weight', true),
-    X('lat-wide', 'Lat machine presa larga', 'Cavo'),
-    X('lat-neutral', 'Lat machine presa neutra', 'Cavo'),
-    X('pullup-assisted', 'Trazioni assistite', 'Macchina', 'assistance'),
-    X('row-cable', 'Rematore al cavo da seduto', 'Cavo'),
-    X('row-db', 'Rematore con manubrio', 'Manubrio', 'weight', true),
-    X('chest-row', 'Rematore con appoggio al petto', 'Manubri'),
-    X('row-machine', 'Rematore alla macchina', 'Macchina'),
-    X('curl-db', 'Curl con manubri', 'Manubri'),
-    X('curl-cable', 'Curl al cavo', 'Cavo'),
-    X('curl-hammer', 'Curl a martello', 'Manubri'),
-    X('pushdown-rope', 'Pushdown con corda', 'Cavo'),
-    X('pushdown-bar', 'Pushdown con barra', 'Cavo'),
-    X('skullcrusher', 'Skullcrusher con manubri', 'Manubri'),
-    X('deadbug', 'Dead bug', 'Tappetino', 'body', true),
-    X('birddog', 'Bird dog', 'Tappetino', 'body', true),
-    X('heel-tap', 'Heel tap supino', 'Tappetino', 'body', true),
-    X('pallof', 'Pallof press', 'Cavo', 'weight', true),
-    X('cable-chop', 'Woodchop al cavo', 'Cavo', 'weight', true),
-    X('abwheel', 'Rollout con ruota', 'Ruota', 'body'),
-    X('box-jump', 'Box jump', 'Box', 'body'),
-    X('broad-jump', 'Salto in lungo da fermo', 'Corpo libero', 'body'),
-    X('pogo', 'Pogo jumps', 'Corpo libero', 'body'),
-    X('split-jump', 'Salti in affondo alternati', 'Corpo libero', 'body', true),
-    X('skater', 'Salti laterali (skater)', 'Corpo libero', 'body', true),
+    // petto
+    X('bench-bb', 'Panca piana con bilanciere', 'petto', 'Bilanciere', W, false, ['tricipiti', 'spalle']),
+    X('bench-db', 'Panca piana con manubri', 'petto', 'Manubri', W, false, ['tricipiti', 'spalle']),
+    X('incline-bb', 'Panca inclinata con bilanciere', 'petto', 'Bilanciere', W, false, ['spalle', 'tricipiti']),
+    X('incline-db', 'Panca inclinata con manubri', 'petto', 'Manubri', W, false, ['spalle', 'tricipiti']),
+    X('decline-bb', 'Panca declinata con bilanciere', 'petto', 'Bilanciere', W, false, ['tricipiti']),
+    X('chest-machine', 'Chest press', 'petto', 'Macchina', W, false, ['tricipiti', 'spalle']),
+    X('incline-machine', 'Chest press inclinata', 'petto', 'Macchina', W, false, ['spalle', 'tricipiti']),
+    X('pec-deck', 'Pectoral machine', 'petto', 'Macchina'),
+    X('fly-db', 'Croci con manubri', 'petto', 'Manubri'),
+    X('cable-fly', 'Croci ai cavi', 'petto', 'Cavo'),
+    X('pushup', 'Piegamenti sulle braccia', 'petto', 'Corpo libero', BD, false, ['tricipiti', 'spalle', 'addome']),
+    X('dips', 'Dip alle parallele', 'petto', 'Corpo libero', BD, false, ['tricipiti', 'spalle']),
+    X('dips-assisted', 'Dip assistite', 'petto', 'Macchina', AS, false, ['tricipiti', 'spalle']),
+    // dorso
+    X('pullup', 'Trazioni alla sbarra', 'dorso', 'Corpo libero', BD, false, ['bicipiti']),
+    X('pullup-assisted', 'Trazioni assistite', 'dorso', 'Macchina', AS, false, ['bicipiti']),
+    X('chinup', 'Trazioni presa inversa', 'dorso', 'Corpo libero', BD, false, ['bicipiti']),
+    X('lat-wide', 'Lat machine presa larga', 'dorso', 'Cavo', W, false, ['bicipiti']),
+    X('lat-neutral', 'Lat machine presa neutra', 'dorso', 'Cavo', W, false, ['bicipiti']),
+    X('lat-single', 'Lat machine a un braccio', 'dorso', 'Cavo', W, true, ['bicipiti']),
+    X('row-bb', 'Rematore con bilanciere', 'dorso', 'Bilanciere', W, false, ['trapezi', 'bicipiti', 'lombari']),
+    X('row-db', 'Rematore con manubrio', 'dorso', 'Manubri', W, true, ['trapezi', 'bicipiti']),
+    X('chest-row', 'Rematore con appoggio al petto', 'dorso', 'Manubri', W, false, ['trapezi', 'bicipiti']),
+    X('row-cable', 'Rematore al cavo da seduto', 'dorso', 'Cavo', W, false, ['trapezi', 'bicipiti']),
+    X('row-machine', 'Rematore alla macchina', 'dorso', 'Macchina', W, false, ['trapezi', 'bicipiti']),
+    X('tbar-row', 'Rematore T-bar', 'dorso', 'Bilanciere', W, false, ['trapezi', 'bicipiti']),
+    X('inverted-row', 'Rematore inverso', 'dorso', 'Corpo libero', BD, false, ['trapezi', 'bicipiti']),
+    X('pullover-cable', 'Pullover al cavo', 'dorso', 'Cavo'),
+    // trapezi
+    X('shrug-db', 'Scrollate con manubri', 'trapezi', 'Manubri'),
+    X('shrug-bb', 'Scrollate con bilanciere', 'trapezi', 'Bilanciere'),
+    // spalle
+    X('shoulder-db', 'Shoulder press con manubri', 'spalle', 'Manubri', W, false, ['tricipiti']),
+    X('shoulder-machine', 'Lento avanti alla macchina', 'spalle', 'Macchina', W, false, ['tricipiti']),
+    X('ohp-bb', 'Lento avanti con bilanciere', 'spalle', 'Bilanciere', W, false, ['tricipiti']),
+    X('arnold', 'Arnold press', 'spalle', 'Manubri', W, false, ['tricipiti']),
+    X('pushpress-db', 'Push press con manubri', 'spalle', 'Manubri', W, false, ['tricipiti', 'quadricipiti']),
+    X('landmine', 'Landmine press a un braccio', 'spalle', 'Bilanciere', W, true, ['petto', 'tricipiti']),
+    X('lateral-db', 'Alzate laterali con manubri', 'spalle', 'Manubri'),
+    X('lateral-cable', 'Alzate laterali al cavo', 'spalle', 'Cavo', W, true),
+    X('lateral-machine', 'Alzate laterali alla macchina', 'spalle', 'Macchina'),
+    X('front-raise', 'Alzate frontali', 'spalle', 'Manubri'),
+    X('rear-delt-db', 'Alzate posteriori con manubri', 'spalle', 'Manubri', W, false, ['trapezi']),
+    X('reverse-fly-machine', 'Reverse fly alla macchina', 'spalle', 'Macchina', W, false, ['trapezi']),
+    X('face-pull', 'Face pull', 'spalle', 'Cavo', W, false, ['trapezi']),
+    // bicipiti
+    X('curl-db', 'Curl con manubri', 'bicipiti', 'Manubri'),
+    X('curl-bb', 'Curl con bilanciere', 'bicipiti', 'Bilanciere'),
+    X('curl-ez', 'Curl con bilanciere EZ', 'bicipiti', 'Bilanciere'),
+    X('curl-hammer', 'Curl a martello', 'bicipiti', 'Manubri', W, false, ['avambracci']),
+    X('curl-cable', 'Curl al cavo', 'bicipiti', 'Cavo'),
+    X('curl-preacher', 'Curl alla panca Scott', 'bicipiti', 'Macchina'),
+    X('curl-incline', 'Curl su panca inclinata', 'bicipiti', 'Manubri'),
+    X('curl-conc', 'Curl di concentrazione', 'bicipiti', 'Manubri', W, true),
+    // tricipiti
+    X('pushdown-rope', 'Pushdown con corda', 'tricipiti', 'Cavo'),
+    X('pushdown-bar', 'Pushdown con barra', 'tricipiti', 'Cavo'),
+    X('skullcrusher', 'Skullcrusher con manubri', 'tricipiti', 'Manubri'),
+    X('skull-ez', 'French press con bilanciere EZ', 'tricipiti', 'Bilanciere'),
+    X('overhead-cable', 'Estensioni sopra la testa al cavo', 'tricipiti', 'Cavo'),
+    X('overhead-db', 'Estensioni sopra la testa con manubrio', 'tricipiti', 'Manubri'),
+    X('close-bench', 'Panca presa stretta', 'tricipiti', 'Bilanciere', W, false, ['petto']),
+    X('kickback', 'Kickback con manubrio', 'tricipiti', 'Manubri', W, true),
+    X('dips-bench', 'Dip alla panca', 'tricipiti', 'Corpo libero', BD),
+    // avambracci
+    X('wrist-curl', 'Curl dei polsi', 'avambracci', 'Manubri'),
+    X('reverse-curl', 'Curl presa inversa', 'avambracci', 'Bilanciere', W, false, ['bicipiti']),
+    // addome e core
+    X('plank', 'Plank', 'addome', 'Corpo libero', TM),
+    X('side-plank', 'Plank laterale', 'addome', 'Corpo libero', TM, true),
+    X('hollow', 'Hollow hold', 'addome', 'Corpo libero', TM),
+    X('deadbug', 'Dead bug', 'addome', 'Corpo libero', BD, true),
+    X('heel-tap', 'Heel tap supino', 'addome', 'Corpo libero', BD, true),
+    X('crunch', 'Crunch', 'addome', 'Corpo libero', BD),
+    X('crunch-cable', 'Crunch al cavo', 'addome', 'Cavo'),
+    X('leg-raise', 'Sollevamento gambe alla sbarra', 'addome', 'Corpo libero', BD),
+    X('knee-raise', 'Knee raise alle parallele', 'addome', 'Corpo libero', BD),
+    X('russian-twist', 'Russian twist', 'addome', 'Corpo libero', BD),
+    X('abwheel', 'Rollout con ruota', 'addome', 'Altro', BD),
+    X('pallof', 'Pallof press', 'addome', 'Cavo', W, true),
+    X('cable-chop', 'Woodchop al cavo', 'addome', 'Cavo', W, true),
+    // lombari
+    X('birddog', 'Bird dog', 'lombari', 'Corpo libero', BD, true, ['addome', 'glutei']),
+    X('back-ext', 'Iperestensioni', 'lombari', 'Corpo libero', BD, false, ['glutei', 'femorali']),
+    X('superman', 'Superman', 'lombari', 'Corpo libero', BD),
+    // glutei
+    X('hip-bb', 'Hip thrust con bilanciere', 'glutei', 'Bilanciere', W, false, ['femorali']),
+    X('hip-machine', 'Hip thrust alla macchina', 'glutei', 'Macchina', W, false, ['femorali']),
+    X('bridge-db', 'Glute bridge con manubrio', 'glutei', 'Manubri', W, false, ['femorali']),
+    X('glute-bridge', 'Ponte glutei', 'glutei', 'Corpo libero', BD, false, ['femorali']),
+    X('sl-bridge', 'Ponte glutei a una gamba', 'glutei', 'Corpo libero', BD, true, ['femorali']),
+    X('kickback-cable', 'Slanci all’indietro al cavo', 'glutei', 'Cavo', W, true),
+    X('kb-swing', 'Kettlebell swing', 'glutei', 'Kettlebell', W, false, ['femorali', 'lombari']),
+    // abduttori e adduttori
+    X('abductor-machine', 'Abductor machine', 'abduttori', 'Macchina'),
+    X('abduction-cable', 'Abduzione al cavo', 'abduttori', 'Cavo', W, true),
+    X('band-walk', 'Passi laterali con elastico', 'abduttori', 'Elastico', BD, true, ['glutei']),
+    X('clamshell', 'Clamshell con elastico', 'abduttori', 'Elastico', BD, true, ['glutei']),
+    X('adductor-machine', 'Adductor machine', 'adduttori', 'Macchina'),
+    X('copenhagen', 'Copenhagen plank', 'adduttori', 'Corpo libero', TM, true, ['addome']),
+    // quadricipiti
+    X('squat-bb', 'Back squat', 'quadricipiti', 'Bilanciere', W, false, ['glutei', 'lombari']),
+    X('front-squat', 'Front squat', 'quadricipiti', 'Bilanciere', W, false, ['glutei', 'addome']),
+    X('goblet', 'Goblet squat', 'quadricipiti', 'Manubri', W, false, ['glutei']),
+    X('smith-squat', 'Squat al multipower', 'quadricipiti', 'Macchina', W, false, ['glutei']),
+    X('hack-squat', 'Hack squat', 'quadricipiti', 'Macchina', W, false, ['glutei']),
+    X('legpress', 'Leg press', 'quadricipiti', 'Macchina', W, false, ['glutei']),
+    X('leg-ext', 'Leg extension', 'quadricipiti', 'Macchina'),
+    X('split', 'Split squat', 'quadricipiti', 'Manubri', W, true, ['glutei']),
+    X('bulgarian', 'Squat bulgaro', 'quadricipiti', 'Manubri', W, true, ['glutei']),
+    X('step-up', 'Step-up', 'quadricipiti', 'Manubri', W, true, ['glutei']),
+    X('reverse-lunge', 'Affondi indietro', 'quadricipiti', 'Manubri', W, true, ['glutei']),
+    X('walking-lunge', 'Affondi in camminata', 'quadricipiti', 'Manubri', W, true, ['glutei']),
+    X('pistol', 'Pistol squat assistito', 'quadricipiti', 'Corpo libero', BD, true, ['glutei']),
+    X('wall-sit', 'Wall sit', 'quadricipiti', 'Corpo libero', TM),
+    // femorali e catena posteriore
+    X('deadlift', 'Stacco da terra', 'femorali', 'Bilanciere', W, false, ['glutei', 'lombari', 'trapezi']),
+    X('trapbar', 'Stacco con trap bar', 'femorali', 'Bilanciere', W, false, ['glutei', 'quadricipiti', 'lombari']),
+    X('rdl-bb', 'Stacco rumeno con bilanciere', 'femorali', 'Bilanciere', W, false, ['glutei', 'lombari']),
+    X('rdl-db', 'Stacco rumeno con manubri', 'femorali', 'Manubri', W, false, ['glutei', 'lombari']),
+    X('sl-rdl', 'Stacco rumeno a una gamba', 'femorali', 'Manubri', W, true, ['glutei']),
+    X('good-morning', 'Good morning', 'femorali', 'Bilanciere', W, false, ['lombari', 'glutei']),
+    X('legcurl', 'Leg curl sdraiato', 'femorali', 'Macchina'),
+    X('legcurl-seated', 'Leg curl da seduto', 'femorali', 'Macchina'),
+    X('nordic', 'Nordic curl assistito', 'femorali', 'Corpo libero', BD),
+    X('slider-curl', 'Leg curl con slider', 'femorali', 'Corpo libero', BD, false, ['glutei']),
+    // polpacci
+    X('calf-stand', 'Calf raise in piedi', 'polpacci', 'Macchina'),
+    X('calf-single', 'Calf raise a una gamba', 'polpacci', 'Manubri', W, true),
+    X('calf-press', 'Calf raise alla pressa', 'polpacci', 'Macchina'),
+    X('calf-seated', 'Calf raise da seduto', 'polpacci', 'Macchina'),
+    X('calf-smith', 'Calf raise al multipower', 'polpacci', 'Macchina'),
+    X('tib-raise', 'Tibialis raise', 'polpacci', 'Corpo libero', BD),
+    // pliometria
+    X('box-jump', 'Box jump', 'quadricipiti', 'Altro', BD, false, ['glutei', 'polpacci']),
+    X('jump-squat', 'Squat jump', 'quadricipiti', 'Corpo libero', BD, false, ['glutei', 'polpacci']),
+    X('broad-jump', 'Salto in lungo da fermo', 'glutei', 'Corpo libero', BD, false, ['quadricipiti', 'polpacci']),
+    X('split-jump', 'Salti in affondo alternati', 'quadricipiti', 'Corpo libero', BD, true, ['glutei', 'polpacci']),
+    X('skater', 'Salti laterali (skater)', 'glutei', 'Corpo libero', BD, true, ['quadricipiti', 'polpacci']),
+    X('pogo', 'Pogo jumps', 'polpacci', 'Corpo libero', BD),
+    X('sl-hop', 'Balzi su una gamba', 'polpacci', 'Corpo libero', BD, true, ['quadricipiti']),
+    X('depth-jump', 'Drop jump', 'quadricipiti', 'Altro', BD, false, ['polpacci', 'glutei']),
   ].map(x => [x.id, x]),
 );
 
-// I tre blocchi del ciclo
-const BLOCKS = [
-  { id: 'base', name: 'Base', title: 'Base · adattamento', rpe: ['7', '7–8', '8'],
-    why: 'Ripetizioni medie e carichi moderati: prepara tendini e tecnica e costruisce la base per i blocchi pesanti.' },
-  { id: 'forza', name: 'Forza', title: 'Forza · carichi alti', rpe: ['7', '7–8', '8'],
-    why: 'Poche ripetizioni, carichi alti e recuperi lunghi: è il blocco che migliora di più l’economia di corsa.' },
-  { id: 'potenza', name: 'Potenza', title: 'Potenza · forza esplosiva', rpe: ['7', '7–8', '8'],
-    why: 'Salti a inizio seduta e salita veloce nei fondamentali: allena la reattività di tendini e piedi.' },
-];
-const BLOCK_WEEKS = 4; // 3 di carico + 1 di scarico
-
-/* Movimenti. Per ogni blocco: esercizio proposto, alternative, ripetizioni [min, max], recupero (s).
-   area: il gruppo con cui si conta il volume settimanale. role: main | acc | calf | core | plyo */
-const b = (ex, alt, reps, rest, note = '') => ({ ex, alt, reps, rest, note });
-const PATTERNS = {
-  squat: { name: 'Squat', group: 'Gambe', area: 'Gambe', role: 'main', sets: 3,
-    hint: 'Quadricipiti e glutei: la base di tutto.',
-    base: b('goblet', ['legpress', 'split'], [10, 12], 90),
-    forza: b('smith-squat', ['legpress', 'squat-bb'], [5, 6], 150, 'Scendi controllato, sali deciso.'),
-    potenza: b('smith-squat', ['legpress', 'goblet'], [4, 6], 150, 'Salita il più veloce possibile, discesa controllata.') },
-  singola: { name: 'Una gamba', group: 'Gambe', area: 'Gambe', role: 'main', sets: 3,
-    hint: 'Stabilità di anca e ginocchio, come in corsa.',
-    base: b('step-up', ['reverse-lunge', 'split'], [10, 12], 90, 'Gradino all’altezza del ginocchio; spingi col piede sopra.'),
-    forza: b('bulgarian', ['split', 'step-up'], [6, 8], 120),
-    potenza: b('step-up', ['bulgarian', 'reverse-lunge'], [5, 6], 120, 'Salita esplosiva sul gradino.') },
-  femorali: { name: 'Femorali', group: 'Gambe', area: 'Gambe', role: 'main', sets: 3,
-    hint: 'Proteggono dagli stiramenti nelle andature veloci.',
-    base: b('rdl-db', ['legcurl', 'sl-rdl'], [10, 12], 90, 'Schiena neutra, scendi finché senti tirare i femorali.'),
-    forza: b('nordic', ['legcurl', 'sl-rdl'], [4, 6], 120, 'Scendi più lento che puoi; usa le mani per risalire.'),
-    potenza: b('sl-rdl', ['rdl-db', 'legcurl'], [6, 8], 90) },
-  stacco: { name: 'Stacco e glutei', group: 'Gambe', area: 'Gambe', role: 'main', sets: 3,
-    hint: 'Catena posteriore: la spinta della falcata.',
-    base: b('hip-machine', ['hip-bb', 'bridge-db'], [10, 12], 90),
-    forza: b('rdl-bb', ['trapbar', 'rdl-db'], [5, 6], 150),
-    potenza: b('hip-bb', ['hip-machine', 'trapbar'], [5, 6], 120) },
-  polpacci: { name: 'Polpacci', group: 'Polpacci', area: 'Polpacci', role: 'calf', sets: 3,
-    hint: 'Gamba tesa: tendine d’Achille e spinta.',
-    base: b('calf-stand', ['calf-single', 'calf-press'], [12, 15], 60, 'Due secondi in discesa, pausa in basso.'),
-    forza: b('calf-single', ['calf-stand', 'calf-press'], [8, 10], 75, 'Manubrio nella mano dello stesso lato; tieniti con l’altra.'),
-    potenza: b('calf-stand', ['calf-single', 'calf-press'], [6, 8], 75, 'Salita esplosiva, discesa in due secondi.') },
-  soleo: { name: 'Soleo', group: 'Polpacci', area: 'Polpacci', role: 'calf', sets: 3,
-    hint: 'Ginocchio piegato: il polpaccio che regge di più in corsa.',
-    base: b('calf-seated', ['calf-press', 'calf-single'], [12, 15], 60),
-    forza: b('calf-seated', ['calf-press', 'calf-single'], [8, 10], 75),
-    potenza: b('pogo', ['calf-seated', 'calf-stand'], [15, 20], 75, 'Saltelli rapidi sugli avampiedi, ginocchia quasi tese, contatti brevi.') },
-  salti: { name: 'Salti a due piedi', group: 'Salti', area: 'Salti', role: 'plyo', sets: 3, when: 'potenza',
-    hint: 'Reattività: a inizio seduta, quando sei fresco.',
-    base: b('pogo', ['broad-jump', 'box-jump'], [10, 15], 75, 'Contatti brevi e leggeri; smetti se perdi qualità.'),
-    forza: b('box-jump', ['broad-jump', 'pogo'], [4, 5], 90, 'Atterra morbido e scendi dal box camminando.'),
-    potenza: b('box-jump', ['broad-jump', 'pogo'], [5, 6], 90, 'Atterra morbido e scendi dal box camminando. Qualità, non fatica.') },
-  salti1: { name: 'Salti alternati', group: 'Salti', area: 'Salti', role: 'plyo', sets: 3, when: 'potenza',
-    hint: 'Una gamba alla volta, come nella corsa.',
-    base: b('skater', ['split-jump', 'broad-jump'], [5, 6], 75),
-    forza: b('split-jump', ['skater', 'broad-jump'], [4, 5], 90),
-    potenza: b('split-jump', ['skater', 'broad-jump'], [5, 6], 90, 'Cambio gamba in volo, atterraggio stabile.') },
-  spintaO: { name: 'Spinta orizzontale', group: 'Petto', area: 'Spinta', role: 'acc', sets: 3,
-    hint: 'Petto e tricipiti.',
-    base: b('incline-db', ['chest-machine', 'pushup'], [10, 12], 75),
-    forza: b('bench-db', ['chest-machine', 'incline-db'], [6, 8], 120),
-    potenza: b('pushup', ['bench-db', 'chest-machine'], [8, 12], 75, 'Spinta esplosiva; se diventano facili, piedi rialzati.') },
-  spintaV: { name: 'Spinta verticale', group: 'Spalle', area: 'Spinta', role: 'acc', sets: 3,
-    hint: 'Spalle: aiutano la spinta delle braccia in salita.',
-    base: b('shoulder-db', ['shoulder-machine', 'landmine'], [10, 12], 75),
-    forza: b('shoulder-db', ['landmine', 'shoulder-machine'], [6, 8], 90),
-    potenza: b('pushpress-db', ['shoulder-db', 'landmine'], [5, 6], 90, 'Piccola piegata delle gambe e spinta esplosiva.') },
-  trazioneV: { name: 'Trazione verticale', group: 'Dorso', area: 'Trazione', role: 'acc', sets: 3,
-    hint: 'Dorsali: postura nei chilometri finali.',
-    base: b('lat-wide', ['lat-neutral', 'pullup-assisted'], [10, 12], 75),
-    forza: b('pullup-assisted', ['lat-neutral', 'lat-wide'], [6, 8], 120),
-    potenza: b('pullup-assisted', ['lat-neutral', 'lat-wide'], [5, 6], 120) },
-  trazioneO: { name: 'Trazione orizzontale', group: 'Dorso', area: 'Trazione', role: 'acc', sets: 3,
-    hint: 'Rematore: scapole e parte alta della schiena.',
-    base: b('row-cable', ['row-db', 'row-machine'], [10, 12], 75),
-    forza: b('row-db', ['chest-row', 'row-cable'], [6, 8], 90),
-    potenza: b('row-db', ['chest-row', 'row-cable'], [6, 8], 90) },
-  bicipiti: { name: 'Bicipiti', group: 'Braccia', area: 'Braccia', role: 'acc', sets: 2,
-    hint: 'Complementare: facoltativo per un runner.',
-    base: b('curl-db', ['curl-cable', 'curl-hammer'], [10, 12], 60),
-    forza: b('curl-db', ['curl-hammer', 'curl-cable'], [8, 10], 60),
-    potenza: b('curl-hammer', ['curl-db', 'curl-cable'], [8, 10], 60) },
-  tricipiti: { name: 'Tricipiti', group: 'Braccia', area: 'Braccia', role: 'acc', sets: 2,
-    hint: 'Complementare: facoltativo per un runner.',
-    base: b('pushdown-rope', ['pushdown-bar', 'skullcrusher'], [10, 12], 60),
-    forza: b('pushdown-bar', ['pushdown-rope', 'skullcrusher'], [8, 10], 60),
-    potenza: b('pushdown-rope', ['pushdown-bar', 'skullcrusher'], [8, 10], 60) },
-  coreE: { name: 'Core anti-estensione', group: 'Core', area: 'Core', role: 'core', sets: 2,
-    hint: 'Tieni il bacino fermo quando la corsa si fa stanca.',
-    base: b('deadbug', ['birddog', 'heel-tap'], [8, 10], 45, 'Se la schiena si stacca dal tappetino, accorcia il movimento.'),
-    forza: b('abwheel', ['deadbug', 'birddog'], [6, 10], 60, 'Fermati prima che la schiena si inarchi.'),
-    potenza: b('abwheel', ['deadbug', 'birddog'], [8, 10], 60) },
-  coreR: { name: 'Core anti-rotazione', group: 'Core', area: 'Core', role: 'core', sets: 2,
-    hint: 'Il busto non gira a ogni passo.',
-    base: b('pallof', ['birddog', 'deadbug'], [10, 12], 45, 'Resisti alla rotazione: il busto non deve girare.'),
-    forza: b('cable-chop', ['pallof', 'birddog'], [8, 10], 60),
-    potenza: b('pallof', ['cable-chop', 'birddog'], [10, 12], 45) },
-};
-const PATTERN_ORDER = ['salti', 'salti1', 'squat', 'singola', 'femorali', 'stacco', 'polpacci', 'soleo', 'spintaO', 'spintaV', 'trazioneV', 'trazioneO', 'bicipiti', 'tricipiti', 'coreE', 'coreR'];
-
-/* Volume settimanale di riferimento (serie/settimana) per chi corre e fa forza 2 volte a settimana.
-   Indicativo: oltre il massimo la forza inizia a togliere freschezza alla corsa. */
-const AREAS = [
-  { id: 'Gambe', lo: 10, hi: 18 },
-  { id: 'Polpacci', lo: 4, hi: 10 },
-  { id: 'Salti', lo: 0, hi: 8, note: 'conta solo dove i salti sono attivi' },
-  { id: 'Spinta', lo: 3, hi: 9 },
-  { id: 'Trazione', lo: 3, hi: 9 },
-  { id: 'Braccia', lo: 0, hi: 6 },
-  { id: 'Core', lo: 3, hi: 8 },
+/* Schede di esempio per chi parte da zero: due Total Body per un runner.
+   R(nome, nota, [[esercizio, serie, rip. min, rip. max, recupero s]]) */
+const R = (name, note, list) => ({ name, note, exercises: list.map(([ex, sets, lo, hi, rest]) => ({ ex, sets, lo, hi, rest })) });
+const STARTER_ROUTINES = [
+  R('Total Body A', 'Spinta, trazione, gambe e polpacci.', [
+    ['goblet', 3, 10, 12, 90], ['rdl-db', 3, 10, 12, 90], ['calf-stand', 3, 12, 15, 60],
+    ['incline-db', 3, 10, 12, 75], ['lat-wide', 3, 10, 12, 75], ['deadbug', 2, 8, 10, 45],
+  ]),
+  R('Total Body B', 'Una gamba, catena posteriore e soleo.', [
+    ['step-up', 3, 10, 12, 90], ['hip-machine', 3, 10, 12, 90], ['calf-seated', 3, 12, 15, 60],
+    ['row-cable', 3, 10, 12, 75], ['shoulder-db', 3, 10, 12, 75], ['pallof', 2, 10, 12, 45],
+  ]),
 ];
 
-// Programma: chiave seduta → elenco di {id, p: movimento, sets, when: 'always' | 'potenza'}
-const t = (id, p, sets, when) => ({ id, p, sets: sets ?? PATTERNS[p].sets, when: when || PATTERNS[p].when || 'always' });
-const TEMPLATES = {
-  equilibrato: {
-    name: 'Equilibrato',
-    note: 'Gambe in primo piano, parte alta e core di sostegno.',
-    perWeek: 2,
-    A: [t('a-plyo', 'salti'), t('a-squat', 'squat'), t('a-hinge', 'femorali'), t('a-calf', 'polpacci'), t('a-push', 'spintaO'), t('a-pull', 'trazioneV'), t('a-core', 'coreE')],
-    B: [t('b-plyo', 'salti1'), t('b-single', 'singola'), t('b-hip', 'stacco'), t('b-calf', 'soleo'), t('b-pull', 'trazioneO'), t('b-push', 'spintaV'), t('b-core', 'coreR')],
-    C: [t('c-plyo', 'salti'), t('c-single', 'singola'), t('c-hinge', 'femorali'), t('c-calf', 'polpacci'), t('c-push', 'spintaO'), t('c-pull', 'trazioneO'), t('c-core', 'coreR')],
-  },
-  gambe: {
-    name: 'Più gambe',
-    note: 'Più serie per gambe e polpacci, parte alta ridotta al minimo.',
-    perWeek: 2,
-    A: [t('a-plyo', 'salti'), t('a-squat', 'squat', 4), t('a-hinge', 'femorali', 3), t('a-single', 'singola', 2), t('a-calf', 'polpacci', 4), t('a-pull', 'trazioneV', 2), t('a-core', 'coreE')],
-    B: [t('b-plyo', 'salti1'), t('b-single', 'singola', 4), t('b-hip', 'stacco', 4), t('b-calf', 'soleo', 4), t('b-push', 'spintaO', 2), t('b-core', 'coreR')],
-    C: [t('c-plyo', 'salti'), t('c-squat', 'squat', 3), t('c-hinge', 'femorali', 3), t('c-calf', 'polpacci', 3), t('c-pull', 'trazioneO', 2), t('c-core', 'coreE')],
-  },
-  breve: {
-    name: 'Breve',
-    note: 'Circa mezz’ora: l’essenziale per le gambe e un po’ di parte alta.',
-    perWeek: 2,
-    A: [t('a-squat', 'squat', 3), t('a-hinge', 'femorali', 2), t('a-calf', 'polpacci', 2), t('a-pull', 'trazioneV', 2), t('a-core', 'coreE', 2)],
-    B: [t('b-single', 'singola', 3), t('b-hip', 'stacco', 2), t('b-calf', 'soleo', 2), t('b-push', 'spintaO', 2), t('b-core', 'coreR', 2)],
-    C: [t('c-squat', 'squat', 2), t('c-single', 'singola', 2), t('c-calf', 'polpacci', 2), t('c-pull', 'trazioneO', 2), t('c-core', 'coreE', 2)],
-  },
+/* Solo per la migrazione dai dati v3 (programma per movimenti): esercizio e schema del blocco Base
+   di ciascun movimento. */
+const LEGACY_PATTERNS = {
+  squat: ['goblet', 10, 12, 90], singola: ['step-up', 10, 12, 90], femorali: ['rdl-db', 10, 12, 90],
+  stacco: ['hip-machine', 10, 12, 90], polpacci: ['calf-stand', 12, 15, 60], soleo: ['calf-seated', 12, 15, 60],
+  salti: ['pogo', 10, 15, 75], salti1: ['skater', 5, 6, 75], spintaO: ['incline-db', 10, 12, 75],
+  spintaV: ['shoulder-db', 10, 12, 75], trazioneV: ['lat-wide', 10, 12, 75], trazioneO: ['row-cable', 10, 12, 75],
+  bicipiti: ['curl-db', 10, 12, 60], tricipiti: ['pushdown-rope', 10, 12, 60], coreE: ['deadbug', 8, 10, 45],
+  coreR: ['pallof', 10, 12, 45],
 };
-const ROUTINE_KEYS = ['A', 'B', 'C'];
-const routineName = k => 'Total Body ' + k;
+
+const CYCLE_WEEKS = 4; // con lo scarico attivo: 3 settimane di carico + 1 di scarico
