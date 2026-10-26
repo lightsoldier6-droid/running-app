@@ -1,7 +1,7 @@
 'use strict';
-/* Palestra di RunPlan: catalogo esercizi, muscoli, schede di esempio.
-   Le schede le compone l'utente scegliendo dal catalogo; l'app suggerisce carichi, ripetizioni,
-   progressione e settimane di scarico. Gli id degli esercizi sono stabili: lo storico di un esercizio
+/* Palestra di RunPlan: catalogo esercizi, muscoli, spazi per i suggerimenti.
+   Le schede le compone l'utente scegliendo dal catalogo; l'app suggerisce cosa inserire dopo, carichi,
+   ripetizioni, progressione e settimane di scarico. Gli id degli esercizi sono stabili: lo storico di un esercizio
    resta suo in qualunque scheda venga usato. */
 
 // Muscoli (primari e secondari): id → nome
@@ -165,18 +165,34 @@ const EXERCISES = Object.fromEntries(
   ].map(x => [x.id, x]),
 );
 
-/* Schede di esempio per chi parte da zero: due Total Body per un runner.
-   R(nome, nota, [[esercizio, serie, rip. min, rip. max, recupero s]]) */
-const R = (name, note, list) => ({ name, note, exercises: list.map(([ex, sets, lo, hi, rest]) => ({ ex, sets, lo, hi, rest })) });
-const STARTER_ROUTINES = [
-  R('Total Body A', 'Spinta, trazione, gambe e polpacci.', [
-    ['goblet', 3, 10, 12, 90], ['rdl-db', 3, 10, 12, 90], ['calf-stand', 3, 12, 15, 60],
-    ['incline-db', 3, 10, 12, 75], ['lat-wide', 3, 10, 12, 75], ['deadbug', 2, 8, 10, 45],
-  ]),
-  R('Total Body B', 'Una gamba, catena posteriore e soleo.', [
-    ['step-up', 3, 10, 12, 90], ['hip-machine', 3, 10, 12, 90], ['calf-seated', 3, 12, 15, 60],
-    ['row-cable', 3, 10, 12, 75], ['shoulder-db', 3, 10, 12, 75], ['pallof', 2, 10, 12, 45],
-  ]),
+/* Suggerimenti: le schede le compone l'utente, l'app propone cosa inserire dopo. Ogni esercizio
+   appartiene a uno "spazio" della seduta di un runner; si suggerisce lo spazio più importante ancora
+   scoperto (e, nell'allenamento libero, quello meno allenato in settimana).
+   S(id, nome, peso, perché, [serie, rip. min, rip. max, recupero s], [esercizi in ordine di preferenza]) */
+const S = (id, name, w, why, rx, ex) => ({ id, name, w, why, rx, ex });
+const SLOTS = [
+  S('squat', 'Squat o pressa', 10, 'Quadricipiti e glutei: spinta in salita e tenuta in discesa.', [3, 8, 12, 90],
+    ['goblet', 'legpress', 'squat-bb', 'front-squat', 'hack-squat', 'smith-squat', 'leg-ext', 'wall-sit']),
+  S('hinge', 'Catena posteriore', 10, 'Femorali e glutei: il motore della falcata.', [3, 8, 12, 90],
+    ['rdl-db', 'hip-machine', 'rdl-bb', 'trapbar', 'hip-bb', 'deadlift', 'kb-swing', 'good-morning', 'bridge-db', 'glute-bridge', 'back-ext']),
+  S('calf', 'Polpacci', 9, 'Polpacci, soleo e tendine d’Achille: reggono ogni appoggio.', [3, 12, 15, 60],
+    ['calf-stand', 'calf-seated', 'calf-single', 'calf-press', 'calf-smith', 'tib-raise']),
+  S('pull', 'Tirata', 9, 'Dorsali: postura e oscillazione delle braccia.', [3, 8, 12, 75],
+    ['lat-wide', 'row-cable', 'pullup-assisted', 'row-db', 'chest-row', 'lat-neutral', 'row-machine', 'pullup', 'chinup', 'inverted-row', 'row-bb', 'tbar-row', 'lat-single']),
+  S('push', 'Spinta', 8, 'Petto e spalle: bilanciano la tirata.', [3, 8, 12, 75],
+    ['incline-db', 'bench-db', 'chest-machine', 'shoulder-db', 'pushup', 'shoulder-machine', 'bench-bb', 'landmine', 'incline-machine', 'ohp-bb', 'arnold', 'dips-assisted', 'dips']),
+  S('single', 'Una gamba', 8, 'Una gamba alla volta, come nella corsa: anca e ginocchio stabili.', [3, 8, 12, 75],
+    ['step-up', 'bulgarian', 'split', 'reverse-lunge', 'sl-rdl', 'walking-lunge', 'pistol', 'sl-bridge']),
+  S('core', 'Core', 7, 'Busto stabile anche a fine gara.', [2, 8, 12, 45],
+    ['deadbug', 'pallof', 'side-plank', 'plank', 'birddog', 'cable-chop', 'abwheel', 'hollow', 'heel-tap', 'leg-raise', 'knee-raise', 'crunch-cable', 'russian-twist', 'crunch', 'superman']),
+  S('hams', 'Femorali isolati', 4, 'Femorali lavorati da soli: proteggono dagli stiramenti in velocità.', [2, 8, 12, 60],
+    ['legcurl-seated', 'nordic', 'legcurl', 'slider-curl']),
+  S('hip', 'Anche', 4, 'Abduttori e adduttori: ginocchia allineate e bacino fermo.', [2, 12, 15, 45],
+    ['copenhagen', 'band-walk', 'abductor-machine', 'adductor-machine', 'clamshell', 'abduction-cable']),
+  S('plyo', 'Salti', 3, 'Reattività di piedi e tendini: economia di corsa.', [3, 5, 8, 90],
+    ['pogo', 'box-jump', 'skater', 'jump-squat', 'broad-jump', 'split-jump', 'sl-hop', 'depth-jump']),
+  S('arms', 'Braccia e spalle', 2, 'Complemento: braccia e spalle.', [2, 10, 15, 60],
+    ['face-pull', 'curl-db', 'pushdown-rope', 'lateral-db', 'curl-hammer', 'rear-delt-db', 'overhead-cable']),
 ];
 
 /* Solo per la migrazione dai dati v3 (programma per movimenti): esercizio e schema del blocco Base

@@ -178,6 +178,83 @@ const GymEngine = (() => {
     return pick.sort((a, b) => a.d - b.d).map(p => ({ day: p.d, with: by[p.d].map(x => x.name), rest: !by[p.d].length }));
   }
 
+
+  /* ---------- cosa inserire dopo ----------
+     slots: spazi della seduta (SLOTS in data.js). Un esercizio sta nello spazio che lo elenca; se nessuno lo
+     elenca, decide il muscolo principale. */
+  const BY_MUSCLE = { quadricipiti: 'squat', femorali: 'hinge', glutei: 'hinge', polpacci: 'calf', dorso: 'pull', petto: 'push', addome: 'core', lombari: 'core', abduttori: 'hip', adduttori: 'hip' };
+  function slotOf(v, slots) {
+    if (!v) return null;
+    const s = slots.find(x => x.ex.includes(v.id));
+    if (s) return s.id;
+    if (v.muscle === 'quadricipiti' && v.side) return 'single';
+    if (v.muscle === 'spalle' && (v.sec || []).includes('tricipiti')) return 'push';
+    return BY_MUSCLE[v.muscle] || 'arms';
+  }
+  /* items: id degli esercizi già nella scheda o nell'allenamento. opts: { slots, lookup, all (catalogo completo),
+     history, today, week (true = conta le serie degli ultimi 7 giorni), tomorrow ({ name, hard, long, race } | null),
+     skip ({ spazio: [id scartati] }), max }. Restituisce { list: [{ id, slot, name, why, rx }], full, minutes }. */
+  function suggestNext(items, opts) {
+    const { slots, lookup, all, history = [], today: day, week = false, tomorrow = null, skip = {}, max = 3 } = opts;
+    const have = new Set(items.map(x => x.ex));
+    const count = {}, gears = new Set();
+    for (const x of items) {
+      const v = lookup(x.ex), sl = slotOf(v, slots);
+      if (sl) count[sl] = (count[sl] || 0) + 1;
+      if (v) gears.add(v.gear);
+    }
+    const minutesNow = minutes(items.map(x => ({ sets: x.sets || 3, rest: x.rest || 75 })));
+    const full = items.length >= 8 || minutesNow >= 75;
+    // serie per spazio negli ultimi 7 giorni e quante volte è stato fatto ogni esercizio
+    const weekSets = {}, done = {};
+    const from = day ? addDays(day, -6) : '';
+    for (const h of history) {
+      if (h.type !== 'gym') continue;
+      for (const e of h.exercises || []) {
+        const n = (e.sets || []).filter(x => x.done && x.kind !== 'warmup').length;
+        if (!n) continue;
+        done[e.variant.id] = (done[e.variant.id] || 0) + 1;
+        if (week && h.date >= from && h.date <= day) {
+          const sl = slotOf(lookup(e.variant.id) || e.variant, slots);
+          weekSets[sl] = (weekSets[sl] || 0) + n;
+        }
+      }
+    }
+    const legs = ['squat', 'hinge', 'single'];
+    const ranked = slots.map(s => {
+      let v = s.w - 12 * (count[s.id] || 0);
+      const notes = [];
+      if (week) {
+        const ws = weekSets[s.id] || 0;
+        if (!ws && s.w >= 7) { v += 3; notes.push('mai in settimana'); }
+        else v -= Math.min(4, ws / 3);
+      }
+      if (tomorrow && (tomorrow.hard || tomorrow.long || tomorrow.race)) {
+        if (s.id === 'plyo') v -= 20;
+        if (legs.includes(s.id)) v -= 3;
+      }
+      return { s, v, notes };
+    }).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
+    const list = [];
+    for (const { s, notes } of ranked) {
+      if (list.length >= max) break;
+      const pool = [...s.ex.map(id => lookup(id)).filter(Boolean), ...all.filter(v => v.custom && slotOf(v, slots) === s.id)]
+        .filter(v => !have.has(v.id));
+      if (!pool.length) continue;
+      const skipped = new Set(skip[s.id] || []);
+      const open = pool.filter(v => !skipped.has(v.id));
+      const cands = open.length ? open : pool;
+      const score = v => Math.min(10, (done[v.id] || 0) * 2) + (gears.has(v.gear) ? 1 : 0) - cands.indexOf(v) * 0.15;
+      const v = cands.slice().sort((a, b) => score(b) - score(a))[0];
+      const why = [s.why.replace(/\.$/, '')];
+      if (done[v.id]) why.push(`fatto ${done[v.id]} ${done[v.id] === 1 ? 'volta' : 'volte'}`);
+      why.push(...notes);
+      const t = v.loadType === 'time';
+      list.push({ id: v.id, slot: s.id, name: v.name, why: why.join(' · ') + '.', rx: t ? [s.rx[0], 30, 45, Math.min(s.rx[3], 60)] : s.rx, alternatives: cands.length });
+    }
+    return { list, full, minutes: minutesNow, tomorrowHard: !!(tomorrow && (tomorrow.hard || tomorrow.long || tomorrow.race)) };
+  }
+
   /* ---------- statistiche ---------- */
   const workSets = h => h.exercises.flatMap(e => e.sets.filter(x => x.done && x.kind !== 'warmup').map(x => ({ e, x })));
   // serie per muscolo: 1 al muscolo principale, ½ a ciascun secondario (lookup: id → esercizio)
@@ -239,6 +316,6 @@ const GymEngine = (() => {
     return out;
   }
 
-  return { iso, addDays, monday, weeksBetween, cycle, prescribe, lastPerformance, nextRoutine, minutes, suggestDays, e1rm, step, round, parseRange, setsByMuscle, volume, setsCount, repsCount, bests, records };
+  return { iso, addDays, monday, weeksBetween, cycle, prescribe, lastPerformance, nextRoutine, minutes, suggestDays, slotOf, suggestNext, e1rm, step, round, parseRange, setsByMuscle, volume, setsCount, repsCount, bests, records };
 })();
 if (typeof module !== 'undefined') module.exports = GymEngine;

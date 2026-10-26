@@ -37,8 +37,7 @@ const routineFrom = (name, note, list) => ({
   id: rid('r'), name, note: note || '', updatedAt: Date.now(),
   exercises: list.map(x => ({ id: rid('e'), ex: x.ex, sets: x.sets, lo: x.lo, hi: x.hi, rest: x.rest, note: x.note || '' })),
 });
-const starterRoutines = () => STARTER_ROUTINES.map(r => routineFrom(r.name, r.note, r.exercises));
-const fresh = () => ({ version: 4, routines: starterRoutines(), program: { start: E.monday(today()) }, custom: {}, history: [], active: null, timer: null, settings: { sound: true, goal: 2, deload: true } });
+const fresh = () => ({ version: 4, routines: [], program: { start: E.monday(today()) }, custom: {}, history: [], active: null, timer: null, settings: { sound: true, goal: 2, deload: true } });
 // programma predefinito delle versioni 2-3 (movimenti per seduta), per convertire i dati vecchi
 const LEGACY_DEFAULT = {
   A: [['a-squat', 'squat'], ['a-hinge', 'femorali'], ['a-calf', 'polpacci'], ['a-push', 'spintaO'], ['a-pull', 'trazioneV'], ['a-core', 'coreE', 2]],
@@ -147,9 +146,10 @@ const exCounts = () => {
 
 /* ---------- navigazione ---------- */
 const ROUTES = [['home', 'Oggi'], ['schede', 'Schede'], ['esercizi', 'Esercizi'], ['progressi', 'Progressi']];
-let route = location.hash.slice(1) || 'home', editId = null, filt = { q: '', m: '', g: '' }, range = 30, metric = 'durata', calMonth = null, showAll = false;
+let route = location.hash.slice(1) || 'home', editId = null, sugSkip = {}, filt = { q: '', m: '', g: '' }, range = 30, metric = 'durata', calMonth = null, showAll = false;
 function navigate(r) {
   route = r;
+  sugSkip = {};
   if (location.hash.slice(1) !== r) history.replaceState(null, '', '#' + r);
   render();
   window.scrollTo(0, 0);
@@ -188,7 +188,7 @@ function home() {
     </section>`;
   } else {
     hero = `<section class="card hero"><div class="hl">Palestra</div><div class="hn">Nessuna scheda</div>
-      <div class="hw">Crea una scheda scegliendo gli esercizi dal catalogo, oppure allenati libero e salvalo alla fine.</div>
+      <div class="hw">Crea la tua scheda: gli esercizi li scegli tu, io ti suggerisco cosa inserire. Oppure allenati libero e salvalo alla fine.</div>
       <button class="btn hbtn" data-action="new-routine">Crea una scheda</button></section>`;
   }
   return `${hero}<div class="grow"><button class="btn btn2" data-action="start-empty">Allenamento libero</button></div>${weekCard(p)}${cycleCard(p)}`;
@@ -225,8 +225,8 @@ function schede() {
     <p class="gexlist">${r.exercises.map(x => esc(exOrGone(x.ex).name)).join(' · ') || '<span class="muted">Ancora nessun esercizio.</span>'}</p>
     <div class="grow"><button class="btn" data-action="start" data-id="${r.id}">Inizia</button><button class="btn btn2" data-action="edit-routine" data-id="${r.id}">Modifica</button></div></section>`;
   return `<div class="grow gtop"><button class="btn" data-action="new-routine">+ Nuova scheda</button><button class="btn btn2" data-action="start-empty">Allenamento libero</button></div>
-    ${state.routines.map(card).join('') || '<section class="card"><p class="muted">Nessuna scheda. Creane una o aggiungi quelle di esempio.</p></section>'}
-    <div class="grow"><button class="btn btn2 mini" data-action="add-starters">Aggiungi le schede di esempio</button><button class="btn btn2 mini" data-action="settings">Impostazioni e backup</button></div>`;
+    ${state.routines.map(card).join('') || '<section class="card"><p class="muted">Nessuna scheda. Creane una: gli esercizi li scegli tu, mentre la componi ti suggerisco cosa inserire.</p></section>'}
+    <div class="grow"><button class="btn btn2 mini" data-action="settings">Impostazioni e backup</button></div>`;
 }
 const RESTS = [0, 30, 45, 60, 75, 90, 120, 150, 180, 240];
 const restLabel = s => (!s ? 'nessuno' : s >= 60 ? `${Math.floor(s / 60)}'${s % 60 ? String(s % 60).padStart(2, '0') + '"' : ''}` : s + '"');
@@ -250,6 +250,7 @@ function scheda() {
       <label>Nota</label><input data-rf="note" maxlength="200" value="${esc(r.note)}" placeholder="Es. dopo la corsa di qualità">
       <p class="muted gmt">${r.exercises.length} esercizi · ${r.exercises.reduce((n, x) => n + x.sets, 0)} serie · ~${routineMinutes(r)} min. Il range di ripetizioni guida la progressione: quando lo chiudi in tutte le serie, l’app aumenta il carico.</p></section>
     ${rows}
+    ${suggestBox('routine')}
     <button class="btn" data-action="pick-open" data-mode="routine">+ Aggiungi esercizi</button>
     <div class="grow"><button class="btn btn2" data-action="go" data-id="schede">Fatto</button>${state.active ? '' : `<button class="btn btn2" data-action="start" data-id="${r.id}">Inizia ora</button>`}</div>`;
 }
@@ -268,7 +269,12 @@ let picker = null, pickSaved = null; // il catalogo nel popup ha filtri suoi, po
 // picker: { mode: 'routine' | 'session' | 'replace-routine' | 'replace-session', index, sel: [] }
 function pickerList() {
   const sel = new Set(picker.sel), multi = !picker.mode.startsWith('replace');
-  return filtered().map(v => `<button class="${sel.has(v.id) ? 'on' : ''}" data-action="pick-toggle" data-v="${esc(v.id)}"><span><b>${esc(v.name)}</b><small>${esc(muscleName(v.muscle))} · ${esc(v.gear)}${v.custom ? ' · tuo' : ''}</small></span><i>${multi ? (sel.has(v.id) ? '✓' : '+') : '›'}</i></button>`).join('') || '<p class="muted">Nessun esercizio con questi filtri.</p>';
+  const row = (v, sub) => `<button class="${sel.has(v.id) ? 'on' : ''}" data-action="pick-toggle" data-v="${esc(v.id)}"><span><b>${esc(v.name)}</b><small>${esc(sub)}</small></span><i>${multi ? (sel.has(v.id) ? '✓' : '+') : '›'}</i></button>`;
+  const all = filtered().map(v => row(v, `${muscleName(v.muscle)} · ${v.gear}${v.custom ? ' · tuo' : ''}`)).join('') || '<p class="muted">Nessun esercizio con questi filtri.</p>';
+  if (!multi || filt.q || filt.m || filt.g) return all;
+  const sug = suggestFor(picker.mode).list;
+  if (!sug.length) return all;
+  return `<div class="gpsec">Suggeriti</div>${sug.map(x => row(exOrGone(x.id), x.why)).join('')}<div class="gpsec">Tutti gli esercizi</div>${all}`;
 }
 function openPicker(mode, index = null) {
   picker = { mode, index, sel: [] };
@@ -283,10 +289,54 @@ function updatePickDone() {
   const b = $('#pick-done');
   if (b) { b.textContent = picker.sel.length ? `Aggiungi (${picker.sel.length})` : 'Aggiungi'; b.disabled = !picker.sel.length; }
 }
+// serie, ripetizioni e recupero di partenza: quelli che usi già in un'altra scheda, altrimenti quelli dello spazio
 const defaultItem = id => {
   const v = exOrGone(id), t = v.loadType === 'time';
-  return { id: rid('e'), ex: id, sets: 3, lo: t ? 30 : 8, hi: t ? 45 : 12, rest: v.muscle === 'addome' ? 45 : v.muscle === 'polpacci' ? 60 : 90, note: '' };
+  const mine = state.routines.flatMap(r => r.exercises).find(x => x.ex === id);
+  if (mine) return { id: rid('e'), ex: id, sets: mine.sets, lo: mine.lo, hi: mine.hi, rest: mine.rest, note: '' };
+  const sl = SLOTS.find(x => x.id === E.slotOf(v, SLOTS)), rx = sl ? sl.rx : [3, 8, 12, 90];
+  return { id: rid('e'), ex: id, sets: rx[0], lo: t ? 30 : rx[1], hi: t ? 45 : rx[2], rest: t ? Math.min(rx[3], 60) : rx[3], note: '' };
 };
+
+/* ---------- suggerimenti: cosa inserire dopo ---------- */
+// la corsa di domani dal piano di RunPlan (per non suggerire salti o gambe pesanti il giorno prima)
+function tomorrowRun() {
+  const t = E.addDays(today(), 1), w = runWeek(t);
+  if (!w || !w.sess) return null;
+  const d = (new Date(t + 'T12:00:00').getDay() + 6) % 7, s = w.sess.filter(x => x.day === d);
+  return s.length ? { name: s.map(x => x.name).join(', '), hard: s.some(x => x.hard), long: s.some(x => x.long), race: s.some(x => x.race) } : null;
+}
+function suggestFor(mode) {
+  const session = mode === 'session';
+  const items = session
+    ? state.active.exercises.map(e => ({ ex: e.variant.id, sets: e.sets.filter(x => x.kind !== 'warmup').length, rest: e.rest }))
+    : routineById(editId).exercises;
+  const r = E.suggestNext(items, { slots: SLOTS, lookup: exercise, all: allExercises(), history: state.history, today: today(), week: session, tomorrow: session ? tomorrowRun() : null, skip: sugSkip });
+  r.empty = !items.length;
+  return r;
+}
+const rxText = (it, v) => `${it.sets} × ${rangeText(it.lo, it.hi)}${v.loadType === 'time' ? ' s' : ''}${v.side ? ' per lato' : ''}`;
+function suggestBox(mode) {
+  const r = suggestFor(mode);
+  if (!r.list.length) return '';
+  const rows = r.list.map(x => {
+    const v = exOrGone(x.id);
+    return `<div class="gsug"><button class="gsadd" data-action="sug-add" data-mode="${mode}" data-v="${esc(x.id)}"><span><b>${esc(v.name)}</b><small><em>${esc(rxText(defaultItem(x.id), v))}</em> · ${esc(x.why)}</small></span><i>+</i></button>
+      ${x.alternatives > 1 ? `<button class="gicon" data-action="sug-swap" data-slot="${x.slot}" data-v="${esc(x.id)}" aria-label="Proponi un altro esercizio dello stesso tipo">⇄</button>` : ''}</div>`;
+  }).join('');
+  return `<section class="card"><h2>${r.empty ? 'Da dove partire' : 'Cosa aggiungere'}</h2>
+    ${r.full ? `<p class="muted">Sei già a circa ${r.minutes} minuti: se vuoi aggiungere ancora, ecco cosa manca.</p>` : ''}
+    ${r.tomorrowHard ? '<p class="muted">Domani hai una corsa impegnativa: niente salti e gambe senza esagerare.</p>' : ''}
+    <div class="gsugs">${rows}</div>
+    <p class="muted gmt">Tocca per aggiungerlo, ⇄ per un altro esercizio dello stesso tipo. Serie e ripetizioni le cambi dopo.</p></section>`;
+}
+function addSuggested(mode, id) {
+  const it = defaultItem(id);
+  if (mode === 'routine') { const r = routineById(editId); r.exercises.push(it); r.updatedAt = Date.now(); }
+  else state.active.exercises.push(plannedExercise(it, { deload: !!state.active.deload }));
+  save(); render();
+  toast(`Aggiunto: ${exOrGone(id).name}`);
+}
 function pickApply(ids) {
   const { mode, index } = picker;
   if (mode === 'routine' || mode === 'replace-routine') {
@@ -454,7 +504,8 @@ function session() {
       <button class="btn mini" data-action="finish">Termina</button></div>
       <div class="gbar"><i style="width:${total ? (done / total) * 100 : 0}%"></i></div>
       <div class="grow"><button class="btn btn2 mini" data-action="manual-timer">Timer</button><button class="btn btn2 mini" data-action="pick-open" data-mode="session">+ Esercizi</button><button class="btn btn2 mini" data-action="discard">Annulla</button></div></section>
-    ${a.exercises.map((e, i) => exerciseCard(e, i)).join('') || '<section class="card"><p class="muted">Aggiungi il primo esercizio dal catalogo.</p></section>'}
+    ${a.exercises.map((e, i) => exerciseCard(e, i)).join('')}
+    ${a.routineId ? '' : suggestBox('session')}
     <button class="btn" data-action="pick-open" data-mode="session">+ Aggiungi esercizi</button>`;
 }
 function exerciseCard(e, i) {
@@ -624,7 +675,6 @@ document.addEventListener('click', ev => {
   // schede
   if (act === 'new-routine') { const r = routineFrom('Nuova scheda', '', []); state.routines.push(r); save(); editId = r.id; return navigate('scheda'); }
   if (act === 'edit-routine') { editId = k; return navigate('scheda'); }
-  if (act === 'add-starters') { state.routines.push(...starterRoutines()); save(); render(); return toast('Aggiunte le schede di esempio: modificale come vuoi.'); }
   if (act === 'routine-menu')
     return openModal(esc(routineById(k).name), `<div class="glist"><button data-action="routine-dup" data-id="${k}"><span><b>Duplica</b></span><i>⧉</i></button>
       <button data-action="routine-move" data-id="${k}" data-index="${i}" data-d="-1"><span><b>Sposta su</b></span><i>↑</i></button><button data-action="routine-move" data-id="${k}" data-index="${i}" data-d="1"><span><b>Sposta giù</b></span><i>↓</i></button>
@@ -645,11 +695,15 @@ document.addEventListener('click', ev => {
     const v = b.dataset.v;
     if (picker.mode.startsWith('replace')) return pickApply([v]);
     picker.sel = picker.sel.includes(v) ? picker.sel.filter(x => x !== v) : [...picker.sel, v];
-    b.classList.toggle('on', picker.sel.includes(v));
-    b.querySelector('i').textContent = picker.sel.includes(v) ? '✓' : '+';
+    document.querySelectorAll(`#pick-list [data-v="${CSS.escape(v)}"]`).forEach(x => {
+      x.classList.toggle('on', picker.sel.includes(v));
+      x.querySelector('i').textContent = picker.sel.includes(v) ? '✓' : '+';
+    });
     return updatePickDone();
   }
   if (act === 'pick-done') return picker.sel.length && pickApply(picker.sel);
+  if (act === 'sug-add') return addSuggested(b.dataset.mode, b.dataset.v);
+  if (act === 'sug-swap') { const k = b.dataset.slot; sugSkip[k] = [...(sugSkip[k] || []), b.dataset.v]; return render(); }
   if (act === 'custom-new') return customForm();
   if (act === 'ex-detail') return exerciseDetail(b.dataset.v);
   if (act === 'custom-edit') return customForm(state.custom[b.dataset.v]);
