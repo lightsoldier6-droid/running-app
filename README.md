@@ -60,7 +60,7 @@ Il pattern `NxM` definisce anche il sottotipo per il confronto "ultima vs simile
 
 ## Palestra
 
-Il tab **Palestra** è un diario d'allenamento in stile Hevy: componi le tue schede scegliendo gli esercizi da un catalogo di circa 125 (con ricerca, filtri per muscolo e attrezzo, esercizi personalizzati), imposti serie, range di ripetizioni e recupero, e l'app propone carico e ripetizioni con progressione doppia (ripetizioni, poi carico) e una settimana di scarico ogni 4. Durante l'allenamento: colonna con l'esecuzione precedente, serie di riscaldamento, timer di recupero; alla fine record personali e la scelta se aggiornare la scheda. In Progressi: andamento settimanale, serie per muscolo, mappa dei muscoli, calendario e storico. Scarico automatico in taper e settimana gara, giorni consigliati letti dal piano di corsa. Gli allenamenti finiti entrano in calendario e carico di RunPlan; i dati restano sul dispositivo. Dettagli in [PALESTRA.md](PALESTRA.md).
+Il tab **Palestra** è un diario d'allenamento in stile Hevy: componi le tue schede scegliendo gli esercizi da un catalogo di circa 125 (con ricerca, filtri per muscolo e attrezzo, esercizi personalizzati) e l'app ti suggerisce cosa inserire dopo, anche nell'allenamento libero (spazi scoperti, settimana, corsa del giorno dopo); imposti serie, range di ripetizioni e recupero, e l'app propone carico e ripetizioni con progressione doppia (ripetizioni, poi carico) e una settimana di scarico ogni 4. Durante l'allenamento: colonna con l'esecuzione precedente, serie di riscaldamento, timer di recupero; alla fine record personali e la scelta se aggiornare la scheda. In Progressi: andamento settimanale, serie per muscolo, mappa dei muscoli, calendario e storico. Scarico automatico in taper e settimana gara, giorni consigliati letti dal piano di corsa. Gli allenamenti finiti entrano in calendario e carico di RunPlan; i dati restano sul dispositivo. Dettagli in [PALESTRA.md](PALESTRA.md).
 
 ## Struttura del codice e test
 
@@ -87,5 +87,5 @@ Sono script normali (non moduli): condividono le variabili globali come prima, q
 Test, dalla cartella `running-app`:
 
 - `node tests/core.cjs` — calcoli: VDOT e passi, classificazione, carico, import .fit con i file di `tests/fixtures/`, che restano solo sul Mac perché contengono la traccia GPS (esclusi da Git; senza, quei due test vengono saltati).
-- `node tests/palestra.cjs` — palestra: catalogo, ciclo e progressione, record e statistiche, giorni consigliati, schede e allenamenti, migrazione dei dati vecchi, collegamento con RunPlan.
+- `node tests/palestra.cjs` — palestra: catalogo, suggerimenti, ciclo e progressione, record e statistiche, giorni consigliati, schede e allenamenti, migrazione dei dati vecchi, collegamento con RunPlan.
 - `node tests/snapshot.cjs <url>/ prima.json` poi, dopo una modifica, `node tests/snapshot.cjs <url>/ dopo.json` e `node tests/snapshot.cjs --compare prima.json dopo.json` — fotografa tutti i tab con dati e data fissi: per un riordino del codice deve risultare IDENTICHE. Richiede `npm i playwright` e un server locale (`python3 -m http.server`).

@@ -1,6 +1,6 @@
 # Palestra
 
-Tab di RunPlan per la forza, pensato per chi prepara gare di corsa. Funziona come un diario d'allenamento alla Hevy: le schede le componi tu, l'app tiene i numeri e propone carichi e progressione. Gira in un iframe (`palestra/index.html?embed=runplan`) con lo stesso foglio di stile di RunPlan (`css/app.css` + `palestra/palestra.css`).
+Tab di RunPlan per la forza, pensato per chi prepara gare di corsa. Funziona come un diario d'allenamento alla Hevy: le schede le componi tu, l'app ti suggerisce cosa inserire, tiene i numeri e propone carichi e progressione. Gira in un iframe (`palestra/index.html?embed=runplan`) con lo stesso foglio di stile di RunPlan (`css/app.css` + `palestra/palestra.css`).
 
 Quattro sezioni: **Oggi**, **Schede**, **Esercizi**, **Progressi**.
 
@@ -13,9 +13,27 @@ Una scheda è un elenco di esercizi scelti da te dal catalogo. Per ogni esercizi
 - **recupero**;
 - una nota facoltativa.
 
-Gli esercizi si aggiungono dal catalogo, con ricerca e filtri per muscolo e attrezzo; si possono riordinare, sostituire e togliere. Alla prima apertura ci sono due schede di esempio (Total Body A e B) da modificare o eliminare; *Aggiungi le schede di esempio* le rimette.
+Gli esercizi si aggiungono dal catalogo, con ricerca e filtri per muscolo e attrezzo; si possono riordinare, sostituire e togliere. Non ci sono schede preconfezionate: alla prima apertura l'elenco è vuoto.
 
 **Allenamento libero**: parte vuoto, aggiungi esercizi mentre ti alleni. A fine allenamento puoi salvarlo come nuova scheda.
+
+## Cosa inserire dopo
+
+Mentre componi una scheda, e nell'allenamento libero, il riquadro **Da dove partire** (lista vuota) o **Cosa aggiungere** propone 3 esercizi. Non aggiunge niente da solo:
+
+- tocca un suggerimento per aggiungerlo, con serie, ripetizioni e recupero di partenza (modificabili dopo);
+- ⇄ propone un altro esercizio dello stesso tipo;
+- in cima al catalogo, senza filtri, ci sono gli stessi suggerimenti.
+
+Come sceglie (`suggestNext` in `palestra/engine.js`, spazi in `SLOTS` di `palestra/data.js`):
+
+- ogni esercizio appartiene a uno **spazio** della seduta di un runner. Prima i fondamentali: squat o pressa, catena posteriore, polpacci, tirata, spinta, una gamba, core. Poi i complementi: femorali isolati, anche (abduttori e adduttori), salti, braccia;
+- propone gli spazi ancora scoperti nella lista, nell'ordine di importanza;
+- dentro uno spazio sceglie l'esercizio che hai già fatto più spesso, poi quello con lo stesso attrezzo degli altri in lista, poi l'ordine di preferenza;
+- **allenamento libero**: conta anche le serie degli ultimi 7 giorni, quindi viene prima quello che in settimana hai allenato meno. Se domani nel piano di corsa c'è qualità, lungo o gara, niente salti e meno gambe;
+- da 8 esercizi, o circa 75 minuti, la scheda è segnalata come già piena.
+
+Serie, ripetizioni e recupero di partenza sono quelli che usi già per lo stesso esercizio in un'altra scheda; altrimenti quelli dello spazio (es. polpacci 3 × 12–15, 60"; core 2 × 8–12, 45").
 
 ## Esercizi
 
