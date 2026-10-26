@@ -14,7 +14,7 @@ const arr = a => [...a]; // array creati in un altro contesto vm
 function engine() {
   const c = { console, Date, Math, JSON, Intl };
   vm.createContext(c);
-  vm.runInContext(read('palestra/data.js') + read('palestra/engine.js') + ';this.E=GymEngine;this.X=EXERCISES;this.M=MUSCLES;this.G=EQUIPMENT;this.S=STARTER_ROUTINES;this.L=LEGACY_PATTERNS', c);
+  vm.runInContext(read('palestra/data.js') + read('palestra/engine.js') + ';this.E=GymEngine;this.X=EXERCISES;this.M=MUSCLES;this.G=EQUIPMENT;this.S=SLOTS;this.L=LEGACY_PATTERNS', c);
   return c;
 }
 const slot = (sets, lo, hi, rest = 90) => ({ sets, reps: [lo, hi], rest });
@@ -36,8 +36,12 @@ test('catalogo: esercizi completi e coerenti', () => {
   // ogni muscolo ha almeno due esercizi; ogni attrezzo almeno uno
   for (const m of Object.keys(M)) assert.ok(list.filter(v => v.muscle === m).length >= 2, m);
   for (const g of G) assert.ok(list.some(v => v.gear === g), g);
-  // schede di esempio e conversione dai dati vecchi usano esercizi che esistono
-  for (const r of S) for (const x of r.exercises) assert.ok(X[x.ex] && x.lo <= x.hi, x.ex);
+  // spazi dei suggerimenti e conversione dai dati vecchi usano esercizi che esistono, ognuno in un solo spazio
+  const seen = new Set();
+  for (const s of S) {
+    assert.ok(s.rx[1] <= s.rx[2] && s.ex.length >= 2, s.id);
+    for (const id of s.ex) { assert.ok(X[id], id); assert.ok(!seen.has(id), 'doppio ' + id); seen.add(id); }
+  }
   for (const [ex] of Object.values(L)) assert.ok(X[ex], ex);
 });
 
@@ -135,6 +139,46 @@ test('giorni consigliati rispetto al piano di corsa', () => {
   assert.equal(E.suggestDays(null), null);
 });
 
+test('cosa inserire dopo: spazi scoperti, settimana, corsa di domani', () => {
+  const { E, X, S } = engine();
+  const lookup = id => X[id], all = Object.values(X);
+  const ids = r => arr(r.list.map(x => x.slot));
+  const base = { slots: S, lookup, all, today: '2026-10-28' };
+  // scheda vuota: si parte dai fondamentali per un runner
+  assert.deepEqual(ids(E.suggestNext([], base)), ['squat', 'hinge', 'calf']);
+  // con squat e stacco già dentro, si passa a polpacci e parte alta
+  const r = E.suggestNext([{ ex: 'goblet' }, { ex: 'rdl-db' }], base);
+  assert.deepEqual(ids(r), ['calf', 'pull', 'push']);
+  assert.match(r.list[0].why, /Polpacci, soleo/);
+  assert.ok(r.list.every(x => !['goblet', 'rdl-db'].includes(x.id)));
+  // l'esercizio dello spazio: quello che hai già fatto, poi lo stesso attrezzo, poi l'ordine di preferenza
+  const hist = [session(X['calf-seated'], 40, [15, 15], '2026-10-20')];
+  assert.equal(E.suggestNext([{ ex: 'goblet' }, { ex: 'rdl-db' }], { ...base, history: hist }).list[0].id, 'calf-seated');
+  assert.equal(E.suggestNext([{ ex: 'legpress' }, { ex: 'hip-machine' }, { ex: 'calf-stand' }], base).list[0].id, 'pullup-assisted'); // tutto alle macchine
+  // scartato con ⇄: si propone il successivo dello stesso spazio
+  assert.equal(E.suggestNext([], { ...base, skip: { squat: ['goblet'] } }).list[0].id, 'legpress');
+  // tutti gli spazi principali coperti: restano i complementi; scheda lunga = piena
+  const full = ['goblet', 'rdl-db', 'calf-stand', 'lat-wide', 'incline-db', 'step-up', 'deadbug'].map(ex => ({ ex, sets: 3, rest: 90 }));
+  const rf = E.suggestNext(full, base);
+  assert.deepEqual(ids(rf), ['hams', 'hip', 'plyo']);
+  assert.equal(rf.full, false); // 7 esercizi, circa 55 minuti
+  assert.equal(E.suggestNext([...full, { ex: 'legcurl', sets: 3, rest: 60 }], base).full, true); // dall'ottavo esercizio è piena
+  // allenamento libero: in settimana hai già fatto tante gambe, quindi prima la parte alta
+  const legs = [session(X.goblet, 20, [12, 12, 12], '2026-10-26'), session(X['rdl-db'], 20, [12, 12, 12], '2026-10-26'), session(X['calf-stand'], 40, [15, 15, 15], '2026-10-26')];
+  const w = E.suggestNext([], { ...base, history: legs, week: true });
+  assert.deepEqual(ids(w).slice(0, 2), ['pull', 'push']);
+  assert.match(w.list[0].why, /mai in settimana/);
+  // domani lungo o qualità: niente salti
+  const comp = ['goblet', 'rdl-db', 'calf-stand', 'lat-wide', 'incline-db', 'step-up', 'deadbug', 'legcurl', 'copenhagen'].map(ex => ({ ex }));
+  assert.ok(ids(E.suggestNext(comp, base)).includes('plyo'));
+  const t = E.suggestNext(comp, { ...base, tomorrow: { name: 'Lungo', hard: true, long: true } });
+  assert.ok(!ids(t).includes('plyo'));
+  assert.equal(t.tomorrowHard, true);
+  // esercizi personalizzati: entrano nello spazio del loro muscolo
+  assert.equal(E.slotOf({ id: 'c-x', muscle: 'polpacci', custom: true }, S), 'calf');
+  assert.equal(E.slotOf(X['curl-db'], S), 'arms');
+});
+
 // ---- interfaccia, con un DOM finto ----
 function app(storage = {}) {
   const els = {}, listeners = {};
@@ -157,11 +201,11 @@ function app(storage = {}) {
   return { run, click, store, els };
 }
 
-test('primo avvio: due schede di esempio, nessuna traccia di corsa', () => {
+test('primo avvio: nessuna scheda preconfezionata, nessuna traccia di corsa', () => {
   const { run, els } = app();
   assert.equal(run('state.version'), 4);
-  assert.deepEqual(arr(run('state.routines.map(r => r.name)')), ['Total Body A', 'Total Body B']);
-  assert.match(els['#main'].innerHTML, /Total Body A/);
+  assert.equal(run('state.routines.length'), 0);
+  assert.match(els['#main'].innerHTML, /Crea la tua scheda/);
   assert.doesNotMatch(els['#main'].innerHTML, /Registra corsa|corse registrate/);
   for (const r of ['schede', 'esercizi', 'progressi']) { run(`navigate("${r}")`); assert.ok(els['#main'].innerHTML.length > 200, r); }
 });
@@ -182,7 +226,7 @@ test('scheda creata a mano, allenamento, record e rotazione', () => {
   assert.equal(run('state.active.exercises[0].sets.length'), 4);
   run('state.active.exercises[0].sets.forEach(x => { x.kg = 20; x.reps = 10; })');
   for (const j of [0, 1, 2, 3]) click('check', { index: '0', set: String(j) });
-  assert.equal(run('state.timer.total'), 90);
+  assert.equal(run('state.timer.total'), 75); // spinta: recupero di partenza 75"
   run('state.active.exercises[2].sets[0].reps = 40');
   click('check', { index: '2', set: '0' });
   click('set-kind', { index: '0', set: '0' }); // la prima serie diventa riscaldamento
@@ -193,7 +237,7 @@ test('scheda creata a mano, allenamento, record e rotazione', () => {
   assert.equal(h.routineId, id);
   assert.equal(h.exercises.length, 2);
   assert.equal(run('E.setsCount(state.history[0])'), 4); // 3 di lavoro + 1 plank
-  assert.equal(run('E.nextRoutine(state.history, state.routines).name'), 'Total Body A'); // dopo l'ultima si torna alla prima
+  assert.equal(run('E.nextRoutine(state.history, state.routines).name'), 'Spinta e tirata'); // unica scheda
   // seconda volta più pesante: record e scheda aggiornata con l'allenamento di oggi
   run('startWorkout({ routine: routineById(editId) })');
   assert.equal(run('state.active.exercises[0].presc.kg'), 20);
@@ -202,6 +246,35 @@ test('scheda creata a mano, allenamento, record e rotazione', () => {
   run('finish({ rpe: 7, note: "", name: "", update: true, saveNew: false })');
   assert.equal(run('state.history[1].records[0].kind'), 'Carico più alto');
   assert.equal(run('routineById(editId).exercises.length'), 1);
+});
+
+test('suggerimenti nella scheda e nell’allenamento libero: si aggiunge solo toccando', () => {
+  const { run, click, els } = app();
+  click('new-routine');
+  assert.match(els['#main'].innerHTML, /Da dove partire/);
+  assert.equal(run('routineById(editId).exercises.length'), 0); // nessun esercizio aggiunto da solo
+  assert.match(els['#main'].innerHTML, /data-action="sug-add" data-mode="routine" data-v="goblet"/);
+  click('sug-swap', { slot: 'squat', v: 'goblet' }); // non mi piace: un altro squat
+  assert.match(els['#main'].innerHTML, /data-v="legpress"/);
+  click('sug-add', { mode: 'routine', v: 'legpress' });
+  assert.deepEqual(arr(run('routineById(editId).exercises.map(x => [x.ex, x.sets, x.lo, x.hi, x.rest].join(":"))')), ['legpress:3:8:12:90']);
+  assert.match(els['#main'].innerHTML, /Cosa aggiungere/);
+  assert.match(els['#main'].innerHTML, /il motore della falcata/);
+  // nel catalogo i suggeriti stanno in cima, solo senza filtri
+  run('openPicker("routine")');
+  assert.match(els['#modal'].innerHTML, /Suggeriti[\s\S]*Tutti gli esercizi/);
+  run('filt.q = "curl"');
+  assert.doesNotMatch(run('pickerList()'), /Suggeriti/);
+  click('close');
+  // allenamento libero da zero
+  click('start-empty');
+  assert.match(els['#main'].innerHTML, /Da dove partire/);
+  click('sug-add', { mode: 'session', v: 'rdl-db' });
+  assert.equal(run('state.active.exercises[0].variant.id'), 'rdl-db');
+  assert.equal(run('state.active.exercises[0].sets.length'), 3);
+  // allenamento da scheda: niente riquadro dei suggerimenti
+  run('state.active = null; startWorkout({ routine: routineById(editId) })');
+  assert.doesNotMatch(els['#main'].innerHTML, /Cosa aggiungere|Da dove partire/);
 });
 
 test('allenamento libero salvato come scheda, ripetizione dallo storico', () => {
