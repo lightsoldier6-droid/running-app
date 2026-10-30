@@ -39,8 +39,9 @@
       if (dateISO < monISO || dateISO > sun) continue;
       const sess = (wk.sess || []).map(x => {
         const name = String(x.n || ''), day = DAY3.indexOf(String(x.t || '').toLowerCase().slice(0, 3));
-        const race = /^GARA\b/.test(name) || !!x.race;
-        return { day, name, race, long: /lungo/i.test(name), hard: race || !/easy|recupero|riposo|lento|z2|scarico/i.test(name) };
+        const race = isRaceSess(x); // js/monitor.js: anche le gare intermedie del piano (🏁 senza segno race)
+        const c = sessCls(x); // stessa classificazione del piano (monitor.js); se già corsa, la corsa vera
+        return { day, name, race, long: c === 'long', hard: race || c !== 'easy' };
       }).filter(x => x.day >= 0);
       return { w: wk.w, phase: wk.phase, isTaper: !!wk.isTaper, isDeload: !!wk.isDeload, race: sess.some(x => x.race), sess };
     }
