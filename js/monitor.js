@@ -45,15 +45,13 @@ function alignPlanToMonitor(){
   const edTxt=nEd?`\nLe ${nEd} modifiche manuali alle settimane (scarico / riscrivi sul reale) vengono azzerate: sono già dentro le sedute del Monitor, e riapplicarle sopra le duplicherebbe.`:'';
   if(!confirm(`Riscrivo le settimane del tab Piano usando il calendario e le sedute del Monitor: le due viste torneranno identiche.${edTxt}${warn}\n\nProcedo?`))return;
   const DN=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'];
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
-  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const todayS=todayISO();
   const g={};
   monitor.sessions.forEach(s=>{const k=weekKey(s.date);(g[k]=g[k]||[]).push(s)});
   const keys=Object.keys(g).sort();
   const weeks=keys.map((k,i)=>{
     const ss=g[k].slice().sort((a,b)=>a.date<b.date?-1:1);
-    const sunISO=iso(addD(day(k),6));
+    const sunISO=isoLoc(addD(day(k),6));
     const cnt={};ss.forEach(s=>{const p=s.phase||'base';cnt[p]=(cnt[p]||0)+1});
     const phase=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0]||'base';
     const wk={w:i+1,phase,summer:ss.some(s=>s.summer),isDeload:ss.some(s=>s.deload),
@@ -94,17 +92,15 @@ function rPlan(plan){
   const phaseBar=segs.length?`<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin:10px 0 8px">${segs.map(s=>`<div style="width:${(s[1]/totW*100).toFixed(1)}%;background:${s[2]}"></div>`).join('')}</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--dim);margin-bottom:2px">${segs.map(s=>`<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${s[2]};vertical-align:middle;margin-right:5px"></span>${s[0]} · ${s[1]} sett.</span>`).join('')}</div>`:'';
   // settimana in corso (ancorata alla domenica della gara, come il tracker)
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
-  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const race=new Date(plan.dateStr+'T12:00:00');
+  const race=dOnly(plan.dateStr);
   const refSun=addD(race,(7-race.getDay())%7);
-  const nAll=plan.weeks.length,todayS=iso(new Date());
+  const nAll=plan.weeks.length,todayS=isoLoc(new Date());
   const OFF={'Lunedì':-6,'Martedì':-5,'Mercoledì':-4,'Giovedì':-3,'Venerdì':-2,'Sabato':-1,'Domenica':0};
   let curWeek=0;
-  plan.weeks.forEach(w=>{if(w.hist)return;const sun=addD(refSun,-(nAll-w.w)*7),mon=addD(sun,-6);if(todayS>=iso(mon)&&todayS<=iso(sun))curWeek=w.w});
+  plan.weeks.forEach(w=>{if(w.hist)return;const sun=addD(refSun,-(nAll-w.w)*7),mon=addD(sun,-6);if(todayS>=isoLoc(mon)&&todayS<=isoLoc(sun))curWeek=w.w});
   const peakVol=Math.max(1,...plan.weeks.map(w=>w.vol||0));
   // il Monitor ha le date vere: se il primo lunedì non coincide, la griglia qui è scivolata (vedi alignPlanToMonitor)
-  const monMon=monFirstMonday(),planMon=iso(addD(refSun,-(nAll-1)*7-6));
+  const monMon=monFirstMonday(),planMon=isoLoc(addD(refSun,-(nAll-1)*7-6));
   const misAlign=monMon&&monMon!==planMon
     ? `<p class="muted" style="margin:6px 0;padding:8px 10px;border-left:3px solid var(--red,#d33);background:rgba(211,51,51,.08);border-radius:6px">⚠️ <b>Calendario sfasato rispetto al Monitor</b> — qui il piano parte da lunedì ${planMon}, nel Monitor da lunedì ${monMon}: le stesse date finiscono su settimane diverse. Il calendario giusto è quello del Monitor (ha le date reali delle sedute).
        <button class="btn btn2" style="margin:8px 0 0" onclick="alignPlanToMonitor()">↺ Recupera dal Monitor</button></p>`
@@ -131,7 +127,7 @@ function rPlan(plan){
       const phCol=w.isDeload?'var(--dim)':(PHC[w.phase]||'var(--acc)');
       const vpct=Math.min(100,Math.round((w.vol||0)/peakVol*100));
       const sunW=addD(refSun,-(nAll-w.w)*7);
-      const wkKey=iso(sunW);
+      const wkKey=isoLoc(sunW);
       const sO=(v,l)=>`<option value="${v}"${w.manual===v||(!w.manual&&v==='')?' selected':''}>${l}</option>`;
       const editSel=(!w.hist&&w.w!==nAll)?`<select class="wksel" onchange="setWkBase('${wkKey}',this.value)">
           ${sO('','Auto')}
@@ -154,12 +150,12 @@ function rPlan(plan){
           // settimane con "Riscrivi sulle corse svolte": con una gara al volo (o senza nulla) la corsa
           // fatta martedì non compariva mai. Qui si SEGNA soltanto, la settimana non viene riscritta.
           w._hit={};
-          const monS=iso(addD(sunW,-6)),sunS=iso(sunW);
+          const monS=isoLoc(addD(sunW,-6)),sunS=isoLoc(sunW);
           const doneKeys=new Set(w.sess.filter(s=>s.done).map(s=>s.realDate));
           const wr=runs.filter(r=>{const d=runDay(r);return d>=monS&&d<=sunS&&r.date.slice(0,10)<=todayS&&!doneKeys.has(r.date.slice(0,10))&&runLink(r)!=='none'});
           const pairs=[];
           w.sess.forEach((s,si)=>{if(s.done||s.n.startsWith('GARA'))return;
-            const sdI=iso(addD(sunW,OFF[s.t]??0)),sc=planCls(s.n);
+            const sdI=isoLoc(addD(sunW,OFF[s.t]??0)),sc=planCls(s.n);
             wr.forEach(r=>{const rd=r.date.slice(0,10),lk=runLink(r);if(lk){if(lk===sdI)pairs.push({si,r,score:1000});return}if(sdI>todayS&&rd!==sdI)return;
               const rc=cls(r),same=rc===sc||(sc==='easy'&&rc==='long')||(sc==='long'&&rc==='easy');
               const dd=Math.min(6,Math.abs(Math.round((day(rd)-day(sdI))/864e5)));
@@ -172,14 +168,14 @@ function rPlan(plan){
           const L=sLoad(s);
           const hit=w._hit&&w._hit[si];
           if(hit){const rd=day(hit.date.slice(0,10));
-            return `<div class="sess${isr?' race':''} done"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">✔ ${s.n}</span> <span class="sd">${hrTag(s.d)}</span><div class="smeta">svolta${iso(rd)!==iso(sd)?` ${['dom','lun','mar','mer','gio','ven','sab'][rd.getDay()]} ${rd.getDate()}`:''}: «${hit.title}» ${hit.km.toFixed(1)} km @ ${fmtP(pace(hit))}/km${hit.hr?` · FC ${hit.hr}`:''} · <span class="ldb l${L}">${DCL[cls(hit)]||'svolta'}</span></div></div></div>`}
+            return `<div class="sess${isr?' race':''} done"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">✔ ${s.n}</span> <span class="sd">${hrTag(s.d)}</span><div class="smeta">svolta${isoLoc(rd)!==isoLoc(sd)?` ${['dom','lun','mar','mer','gio','ven','sab'][rd.getDay()]} ${rd.getDate()}`:''}: «${hit.title}» ${hit.km.toFixed(1)} km @ ${fmtP(pace(hit))}/km${hit.hr?` · FC ${hit.hr}`:''} · <span class="ldb l${L}">${DCL[cls(hit)]||'svolta'}</span></div></div></div>`}
           // Sulle sedute SVOLTE il "carico" era dedotto dal nome che hai dato tu alla corsa: si mostra
           // invece cosa è stata davvero (la classificazione che l'app calcola dai dati della corsa).
           const badge=s.done&&s.rcls?(DCL[s.rcls]||'svolta'):`carico ${LOADL[L]}`;
           const canSkip=!w.hist&&w.w!==nAll&&!s.done&&!isRaceFinal;
           return `<div class="sess${isr?' race':''}${s.done?' done':''}"><span class="daychip">${s.t.slice(0,3)}<br><span style="font-weight:400;font-size:9px">${sd.getDate()} ${MESI[sd.getMonth()]}</span></span><div class="sbody"><span class="sn">${isRaceFinal?'🏁 ':''}${s.done?'✔ ':''}${s.n}</span> <span class="sd">${s.done?s.d:hrTag(s.d)}</span>${s.done?'':sessBar(s.d)}<div class="smeta">${s.done?'':'≈'}${s.km} km · <span class="ldb l${L}">${badge}</span></div></div>${canSkip?`<span class="sbtns"><button class="fxbtn" title="Cambia seduta: modifica, sposta, alleggerisci, sostituisci" onclick="fxOpen('${wkKey}',${si})">⋯</button><button class="skipx" title="Togli questa seduta dalla settimana" onclick="wkSkipAdd('${wkKey}',${si})">✕</button></span>`:''}</div>`;
         }).join('')}
-        ${(!w.hist&&w.w!==nAll&&iso(sunW)>=todayS)?`<p class="fxrow"><button onclick="fxAdd('${wkKey}')">＋ Aggiungi seduta</button>${w.flex?`<button onclick="fxReset('${wkKey}')">↺ Ripristina la settimana del piano</button>`:''}</p>`:''}
+        ${(!w.hist&&w.w!==nAll&&isoLoc(sunW)>=todayS)?`<p class="fxrow"><button onclick="fxAdd('${wkKey}')">＋ Aggiungi seduta</button>${w.flex?`<button onclick="fxReset('${wkKey}')">↺ Ripristina la settimana del piano</button>`:''}</p>`:''}
         ${(!w.hist&&w.w!==nAll&&(wkSkips()[wkKey]||[]).length)?`<p class="skiprow"><span>Tolte a mano:</span>${(wkSkips()[wkKey]||[]).map((k,ki)=>`<button onclick="wkSkipDel('${wkKey}',${ki})" title="Rimetti questa seduta">↺ ${k.split('|')[1]} (${k.split('|')[0].slice(0,3).toLowerCase()})</button>`).join('')}</p>`:''}
       </div>`);
     }).join('')+`</div>`;
@@ -190,17 +186,15 @@ function rTrack(){
   const el=document.getElementById('p-track');
   const pl=applyWkEdits(LS('rp_plan'));
   if(!pl){el.innerHTML='<p class="muted">Genera un piano: da qui traccio settimana per settimana come lo stai seguendo.</p>';return}
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
-  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const race=new Date(pl.dateStr+'T12:00:00');
+  const race=dOnly(pl.dateStr);
   const refSun=addD(race,(7-race.getDay())%7);
   const n=pl.weeks.length;
-  const todayS=iso(new Date());
+  const todayS=isoLoc(new Date());
   const QUAL=['Interval','Ripetute','Cruise','Criss','Richiami','Fartlek','Medio','Progressivo','Ritmo'];
   const rows=[];let sumP=0,sumA=0,okW=0,tot=0;
   pl.weeks.forEach(w=>{
     const sun=addD(refSun,-(n-w.w)*7),mon=addD(sun,-6);
-    const sMon=iso(mon),sSun=iso(sun);
+    const sMon=isoLoc(mon),sSun=isoLoc(sun);
     if(sMon>todayS)return;
     const cur=sSun>=todayS;
     const rr=runs.filter(r=>{const d=r.date.slice(0,10);return d>=sMon&&d<=sSun});
@@ -218,7 +212,7 @@ function rTrack(){
       <td class="r">${qDone}/${qPlan}${lPlan?`<br><span class="muted">lungo ${lDone?'✓':'—'}</span>`:''}</td></tr>`);
   });
   const rbtn=`<p class="muted" style="margin-top:8px">Per ricalibrare il piano sui dati reali (VDOT e volume attuali) vai al <b>Monitor</b> → <b>Rigenera il piano dal reale (.ics + .fit)</b>: aggiorna le settimane future e riesporta il calendario in un colpo solo.</p>`;
-  if(!rows.length){el.innerHTML=`<p class="muted">Il piano parte lunedì ${iso(addD(refSun,-(n-1)*7-6)).slice(5)}: qui vedrai km fatti vs pianificati, sedute di qualità e lunghi completati, settimana per settimana.</p>`+rbtn;return}
+  if(!rows.length){el.innerHTML=`<p class="muted">Il piano parte lunedì ${isoLoc(addD(refSun,-(n-1)*7-6)).slice(5)}: qui vedrai km fatti vs pianificati, sedute di qualità e lunghi completati, settimana per settimana.</p>`+rbtn;return}
   const head=tot?`<p style="margin-bottom:8px">Aderenza: <b class="pace">${Math.round(sumA/Math.max(1,sumP)*100)}%</b> dei km pianificati · <b>${okW}/${tot}</b> settimane complete a target</p>`:'';
   el.innerHTML=head+`<table><tr><th>Sett.</th><th class="r">Volume</th><th class="r">Corse</th><th class="r">Qualità</th></tr>${rows.slice(-10).join('')}</table>`
     +(rows.length>10?`<p class="muted" style="margin-top:6px">Mostrate le ultime 10 di ${rows.length} settimane trascorse.</p>`:'')
@@ -229,7 +223,7 @@ function rTrack(){
 // questo passaggio le tune-up sparirebbero dal piano rigenerato (niente mini-scarico, gara, recupero).
 function restorePlanOptions(pl){
   const fut=((pl&&pl.interRaces)||[])
-    .filter(r=>r&&r.dist>0&&r.date&&new Date(r.date+'T12:00:00')>Date.now())   // le tune-up già corse non servono più
+    .filter(r=>r&&r.dist>0&&r.date&&dOnly(r.date)>Date.now())   // le tune-up già corse non servono più
     .sort((a,b)=>a.date<b.date?-1:1).slice(0,2);
   [['p-r1-dist','p-r1-date'],['p-r2-dist','p-r2-date']].forEach(([d,t],i)=>{
     const ed=document.getElementById(d),et=document.getElementById(t);
@@ -243,11 +237,9 @@ function restorePlanOptions(pl){
 // settimane già concluse di un piano (ancorate alla domenica della settimana di gara)
 function pastWeeks(pl){
   if(!pl||!pl.weeks)return [];
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
-  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const race=new Date(pl.dateStr+'T12:00:00'),refSun=addD(race,(7-race.getDay())%7);
-  const N=pl.weeks.length,todayS=iso(new Date());
-  return pl.weeks.filter(w=>iso(addD(refSun,-(N-w.w)*7))<todayS);
+  const race=dOnly(pl.dateStr),refSun=addD(race,(7-race.getDay())%7);
+  const N=pl.weeks.length,todayS=isoLoc(new Date());
+  return pl.weeks.filter(w=>isoLoc(addD(refSun,-(N-w.w)*7))<todayS);
 }
 // A che punto della fase specifica eravamo. Senza questo una rigenerazione farebbe ripartire i lunghi da
 // zero (primo lungo facile, pochi minuti a ritmo gara, rampa km da 22) anche a poche settimane dalla gara.
@@ -272,12 +264,10 @@ function updatePlan(){
   const wk=weeklyKm().slice(-4).map(([,v])=>v);
   document.getElementById('p-base').value=Math.max(15,Math.round(wk.reduce((a,b)=>a+b,0)/Math.max(1,wk.length)));
   // conserva le settimane già concluse del vecchio piano
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
-  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const race=new Date(old.dateStr+'T12:00:00');
+  const race=dOnly(old.dateStr);
   const refSun=addD(race,(7-race.getDay())%7);
-  const N=old.weeks.length,todayS=iso(new Date());
-  const hist=old.weeks.filter(w=>iso(addD(refSun,-(N-w.w)*7))<todayS).map(h=>({...h,hist:1}));
+  const N=old.weeks.length,todayS=isoLoc(new Date());
+  const hist=old.weeks.filter(w=>isoLoc(addD(refSun,-(N-w.w)*7))<todayS).map(h=>({...h,hist:1}));
   const np=genPlan(true,progressCarry(hist));if(!np)return;
   np.weeks=[...hist,...np.weeks];
   np.weeks.forEach((w,i)=>w.w=i+1);
@@ -293,12 +283,10 @@ function exportICS(silent){
   const pl=applyWkEdits(LS('rp_plan'));if(!pl)return alert('Genera prima un piano');
   const race=new Date(pl.dateStr+'T00:00:00');
   const OFF={'Lunedì':-6,'Martedì':-5,'Mercoledì':-4,'Giovedì':-3,'Venerdì':-2,'Sabato':-1,'Domenica':0};
-  const pad=x=>String(x).padStart(2,'0');
-  const ymd=d=>`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+  const ymd=d=>`${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`;
   const parseY=y=>new Date(+y.slice(0,4),+y.slice(4,6)-1,+y.slice(6,8));
   const esc=s=>s.replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,');
   const n=pl.weeks.length;
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x}; // sicuro con ora legale
   // ancora alla vera domenica della settimana di gara (la gara può essere di sabato)
   const refSun=addD(race,(7-race.getDay())%7);
   const stamp=ymd(new Date())+'T000000Z',todayY=ymd(new Date());
@@ -537,10 +525,9 @@ function monSyncFuture(){
 // restituisce anche quelle già concluse (`hist`), che servono a ricostruire lo storico del Monitor.
 function planToSessions(pl,withHist){
   pl=applyWkEdits(pl);
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
   const isoL=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const OFF={'Lunedì':-6,'Martedì':-5,'Mercoledì':-4,'Giovedì':-3,'Venerdì':-2,'Sabato':-1,'Domenica':0};
-  const race=new Date(pl.dateStr+'T12:00:00');
+  const race=dOnly(pl.dateStr);
   const refSun=addD(race,(7-race.getDay())%7);
   const n=pl.weeks.length;const out=[];
   pl.weeks.forEach(w=>{if(w.hist&&!withHist)return;
@@ -574,12 +561,12 @@ function monRecalibrate(){
   }
   const goals=[5,10,21.0975,42.195];
   const goal=goals.reduce((a,b)=>Math.abs(b-goalKm)<Math.abs(a-goalKm)?b:a);
-  const wtorace=Math.round((new Date(dateStr+'T12:00:00')-Date.now())/(7*864e5));
+  const wtorace=Math.round((dOnly(dateStr)-Date.now())/(7*864e5));
   if(wtorace<6){
-    const dLoc=new Date(dateStr+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
+    const dLoc=dOnly(dateStr).toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
     const pl=LS('rp_plan');
     const hint=(pl&&pl.dateStr&&pl.dateStr!==dateStr)
-      ? `\n\nIl piano che hai in memoria punta invece al ${new Date(pl.dateStr+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}: se è quella la gara giusta, aggiorna il Monitor con "Aggiorna dal piano" (o ricarica l'.ics aggiornato) e riprova.`
+      ? `\n\nIl piano che hai in memoria punta invece al ${dOnly(pl.dateStr).toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}: se è quella la gara giusta, aggiorna il Monitor con "Aggiorna dal piano" (o ricarica l'.ics aggiornato) e riprova.`
       : '';
     return alert(wtorace<0
       ? `La gara letta dal piano monitorato (${dLoc}) è già passata: il Monitor sta seguendo un piano vecchio.${hint}`
@@ -809,7 +796,6 @@ function rMonitor(){
   const S=monitor.sessions;
   info.textContent=`${monitor.name} · ${S.length} sedute · caricato il ${monitor.importedAt.slice(0,10)}. Le corse arrivano dall’archivio (import .FIT/CSV).`;
   const todayS=todayISO();
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
   const isoOf=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   // corse selezionate manualmente: se presenti, monitoro solo quelle; altrimenti aggancio tutto l'archivio
   monitor.runs=monitor.runs||[];

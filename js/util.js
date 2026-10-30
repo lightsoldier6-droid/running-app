@@ -9,8 +9,6 @@ const day=d=>new Date(d.replace(' ','T'));
 // finestre sono giorni pieni e i numeri non cambiano a seconda dell'ora. 0 = oggi.
 const daysAgo=r=>Math.round((new Date().setHours(0,0,0,0)-day(r.date).setHours(0,0,0,0))/864e5);
 const pace=r=>r.sec/r.km;
-const isoLoc=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; // data locale (no shift UTC)
-const todayISO=()=>isoLoc(new Date());
 
 /* ---------- classificazione ---------- */
 function cls(r){

@@ -39,8 +39,6 @@ function cloudXIn(d){
 }
 
 /* ---------- utilità ---------- */
-const dOnly=s=>new Date(s.slice(0,10)+'T12:00:00');
-const daysBetween=(a,b)=>Math.round((dOnly(b)-dOnly(a))/864e5); // b - a
 const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 const median=a=>{if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y);return s[s.length>>1]};
 function xFlag(r,x){
@@ -122,9 +120,6 @@ function zSecs(x,Z){Z=Z||Zcur();const s=[0,0,0,0,0],m=[0,0,0,0,0];const h=x.hist
   h.s.forEach((v,i)=>{const k=zIdx(h.h0+i,Z);s[k]+=v;m[k]+=h.m[i]});return{s,m}}
 
 /* ---------- settimane ---------- */
-function mondayOf(iso){const d=dOnly(iso);d.setDate(d.getDate()-((d.getDay()+6)%7));return isoLoc(d)}
-function weeksBack(n){const out=[];let m=dOnly(mondayOf(todayISO()));for(let i=0;i<n;i++){out.unshift(isoLoc(m));m.setDate(m.getDate()-7)}return out}
-const addDaysISO=(iso,k)=>{const d=dOnly(iso);d.setDate(d.getDate()+k);return isoLoc(d)};
 
 /* ---------- 1. ricetta: minuti a settimana per zona ---------- */
 function recipe(days,end){

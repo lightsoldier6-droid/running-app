@@ -425,7 +425,7 @@ function rAna(){
   let ctx=`${CLSN[c]}${stp?' ('+stp+')':''} di ${r.km.toFixed(1)} km, ${DN[dt.getDay()]} ${dt.getHours()<12?'mattina':dt.getHours()<18?'pomeriggio':'sera'}, passo medio ${fmtP(pace(r))}/km, in una settimana da ${wkTot.toFixed(0)} km totali.`;
   // sui GIORNI di calendario: col confronto fra orari una serale seguita da una mattutina due giorni
   // dopo risultava "il giorno prima" (18 casi in archivio)
-  if(prev){const dOnly=x=>new Date(x.slice(0,10)+'T12:00:00');
+  if(prev){
     const gap=Math.round((dOnly(r.date)-dOnly(prev.date))/864e5);
     ctx+=gap<=1?` Arrivavi dalla ${CLSN[cls(prev)].toLowerCase()} del giorno prima (${prev.km.toFixed(1)} km).`
       :` Arrivavi da ${gap-1} giorn${gap-1===1?'o':'i'} di riposo.`}
@@ -567,12 +567,10 @@ function rAna(){
   const plA=applyWkEdits(LS('rp_plan'));
   let plano='';
   if(plA){
-    const addD=(x,k)=>{const y=new Date(x);y.setDate(y.getDate()+k);return y};
-    const iso=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
-    const raceD=new Date(plA.dateStr+'T12:00:00');
+    const raceD=dOnly(plA.dateStr);
     const refSun=addD(raceD,(7-raceD.getDay())%7);
     const nW=plA.weeks.length,rd=r.date.slice(0,10);
-    const wk=plA.weeks.find(w=>{const sun=addD(refSun,-(nW-w.w)*7);return rd>=iso(addD(sun,-6))&&rd<=iso(sun)});
+    const wk=plA.weeks.find(w=>{const sun=addD(refSun,-(nW-w.w)*7);return rd>=isoLoc(addD(sun,-6))&&rd<=isoLoc(sun)});
     if(wk){
       const PHn={base:'base',speed:'velocità',spec:'specifico',taper:'taper'};
       const dayName=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][dt.getDay()];

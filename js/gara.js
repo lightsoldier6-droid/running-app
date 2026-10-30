@@ -73,7 +73,6 @@ function rGoal(){
   <h3 class="fh">Errori da evitare</h3><ul class="muted" style="padding-left:18px;font-size:12.5px;line-height:1.5">${dm.errors.map(e=>`<li>${e}</li>`).join('')}</ul>`;
 }
 function doseCard(plan,refSun,nAll){
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
   const wz={};weekZones(60).forEach(o=>{if(o.nx)wz[o.w]=o.min});
   const isRace=s=>/^GARA|🏁/.test(s.n)||s.race;
   const rows=plan.weeks.map(w=>{const sun=addD(refSun,-(nAll-w.w)*7),mon=isoLoc(addD(sun,-6));

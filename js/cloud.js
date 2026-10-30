@@ -4,6 +4,19 @@ firebase.initializeApp(firebaseConfig);
 const fbAuth=firebase.auth();
 const fbDb=firebase.firestore();
 let cloudReady=false,cloudUnsub=null;
+/* Dati della corsa sincronizzati: [campo del payload, chiave localStorage, lettura in invio, obbligatorio].
+   Senza lettura si invia LS(chiave). Obbligatorio = in ricezione si applica solo se presente e non vuoto
+   (corse, lap e impostazioni non vanno mai sovrascritti con null); gli altri si applicano anche se null.
+   Per sincronizzare un dato nuovo basta aggiungerlo qui. La Palestra viaggia a parte (gym*, in fondo). */
+const CLOUD_KEYS=[
+  ['runs','rp_runs',()=>runs,true],
+  ['lapsdb','rp_lapsdb',()=>lapsDB,true],
+  ['edits','rp_edits',()=>edits],
+  ['st','rp_st',()=>st,true],
+  ['monitor','rp_monitor',()=>monitor],
+  ['plan','rp_plan'],['ics','rp_ics'],['wkedit','rp_wkedit'],['wkskip','rp_wkskip'],
+  ['flex','rp_flex'],['wx','rp_wx'],['xt','rp_xt'],
+];
 const cloudSessionId=Math.random().toString(36).slice(2);
 
 function authSubmit(mode){
@@ -52,18 +65,7 @@ function startCloudSync(uid){
     localStorage.setItem('rp_cloud_v',remoteV);
     if(d.writer===cloudSessionId){if(gymNew)location.reload();return} // conferma di una mia scrittura, già aggiornato in locale
     let payload={};try{payload=JSON.parse(d.payload||'{}')}catch(e){}
-    if(payload.runs)localStorage.setItem('rp_runs',JSON.stringify(payload.runs));
-    if(payload.lapsdb)localStorage.setItem('rp_lapsdb',JSON.stringify(payload.lapsdb));
-    if(payload.edits!==undefined)localStorage.setItem('rp_edits',JSON.stringify(payload.edits));
-    if(payload.st)localStorage.setItem('rp_st',JSON.stringify(payload.st));
-    if(payload.monitor!==undefined)localStorage.setItem('rp_monitor',JSON.stringify(payload.monitor));
-    if(payload.plan!==undefined)localStorage.setItem('rp_plan',JSON.stringify(payload.plan));
-    if(payload.ics!==undefined)localStorage.setItem('rp_ics',JSON.stringify(payload.ics));
-    if(payload.wkedit!==undefined)localStorage.setItem('rp_wkedit',JSON.stringify(payload.wkedit));
-    if(payload.wkskip!==undefined)localStorage.setItem('rp_wkskip',JSON.stringify(payload.wkskip));
-    if(payload.flex!==undefined)localStorage.setItem('rp_flex',JSON.stringify(payload.flex));
-    if(payload.wx!==undefined)localStorage.setItem('rp_wx',JSON.stringify(payload.wx));
-    if(payload.xt!==undefined)localStorage.setItem('rp_xt',JSON.stringify(payload.xt));
+    for(const [f,k,,req] of CLOUD_KEYS){const v=payload[f];if(req?v:v!==undefined)localStorage.setItem(k,JSON.stringify(v))}
     location.reload();
   },err=>console.warn('cloud sync',err));
 }
@@ -74,7 +76,7 @@ function pushCloud(){
   clearTimeout(cloudSyncTimer);
   cloudSyncTimer=setTimeout(()=>{
     fbDb.collection('users').doc(fbAuth.currentUser.uid).set({
-      payload:JSON.stringify({runs,lapsdb:lapsDB,edits,st,monitor,plan:LS('rp_plan'),ics:LS('rp_ics'),wkedit:LS('rp_wkedit'),wkskip:LS('rp_wkskip'),flex:LS('rp_flex'),wx:LS('rp_wx'),xt:LS('rp_xt')}),
+      payload:JSON.stringify(Object.fromEntries(CLOUD_KEYS.map(([f,k,get])=>[f,get?get():LS(k)]))),
       writer:cloudSessionId,
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     },{merge:true}).catch(e=>console.warn('cloud push',e));

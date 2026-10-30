@@ -27,7 +27,7 @@ function genPlan(silent,carry){
   let n=nFix;
   if(!n){
     const _add=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
-    const _race=new Date(dateStr+'T12:00:00');
+    const _race=dOnly(dateStr);
     const _raceSun=_add(_race,(7-_race.getDay())%7);          // domenica della settimana di gara
     const _today=new Date();_today.setHours(12,0,0,0);
     const _curSun=_add(_today,(7-_today.getDay())%7);         // domenica della settimana in corso
@@ -51,7 +51,7 @@ function genPlan(silent,carry){
     .map(([d,t])=>({dist:+((document.getElementById(d)||{}).value)||0,date:((document.getElementById(t)||{}).value)||''}))
     .filter(r=>r.dist>0&&r.date&&new Date(r.date)>Date.now()&&new Date(r.date)<new Date(dateStr))
     .sort((a,b)=>new Date(a.date)-new Date(b.date));
-  const isSummerW=w=>{const wd=new Date(dateStr+'T12:00:00');wd.setDate(wd.getDate()-(n-w)*7);return [6,7,8].includes(wd.getMonth()+1);};
+  const isSummerW=w=>{const wd=dOnly(dateStr);wd.setDate(wd.getDate()-(n-w)*7);return [6,7,8].includes(wd.getMonth()+1);};
   const raceAt={};interRaces.forEach(r=>{const w=n-Math.round((new Date(dateStr)-new Date(r.date))/(7*864e5));if(w>=2&&w<=core-1)raceAt[w]=r;});
   // gara intermedia in arrivo entro `within` settimane (per avvicinare il lungo alla distanza gara)
   const nextRaceWithin=(w,within)=>{for(let k=1;k<=within;k++)if(raceAt[w+k])return raceAt[w+k];return null;};
@@ -168,7 +168,7 @@ function genPlan(silent,carry){
   })();
   const wNow=(()=>{
     const _a=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
-    const _r=new Date(dateStr+'T12:00:00'),_rs=_a(_r,(7-_r.getDay())%7);
+    const _r=dOnly(dateStr),_rs=_a(_r,(7-_r.getDay())%7);
     const _t=new Date();_t.setHours(12,0,0,0);const _cs=_a(_t,(7-_t.getDay())%7);
     return n-Math.round((_rs-_cs)/(7*864e5));
   })();
@@ -203,7 +203,7 @@ function genPlan(silent,carry){
     // attivo di pari durata. 10' di lavoro forte + 10' di float: allena il cambio di ritmo, non la sola velocità.
     const MONA=(wu=15)=>({n:'Fartlek Mona',d:`${wu}' @ ${E} + Mona 20': 2×90" / 4×60" / 4×30" / 4×15" forte @ ${R} (R), recupero di pari durata in corsa scorrevole @ ${E} + ${wu}' @ ${E}`,km:kmAt(wu*2,Ea)+kmAt(20,(p.R+Ea)/2)});
     // stagione: la settimana w termina la domenica raceDate-(n-w)*7gg (calcolo su giorni, non ms: ora legale)
-    const wd=new Date(dateStr+'T12:00:00');wd.setDate(wd.getDate()-(n-w)*7);
+    const wd=dOnly(dateStr);wd.setDate(wd.getDate()-(n-w)*7);
     const mth=wd.getMonth()+1;
     const summer=mth>=6&&mth<=8;
     let vol=base+(peak-base)*Math.min(1,(w-1)/Math.max(1,build-2));
@@ -484,11 +484,9 @@ function genPlan(silent,carry){
 // Sopravvivono ai rebuild: chiave = domenica ISO della settimana (stabile finché la data gara non cambia).
 function wkEdits(){return LS('rp_wkedit')||{}}
 function wkSunISO(pl,wk){
-  const addD=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
-  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const race=new Date(pl.dateStr+'T12:00:00');
+  const race=dOnly(pl.dateStr);
   const refSun=addD(race,(7-race.getDay())%7);
-  return iso(addD(refSun,-(pl.weeks.length-wk.w)*7));
+  return isoLoc(addD(refSun,-(pl.weeks.length-wk.w)*7));
 }
 // Tipo di settimana e "riscrivi sulle corse svolte" sono due scelte indipendenti che convivono nella
 // stessa chiave ("a10+real"): prima erano un valore solo, quindi spuntare la riscrittura cancellava la
@@ -533,13 +531,13 @@ function applyWkOv(pl){
       const sunISOw=wkSunISO(clone,w0);
       const addDw=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
       const isoW=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const monISOw=isoW(addDw(new Date(sunISOw+'T12:00:00'),-6));
+      const monISOw=isoW(addDw(dOnly(sunISOw),-6));
       const wkRuns=((typeof runs!=='undefined'&&runs)||[]).filter(r=>{const d=r.date.slice(0,10);return d>=monISOw&&d<=sunISOw})
         .slice().sort((a,b)=>a.date<b.date?-1:1);
       if(!wkRuns.length)return w0; // niente da adattare: la settimana resta quella del piano
       const DN=['','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
       const DI={'Lunedì':1,'Martedì':2,'Mercoledì':3,'Giovedì':4,'Venerdì':5,'Sabato':6,'Domenica':7};
-      const idxOf=ds=>{const g=new Date(ds+'T12:00:00').getDay();return g===0?7:g};
+      const idxOf=ds=>{const g=dOnly(ds).getDay();return g===0?7:g};
       const SYSN={vo2:'VO2max/velocità',threshold:'soglia',endurance:'resistenza',easy:'facile'};
       const sysOf=sysOfSess;
       const sysReal=r=>{const c=cls(r);

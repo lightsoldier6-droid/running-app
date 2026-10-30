@@ -12,8 +12,7 @@ async function ingestFitBuf(buf,name,ctx){
       xts.sort((a,b)=>a.date<b.date?-1:1);LS('rp_xt',xts);ctx.xt=(ctx.xt||0)+1}
     ctx.skip++;return}
   const dt=new Date((sess[2]+631065600)*1000);
-  const pad=n=>String(n).padStart(2,'0');
-  const key=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  const key=`${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())} ${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
   const km=+((sess[9]||0)/100000).toFixed(2);
   const rows=laps.filter(l=>(l[9]||0)>0).map(l=>[Math.round(l[9]/100),+(l[8]/1000).toFixed(1),l[15]??null,l[16]??null,INT[l[23]]||'act',l[17]!=null?Math.round(l[17]*2):null]);
   // stessa corsa già in archivio (es. dal CSV): stesso giorno, partenza entro 5', km simili
