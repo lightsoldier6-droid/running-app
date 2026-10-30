@@ -2,7 +2,7 @@
 /* Palestra di RunPlan. Schede composte dall'utente scegliendo dal catalogo, allenamenti registrati e
    salvabili, libreria esercizi, statistiche e calendario. L'app suggerisce carichi, ripetizioni,
    progressione e scarico (engine.js). Gira dentro RunPlan in un iframe (?embed=runplan) e dialoga col
-   genitore solo tramite RunPlanGym (gym-bridge.js). Dati in localStorage['passo-v1'] sul dispositivo. */
+   genitore solo tramite RunPlanGym (gym-bridge.js). Dati in localStorage['passo-v1'], sincronizzati nel cloud da RunPlan (js/cloud.js). */
 const $ = s => document.querySelector(s);
 const clone = x => JSON.parse(JSON.stringify(x));
 const esc = x => String(x ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -603,7 +603,7 @@ function settingsModal() {
     ${state.settings.deload !== false ? `<label>Questa settimana è la</label><select id="cycle-week">${[1, 2, 3, 4].map(w => `<option value="${w}" ${w === p.week ? 'selected' : ''}>${w}ª${w === 4 ? ' (scarico)' : ''}</option>`).join('')}</select>` : ''}
     <p class="muted">In taper e in settimana gara della corsa lo scarico scatta comunque.</p>
     <label class="gtoggle"><input type="checkbox" id="sound-setting" ${state.settings.sound ? 'checked' : ''}> Suono a fine recupero</label>
-    <h2 class="mh2">Backup</h2><p class="muted">Gli allenamenti stanno su questo dispositivo (Safari e app nella Home hanno archivi separati). In RunPlan entrano nel calendario e nel carico, ma non vanno nel cloud: esporta un backup ogni tanto.</p>
+    <h2 class="mh2">Backup</h2><p class="muted">Con l’accesso a RunPlan schede, esercizi e allenamenti si sincronizzano nel cloud su tutti i dispositivi. Il backup resta utile come copia di sicurezza; importarlo sostituisce i dati anche sugli altri dispositivi.</p>
     <div class="grow"><button class="btn btn2" data-action="export">Esporta backup</button><label class="btn btn2 gfile">Importa backup<input id="import-file" type="file" accept="application/json,.json" hidden></label></div>
     <p class="muted">${gymHistory().length} allenamenti · ${state.routines.length} schede${storageOK ? '' : ' · archivio locale non disponibile: esporta subito'}.</p>`);
 }
