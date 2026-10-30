@@ -33,9 +33,8 @@ function rDash(){
 
 /* ---------- seduta del giorno (dal piano che segui) ---------- */
 /* ---------- seduta del giorno (dal piano che segui): card scura + settimana a pallini ---------- */
-function todaySessions(){
-  if(monitor&&monitor.sessions&&monitor.sessions.length)return monitor.sessions;
-  const pl=LS('rp_plan');return pl?planToSessions(pl):null;
+function todaySessions(){ // il calendario composto: storico delle settimane concluse + piano vivo (monitor.js)
+  const S=calSessions();return S.length?S:null;
 }
 function sessZone(work,c){
   const m=String(work||'').match(/\((I|R|T|M|Z2|gara)\)/);

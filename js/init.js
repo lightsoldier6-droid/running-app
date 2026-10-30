@@ -20,7 +20,9 @@ function rGuide(){
   <p class="muted" style="margin-top:10px"><b>Strutture del lungo</b> (fase specifica, in ordine di carico crescente): <b>facile</b> — costruisce base aerobica e tolleranza; <b>progressivo</b> — easy → steady → ritmo gara senza pause; <b>a blocchi RM</b> — 2-3 blocchi a ritmo gara intervallati da easy; <b>fast finish</b> — blocco unico in coda, sulle gambe già stanche; <b>a ritmo gara continuo</b> — blocco unico centrale, chiusura easy; <b>sopra/sotto RM</b> — alternanze appena sopra e appena sotto il ritmo gara, senza recupero vero; <b>big workout</b> — il picco, prova generale di ritmo, fueling e scarpe. Non tutti i lunghi sono qualificati: i lunghi facili intercalati servono a reggere il costo degli altri.</p>
   <p class="muted" style="margin-top:8px">Sedute dure: riscaldamento 10–15' in Z1 + allunghi, defaticamento 10' Z1. Intensità crescente: Z1 recupero &lt; Z2 fondo &lt; M &lt; T &lt; I/R. I passi seguono il tuo VDOT attuale (${vd.toFixed(1)}).</p>`;
 }
-function refresh(){zCache=null;applyRunFlags();rDash();rLoad();rProg();rData();rManage();rAnaSel();rAna();rGuide();rToday();
+function refresh(){zCache=null;calCache=null;applyRunFlags();
+  try{monFreeze(false)}catch(e){console.warn('monFreeze',e)} // congela nello storico le settimane appena concluse
+  rDash();rLoad();rProg();rData();rManage();rAnaSel();rAna();rGuide();rToday();
   const vd=curVdot();if(vd)document.getElementById('p-vdot').value=vd.toFixed(1);
   const wk=weeklyKm().slice(-4).map(([,v])=>v);
   document.getElementById('p-base').value=Math.round(wk.reduce((a,b)=>a+b,0)/Math.max(1,wk.length));

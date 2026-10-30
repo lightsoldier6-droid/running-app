@@ -13,12 +13,13 @@ document.addEventListener('click',e=>{const p=document.getElementById('acct-pop'
 applyTheme(localStorage.getItem('rp_theme')||'light');
 
 /* ---------- storage ---------- */
+let calCache=null; // calendario composto del Monitor (calSessions in monitor.js): si butta quando cambia una sua fonte
 const LS=(k,v)=>{
   if(v===undefined) return JSON.parse(localStorage.getItem(k)||'null');
-  // ogni scrittura del piano porta l'ora: serve al bottone "Recupera dal Monitor" per capire se il
-  // Monitor è più vecchio del piano (cioè se recuperare butterebbe via una ricalibrazione appena fatta)
+  // ogni scrittura del piano porta l'ora (informativa: dice quando il piano è stato toccato l'ultima volta)
   if(k==='rp_plan'&&v&&typeof v==='object')v.savedAt=new Date().toISOString();
   localStorage.setItem(k,JSON.stringify(v));
+  if(k==='rp_plan'||k==='rp_wkedit'||k==='rp_wkskip'||k==='rp_flex'||k==='rp_monitor')calCache=null;
   if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit'||k==='rp_wkskip'||k==='rp_flex'||k==='rp_wx'||k==='rp_xt') pushCloud();
   return v;
 };
@@ -54,5 +55,5 @@ function setRunIgn(date,k,on){st.ign=st.ign||{};const g=st.ign[date]=st.ign[date
   if(!Object.keys(g).length)delete st.ign[date];LS('rp_st',st);zCache=null;refresh()}
 function setRunLink(date,v){st.links=st.links||{};if(v)st.links[date]=v;else delete st.links[date];LS('rp_st',st);refresh()}
 applyRunFlags();
-let monitor=LS('rp_monitor')||null; // piano .ics caricato per il monitoraggio
+let monitor=LS('rp_monitor')||null; // STORICO del calendario (settimane concluse) + metadati: vedi calSessions in monitor.js
 

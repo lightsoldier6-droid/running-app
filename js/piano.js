@@ -476,7 +476,7 @@ function genPlan(silent,carry){
   weeks.forEach(w=>{if(phC[w.phase]!=null)phC[w.phase]++});
   const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,maraExtraEasy,weeks,GP,GT,E,I,T,interRaces,iSpec,readiness,ph:{baseW:phC.base,speedW:phC.speed,ispecW:phC.ispec,specW:phC.spec,taper:phC.taper}};
   LS('rp_plan',plan);
-  if(!silent)monSyncFuture(); // piano generato a mano (es. con una gara intermedia): il Monitor lo segue
+  if(!silent)monFreeze(); // piano generato a mano: lo storico del Monitor resta, il futuro è il piano nuovo
   rPlan(plan);rTrack();rToday();
   return plan;
 }
@@ -504,7 +504,7 @@ function setWkEdit(key,val){
   if(!val)delete ed[key];else ed[key]=val;
   {const fx=flexAll();if(fx[key]){delete fx[key];LS('rp_flex',fx)}} // la settimana si ricostruisce: la foto delle modifiche seduta per seduta non vale più
   LS('rp_wkedit',ed);
-  monSyncFuture(); // la modifica deve arrivare anche a Oggi e al Monitor, che leggono monitor.sessions
+  monFreeze(); // se la modifica tocca una settimana appena conclusa, lo storico del Monitor la recepisce
   const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
 }
 // applica gli override a una copia del piano puro: usata da rPlan, rTrack, rToday, planToSessions
@@ -718,7 +718,7 @@ function applyWkOv(pl){
    quindi sopravvive ai rebuild e ai riscritti dal reale. Chiave della seduta: `giorno|nome`. */
 function wkSkips(){return LS('rp_wkskip')||{}}
 function wkSkipKey(s){return `${s.t}|${s.n}`}
-function wkSkipSave(sp){LS('rp_wkskip',sp);monSyncFuture();const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();if(typeof rToday==='function')rToday()}}
+function wkSkipSave(sp){LS('rp_wkskip',sp);monFreeze();const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();if(typeof rToday==='function')rToday()}}
 function wkSkipAdd(key,i){ // i = indice della seduta nella settimana COSÌ COM'È RESA ORA
   const pl=applyWkEdits(LS('rp_plan'));if(!pl)return;
   const w=pl.weeks.find(x=>wkSunISO(pl,x)===key);if(!w||!w.sess[i])return;
@@ -890,12 +890,12 @@ function fxCommit(){
   const fx=flexAll(),sp=wkSkips();
   Object.entries(FX.pending).forEach(([k,ss])=>{fx[k]=fxSort(ss);delete sp[k]}); // le sedute tolte sono già fuori dalla foto
   LS('rp_flex',fx);LS('rp_wkskip',sp);
-  fxClose();monSyncFuture();
+  fxClose();monFreeze();
   const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
 }
 function fxReset(key){
   if(!confirm('Rimettere questa settimana com’era nel piano? Le modifiche fatte seduta per seduta si perdono.'))return;
-  const fx=flexAll();delete fx[key];LS('rp_flex',fx);monSyncFuture();
+  const fx=flexAll();delete fx[key];LS('rp_flex',fx);monFreeze();
   const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
 }
 const fxSL=s=>s?`<b>${fxEsc(s.n)}</b>`:'riposo';

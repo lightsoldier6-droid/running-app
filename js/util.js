@@ -66,7 +66,7 @@ function plannedFor(dateISO){
   const lk=(typeof st!=='undefined'&&st&&st.links&&st.links[dateISO])||null;
   if(lk==='none')return null;
   const ds=lk||(dateISO||'').slice(0,10);
-  const src=(typeof monitor!=='undefined'&&monitor&&monitor.sessions)||[];
+  const src=typeof calSessions==='function'?calSessions():[]; // storico + piano vivo (monitor.js)
   return src.find(s=>(s.date||'').slice(0,10)===ds)||null;
 }
 function workTarget(sess){
