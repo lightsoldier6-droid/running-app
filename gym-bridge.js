@@ -1,6 +1,7 @@
 /* Ponte fra RunPlan e la Palestra (palestra/, caricata in un iframe).
    - Le sedute di forza finite entrano in lettura nel calendario e nel carico di RunPlan tramite
-     runPlanGymActivities(): non vengono copiate in rp_xt né mandate al cloud.
+     runPlanGymActivities(): non vengono copiate in rp_xt. Tutto lo stato della Palestra (passo-v1) va nel
+     cloud con pushGymCloud() di js/cloud.js, a ogni salvataggio.
    - La Palestra legge dal piano di corsa la settimana corrente (fase, taper, gara, sedute) per
      mettere lo scarico nelle settimane giuste e consigliare i giorni. */
 (function () {
@@ -55,6 +56,7 @@
       try { return runWeek(dateISO); } catch (e) { console.warn('Palestra: piano di corsa non leggibile', e); return null; }
     },
     changed() {
+      try { if (typeof pushGymCloud === 'function') pushGymCloud(); } catch (e) { console.warn('Palestra: cloud', e); }
       const sig = JSON.stringify(window.runPlanGymActivities());
       if (sig === lastSignature) return;
       lastSignature = sig;

@@ -105,7 +105,7 @@ Gli allenamenti finiti entrano in RunPlan come "altri sport", con il nome della 
 
 ## Dati
 
-Tutto è in `localStorage['passo-v1']` (versione 4) su questo dispositivo: schede, esercizi personalizzati, storico, allenamento in corso. Non va nel cloud: **Impostazioni e backup** esporta e importa un JSON.
+Tutto è in `localStorage['passo-v1']` (versione 4): schede, esercizi personalizzati, storico, allenamento in corso. Con l'accesso a RunPlan si sincronizza su Firebase a ogni salvataggio, nello stesso documento utente della corsa ma in campi propri (`gym`, `gymAt`, `gymWriter`, vedi `js/cloud.js`), quindi corsa e palestra non si sovrascrivono a vicenda. Al primo allineamento di un dispositivo, e quando ci sono modifiche locali non ancora inviate, i dati vengono uniti per id (allenamenti e schede presenti da una sola parte si tengono); per il resto vince l'ultima scrittura. **Impostazioni e backup** esporta e importa un JSON come copia di sicurezza: importarlo sostituisce i dati anche sugli altri dispositivi.
 
 I dati delle versioni precedenti vengono migrati da soli:
 
