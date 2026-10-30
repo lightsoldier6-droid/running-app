@@ -14,7 +14,6 @@
       return null;
     }
   }
-  const pad = n => String(n).padStart(2, '0');
   window.runPlanGymActivities = function () {
     const s = gymState();
     return (s?.history || [])
@@ -22,7 +21,7 @@
         && /^\d{4}-\d{2}-\d{2}$/.test(h.date) && typeof h.id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(h.id))
       .map(h => {
         const d = new Date(h.startedAt || h.endedAt);
-        const time = Number.isFinite(d.getTime()) ? `${pad(d.getHours())}:${pad(d.getMinutes())}` : '12:00';
+        const time = Number.isFinite(d.getTime()) ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}` : '12:00';
         const note = typeof h.name === 'string' && h.name ? h.name.slice(0, 60) : 'Total Body ' + (['A', 'B', 'C'].includes(h.routine) ? h.routine : 'A') + (h.blockName ? ' · ' + h.blockName : '');
         return { id: 'passo-' + h.id, date: h.date + ' ' + time, sport: 'gym', min: Math.max(1, Math.round(h.minutes)), rpe: h.rpe, hr: null, note, src: 'passo' };
       });
@@ -36,9 +35,7 @@
     if (!pl || !Array.isArray(pl.weeks) || !pl.dateStr) return null;
     if (typeof applyWkEdits === 'function') pl = applyWkEdits(pl) || pl;
     for (const wk of pl.weeks) {
-      const sun = wkSunISO(pl, wk), mon = new Date(sun + 'T12:00:00');
-      mon.setDate(mon.getDate() - 6);
-      const monISO = `${mon.getFullYear()}-${pad(mon.getMonth() + 1)}-${pad(mon.getDate())}`;
+      const sun = wkSunISO(pl, wk), monISO = addDaysISO(sun, -6);
       if (dateISO < monISO || dateISO > sun) continue;
       const sess = (wk.sess || []).map(x => {
         const name = String(x.n || ''), day = DAY3.indexOf(String(x.t || '').toLowerCase().slice(0, 3));

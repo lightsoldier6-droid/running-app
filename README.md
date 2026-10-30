@@ -68,8 +68,9 @@ Da v114 il codice non sta più tutto in `index.html`: lo stile è in `css/app.cs
 
 | File | Cosa contiene |
 |---|---|
+| `date.js` | funzioni sulle date condivise da tutti gli script (`isoLoc`, `todayISO`, `dOnly`, `addD`, `addDaysISO`, `mondayOf`…): caricato per primo |
 | `core.js` | tema, archivio locale (`LS`), dati esclusi e aggancio manuale |
-| `cloud.js` | accesso e sincronizzazione Firebase |
+| `cloud.js` | accesso e sincronizzazione Firebase; l'elenco dei dati sincronizzati è `CLOUD_KEYS` |
 | `util.js` | formati, classificazione delle corse, VDOT di Daniels, tab, grafici SVG |
 | `oggi.js` | tab Oggi: seduta del giorno, avvisi, carico e rischio |
 | `progressi.js` | tab Progressi |
