@@ -346,6 +346,12 @@ test('RunPlan: gli allenamenti entrano come "altri sport" e la settimana del pia
   c.window = c;
   vm.createContext(c);
   vm.runInContext(read('js/date.js'), c); // nell'app date.js è caricato prima di gym-bridge.js
+  // riconoscimento delle gare: le funzioni vere di monitor.js
+  { // le funzioni vere di util.js / monitor.js: vocabolario, gare, classificazione del piano
+    const grab = (src, start) => { const i = src.indexOf(start); let d = 0, j = src.indexOf('{', i); for (; j < src.length; j++) { if (src[j] === '{') d++; else if (src[j] === '}' && !--d) break; } return src.slice(i, j + 1); };
+    const u = read('js/util.js'), m = read('js/monitor.js');
+    vm.runInContext(['var SESS_WORDS=' + grab(u, 'const SESS_WORDS=').slice('const SESS_WORDS='.length), ...['isRaceName', 'isRaceSess', 'isGoalRace', 'planCls', 'sessCls'].map(f => grab(m, `function ${f}(`))].join('\n'), c);
+  }
   vm.runInContext(read('gym-bridge.js'), c);
   const acts = vm.runInContext('runPlanGymActivities()', c);
   assert.deepEqual(acts.map(a => [a.min, a.note, a.src]), [[48, 'Total Body B · Forza', 'passo'], [40, 'Gambe <b>', 'passo']]);
@@ -354,6 +360,11 @@ test('RunPlan: gli allenamenti entrano come "altri sport" e la settimana del pia
   assert.equal(last.isTaper, true);
   assert.deepEqual(arr(last.sess.map(x => x.day)), [3, 6]);
   assert.equal(vm.runInContext('RunPlanGym.runWeek("2020-01-01")', c), null);
+  // le gare intermedie generate dal piano hanno solo la bandierina, senza segno race: sono gare anche per la Palestra
+  plan.weeks[10].sess.push({ t: 'Sabato', n: '🏁 Mezza Lecce', d: '21.1 km @ 4:50/km (test)', km: 21.1 });
+  const tune = vm.runInContext(`RunPlanGym.runWeek(${JSON.stringify(vm.runInContext('wkSunISO', c)(plan, plan.weeks[10]))})`, c);
+  assert.equal(tune.race, true);
+  assert.equal(vm.runInContext('isRaceSess({ n: "Pre-gara 25\'" }) || isRaceSess({ n: "Ritmo gara" })', c), false);
   assert.equal(vm.runInContext('typeof RunPlanGym.getRuns', c), 'undefined'); // niente corse nella palestra
   // RunPlan usa allXts() per calendario e carico, mostra la nota con escape, e non manda la palestra al cloud
   const root = [read('index.html'), ...fs.readdirSync(path.join(ROOT, 'js')).map(f => read('js/' + f))].join('\n');
