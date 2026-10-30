@@ -345,6 +345,7 @@ test('RunPlan: gli allenamenti entrano come "altri sport" e la settimana del pia
   };
   c.window = c;
   vm.createContext(c);
+  vm.runInContext(read('js/date.js'), c); // nell'app date.js è caricato prima di gym-bridge.js
   vm.runInContext(read('gym-bridge.js'), c);
   const acts = vm.runInContext('runPlanGymActivities()', c);
   assert.deepEqual(acts.map(a => [a.min, a.note, a.src]), [[48, 'Total Body B · Forza', 'passo'], [40, 'Gambe <b>', 'passo']]);
