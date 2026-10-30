@@ -151,11 +151,13 @@ Funziona sulle corse importate da **.fit** o da **archivio .zip** (vedi §5): da
 - *Copia piano (markdown)*: per incollarlo dove vuoi.
 - *Esporta per Google Calendar (.ics)*: un evento per seduta col giorno giusto (gara inclusa, anche se di sabato). Nella descrizione: fase, riscaldamento e defaticamento per le sedute di qualità, lavoro coi ritmi, km totali. Su Google Calendar: Impostazioni → Importa. Consiglio: crea prima un calendario dedicato "Corsa", così quando ricalibri cancelli quello e reimporti pulito. Dopo una ricalibrazione il .ics contiene solo le settimane future.
 
-## 4b. Tab "Monitor" — seguire un piano dal calendario
+## 4b. Tab "Monitor" — come stai seguendo il piano
 
-Serve a monitorare il piano che stai **davvero seguendo**, caricando l'`.ics` esportato dal tab Piano e confrontandolo con le tue corse, seduta per seduta. È indipendente dal piano generato al volo: carichi l'`.ics` una volta e resta lì finché non lo cambi.
+Confronta il piano con le tue corse, seduta per seduta. Non c'è niente da caricare: il calendario del Monitor ha **una sola fonte per ogni periodo**:
+- **dalla settimana in corso in avanti** è il piano del tab Piano, sempre aggiornato (scarichi, gare al volo, sedute spostate o tolte, ricalibrazioni: tutto arriva subito, senza bottoni di riallineamento);
+- **le settimane concluse** sono lo **storico**: quello che era previsto davvero in quella settimana (gare al volo, settimane riscritte sulle corse svolte), congelato quando la settimana finisce. Il piano da solo non basta, perché alle settimane già passate non riapplica le modifiche fatte a mano.
 
-**Caricare il piano**: trascina/scegli l'`.ics` (bottone "Esporta .ics" del tab Piano). L'app legge ogni seduta: data, tipo, km previsti, ritmi target e fase.
+Lo storico viaggia nel cloud con il resto (`rp_monitor`). L'export `.ics` verso Google Calendar resta nel tab Piano.
 
 **Quali corse considera**:
 - di default aggancia **in automatico** tutte le corse dell'archivio che cadono nelle settimane del piano;
@@ -169,9 +171,9 @@ L'abbinamento è **settimanale**: ogni seduta pianificata viene agganciata alla 
 
 **Settimana per settimana** e **Seduta per seduta**: per ogni allenamento — ✅ svolto / 🔁 tipo diverso / 🔴 saltata / ⏳ in programma, km reali vs previsti e, per easy/lungo, passo reale vs range target ("in target / più veloce / più lento"). Per le ripetute il passo medio è indicativo (rimanda ai lap in Analisi). Segnala anche le corse extra fuori piano. Ogni settimana ha la data (giorno + mese) e una barra di volume.
 
-**Quando ricalibrare**: un box dà un verdetto — 🟢 prosegui / 🟠 valuta / 🔴 ricalibra ora — in base a segnali concreti: aderenza km recente sotto 85%/75%, VDOT salito ≥1.5 punti (ritmi ormai troppo morbidi) o sceso ≥1.5 (troppo duri), sedute di qualità saltate, passaggio a una nuova fase, o troppe settimane senza ritocchi. Il VDOT di riferimento è quello del momento in cui hai caricato l'`.ics`.
+**Quando ricalibrare**: un box dà un verdetto — 🟢 prosegui / 🟠 valuta / 🔴 ricalibra ora — in base a segnali concreti: aderenza km recente sotto 85%/75%, VDOT salito ≥1.5 punti (ritmi ormai troppo morbidi) o sceso ≥1.5 (troppo duri), sedute di qualità saltate, passaggio a una nuova fase, o troppe settimane senza ritocchi. Il VDOT di riferimento è quello dell'ultima ricalibrazione (o dell'inizio del monitoraggio).
 
-**Rigenera il piano dal reale (.ics + .fit)**: un pulsante che ricalibra usando l'`.ics` che segui + le tue corse .fit. Prende gara, data e distanza dall'`.ics`, stima i giorni/settimana dalla struttura, e usa VDOT e volume **reali** dai tuoi dati per rigenerare le settimane **da oggi alla gara**. Le settimane passate restano (rinumerate in modo pulito), il Monitor si aggiorna subito e viene scaricato il **nuovo `.ics`** da importare nel calendario. Se alla gara mancano meno di 6 settimane si blocca (troppo poche per un blocco sensato).
+**Rigenera il piano dal reale (.fit)**: un pulsante che ricalibra il piano. Tiene gara, data, distanza e giorni/settimana del piano, e usa VDOT e volume **reali** dai tuoi dati per rigenerare le settimane **da oggi alla gara**. Le settimane passate e lo storico del Monitor restano, il Monitor segue subito il piano nuovo e viene scaricato il **nuovo `.ics`** da importare nel calendario. Se alla gara mancano meno di 6 settimane si blocca (troppo poche per un blocco sensato).
 
 ## 5. Tab "Dati" — importare le corse
 

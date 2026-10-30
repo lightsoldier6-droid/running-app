@@ -75,7 +75,7 @@ Da v114 il codice non sta più tutto in `index.html`: lo stile è in `css/app.cs
 | `oggi.js` | tab Oggi: seduta del giorno, avvisi, carico e rischio |
 | `progressi.js` | tab Progressi |
 | `piano.js` | generatore del piano, date delle settimane (`wkSunDate`/`wkSunISO`/`wkMonISO`, unico punto che le calcola), modifiche alle settimane, FLEX, banca sedute |
-| `monitor.js` | Monitor: allineamento col piano, ricalibrazioni, `.ics`; classificazione delle sedute del piano (`planCls`, `sessCls`, `sysOfSess`) e riconoscimento gare (`isRaceSess`, `isGoalRace`) |
+| `monitor.js` | Monitor: calendario composto (`calSessions` = storico delle settimane concluse in `rp_monitor` + piano vivo, `monFreeze`), ricalibrazioni, export `.ics`; classificazione delle sedute del piano (`planCls`, `sessCls`, `sysOfSess`) e riconoscimento gare (`isRaceSess`, `isGoalRace`) |
 | `dati.js` | tab Impostazioni |
 | `corsa.js` | analisi della singola corsa, parser .FIT, altri sport, meteo |
 | `fc.js` | motore fitness da FC e zone |
