@@ -10,13 +10,32 @@ const day=d=>new Date(d.replace(' ','T'));
 const daysAgo=r=>Math.round((new Date().setHours(0,0,0,0)-day(r.date).setHours(0,0,0,0))/864e5);
 const pace=r=>r.sec/r.km;
 
-/* ---------- classificazione ---------- */
+/* ---------- classificazione ----------
+   Vocabolario UNICO delle sedute: parole → famiglia. Lo leggono tutti: corse svolte (cls), sedute del piano
+   (planCls, sysOfSess in monitor.js), analisi della corsa, tracker del Monitor, Palestra (gym-bridge.js).
+   Le funzioni restano distinte perché rispondono a domande diverse (categoria, sistema allenato), ma una
+   parola nuova si aggiunge qui una volta sola. Le gare del piano: isRaceSess / isGoalRace (monitor.js). */
+const SESS_WORDS={
+  long:/lungo|long|simulazione|big workout/,
+  int:/interval|ripetut|richiami/,
+  qual:/cruise|criss|fartlek|medio|progressiv|ritmo|soglia|tempo run/,
+};
+// Titolo di una corsa SVOLTA che indica una gara: "gara" anche in mezzo al titolo ("Lecce - Gara 10k"),
+// ma non gli allenamenti che la nominano (pre-gara, ritmo gara, simulazione gara, lungo a ritmo gara).
+function isRaceTitle(title){
+  const t=(title||'').toLowerCase();
+  return t.includes('🏁')||(/gara|race|competizione/.test(t)&&!/pre[- ]?gara|ritmo gara|simulazione gara|gara continuo/.test(t));
+}
+// Categoria di una corsa svolta, con le stesse priorità di planCls (monitor.js) così piano e corse coincidono.
 function cls(r){
   const t=(r.title||'').toLowerCase();
-  if(/gara|race|competizione/.test(t))return 'race';
-  if(/soglia|medio|progressiv|tempo run|fartlek|cruise/.test(t))return 'qual';
-  if(/\d+\s*[x×]\s*\d+/.test(t)||/interval|ripetut/.test(t))return 'int';
-  if(/lungo|long/.test(t)||r.km>=15||r.sec>=75*60)return 'long';
+  if(isRaceTitle(t))return 'race';
+  if(/^progressivo/.test(t))return 'qual';   // "Progressivo lungo" è una qualità, non un lungo
+  if(SESS_WORDS.long.test(t))return 'long';
+  if(SESS_WORDS.int.test(t))return 'int';
+  if(SESS_WORDS.qual.test(t))return 'qual';
+  if(/\d+\s*[x×]\s*\d+/.test(t))return 'int'; // ripetute riconosciute dalla struttura (8x200)
+  if(r.km>=15||r.sec>=75*60)return 'long';
   return 'easy';
 }
 const CLSN={int:'Interval',qual:'Qualità',long:'Lungo',easy:'Easy',race:'Gara'};

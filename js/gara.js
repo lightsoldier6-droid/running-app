@@ -72,12 +72,11 @@ function rGoal(){
     return`<tr><td><b>${n}</b> · ${d}</td><td class="r" style="white-space:nowrap">${a===52?'tutto l\'anno':`${a}–${b} sett. prima`}<br>${a===52?'':stt}</td></tr>`}).join('')}</table>
   <h3 class="fh">Errori da evitare</h3><ul class="muted" style="padding-left:18px;font-size:12.5px;line-height:1.5">${dm.errors.map(e=>`<li>${e}</li>`).join('')}</ul>`;
 }
-function doseCard(plan,refSun,nAll){
+function doseCard(plan){
   const wz={};weekZones(60).forEach(o=>{if(o.nx)wz[o.w]=o.min});
-  const isRace=s=>/^GARA|🏁/.test(s.n)||s.race;
-  const rows=plan.weeks.map(w=>{const sun=addD(refSun,-(nAll-w.w)*7),mon=isoLoc(addD(sun,-6));
-    const d=[0,0,0];w.sess.forEach(s=>{if(s.done||isRace(s))return;planDose(s.d,+plan.goal).forEach((v,i)=>d[i]+=v)});
-    const rec=wz[mon];return{w:w.w,mon,d,rec:rec?rec[2]+rec[3]:null,race:w.sess.some(isRace)}});
+  const rows=plan.weeks.map(w=>{const mon=wkMonISO(plan,w);
+    const d=[0,0,0];w.sess.forEach(s=>{if(s.done||isRaceSess(s))return;planDose(s.d,+plan.goal).forEach((v,i)=>d[i]+=v)});
+    const rec=wz[mon];return{w:w.w,mon,d,rec:rec?rec[2]+rec[3]:null,race:w.sess.some(isRaceSess)}});
   setTimeout(()=>{
     const host=document.getElementById('p-dose');if(!host)return;
     const W=420,H=214,P={l:34,r:8,t:30,b:24},n=rows.length,gw=(W-P.l-P.r)/n,bw=Math.max(3,gw*.72);
@@ -116,7 +115,7 @@ function wkWrap(w,isCur,sunW,curWeek,html){
   const mon=new Date(sunW);mon.setDate(mon.getDate()-6);
   const dl=d=>d.getDate()+' '+MESI[d.getMonth()];
   const PHN={base:'Base',speed:'Velocità',ispec:'Specifico mezza',spec:'Specifico',taper:'Taper'};
-  const key=(w.sess||[]).filter(s=>/^GARA|🏁/.test(s.n)||s.race||(typeof sLoad==='function'&&sLoad(s)>=3)).map(s=>s.n.replace(/^🏁\s*/,'🏁 ')).slice(0,2).join(' · ')
+  const key=(w.sess||[]).filter(s=>isRaceSess(s)||(typeof sLoad==='function'&&sLoad(s)>=3)).map(s=>s.n.replace(/^🏁\s*/,'🏁 ')).slice(0,2).join(' · ')
     ||(w.sess||[]).map(s=>s.n).slice(0,2).join(' · ');
   const past=w.hist||(curWeek&&w.w<curWeek);
   return `<details class="wkd${past?' past':''}"${open?' open':''}><summary><span class="wks-n">S${w.w}</span><span class="wks-t">${key}<small>${dl(mon)}–${dl(sunW)} · ${PHN[w.phase]||''}${w.isDeload?' · scarico':''}${past?' · passata':''}</small></span><span class="wks-k">${w.vol} km</span></summary>${html}</details>`;

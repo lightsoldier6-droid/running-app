@@ -567,18 +567,15 @@ function rAna(){
   const plA=applyWkEdits(LS('rp_plan'));
   let plano='';
   if(plA){
-    const raceD=dOnly(plA.dateStr);
-    const refSun=addD(raceD,(7-raceD.getDay())%7);
-    const nW=plA.weeks.length,rd=r.date.slice(0,10);
-    const wk=plA.weeks.find(w=>{const sun=addD(refSun,-(nW-w.w)*7);return rd>=isoLoc(addD(sun,-6))&&rd<=isoLoc(sun)});
+    const rd=r.date.slice(0,10);
+    const wk=plA.weeks.find(w=>rd>=wkMonISO(plA,w)&&rd<=wkSunISO(plA,w));
     if(wk){
       const PHn={base:'base',speed:'velocità',spec:'specifico',taper:'taper'};
       const dayName=['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'][dt.getDay()];
       const sess=wk.sess.find(s=>s.t===dayName);
       plano=`Rispetto al piano: cade nella settimana ${wk.w} (fase ${PHn[wk.phase]||'?'}${wk.isDeload?', scarico':''}${wk.summer?', estiva':''}).`;
       if(sess){
-        const MAPS={Interval:'int','Interval corti':'int','Interval lunghi':'int','Ripetute brevi':'int',Richiami:'int','Cruise @ soglia':'qual',Cruise:'qual','Criss-cross':'qual',Fartlek:'qual','Fartlek leggero':'qual','Fartlek Mona':'qual','Medio-soglia':'qual','Medio breve':'qual',Progressivo:'qual','Progressivo lungo':'qual','Ritmo M':'qual','Ritmo maratona':'qual',Soglia:'qual','Ritmo gara':'qual',Lungo:'long','Lungo corto':'long','Lungo ridotto':'long','Lungo facile':'long','Lungo con finale':'long','Lungo progressivo':'long','Lungo a blocchi RM':'long','Lungo fast finish':'long','Lungo sopra/sotto RM':'long','Lungo a ritmo gara continuo':'long','Big workout (picco)':'long','Simulazione gara':'long','Simulazione gara (picco)':'long'};
-        const expC=sess.n.startsWith('GARA')?'race':MAPS[sess.n]||'easy';
+        const expC=isRaceSess(sess)?'race':sessCls(sess); // stessa classificazione del piano (monitor.js)
         if(expC===c){
           const kmOk=Math.abs(r.km-sess.km)<=Math.max(2,sess.km*0.2);
           plano+=` Per ${dayName.toLowerCase()} era previsto ${sess.n} (≈${sess.km} km): tipologia rispettata${kmOk?' e chilometraggio in linea — programma seguito.':`, ma sui km sei ${r.km>sess.km?'sopra':'sotto'} (${r.km.toFixed(1)} contro ≈${sess.km}).`}`;

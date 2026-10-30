@@ -469,7 +469,7 @@ function genPlan(silent,carry){
       sess.splice(1,0,{t:'Mercoledì',n:'Easy',d:`40' @ ${E} (Z2)`,km:kmAt(40,Ea)});
     }
     sess.forEach(s=>s.km=Math.round(s.km*2)/2);
-    weeks.push({w,vol:Math.round(sess.reduce((a,s)=>a+(w===n&&s.n.startsWith('GARA')?0:s.km),0)),phase,summer,isDeload,isTaper,sess});
+    weeks.push({w,vol:Math.round(sess.reduce((a,s)=>a+(w===n&&isGoalRace(s)?0:s.km),0)),phase,summer,isDeload,isTaper,sess});
   }
   // conteggio fasi dalle settimane effettivamente costruite: il nominale non conosce il blocco intermedio
   const phC={base:0,speed:0,ispec:0,spec:0,taper:0};
@@ -483,11 +483,15 @@ function genPlan(silent,carry){
 /* ---------- modifiche manuali alle settimane (scarico / gara al volo) ---------- */
 // Sopravvivono ai rebuild: chiave = domenica ISO della settimana (stabile finché la data gara non cambia).
 function wkEdits(){return LS('rp_wkedit')||{}}
-function wkSunISO(pl,wk){
-  const race=dOnly(pl.dateStr);
-  const refSun=addD(race,(7-race.getDay())%7);
-  return isoLoc(addD(refSun,-(pl.weeks.length-wk.w)*7));
+/* Date delle settimane del piano: si conta a ritroso dalla domenica della settimana di gara (la gara può
+   essere di sabato), con l'ultima settimana del piano = settimana di gara. È l'UNICO punto che fa questo
+   conto: Piano, Monitor, Gara, analisi della corsa e Palestra passano tutti da qui. wk = settimana o suo numero. */
+function wkSunDate(pl,wk){
+  const race=dOnly(pl.dateStr),refSun=addD(race,(7-race.getDay())%7);
+  return addD(refSun,-(pl.weeks.length-(typeof wk==='object'?wk.w:wk))*7);
 }
+function wkSunISO(pl,wk){return isoLoc(wkSunDate(pl,wk))}
+function wkMonISO(pl,wk){return isoLoc(addD(wkSunDate(pl,wk),-6))}
 // Tipo di settimana e "riscrivi sulle corse svolte" sono due scelte indipendenti che convivono nella
 // stessa chiave ("a10+real"): prima erano un valore solo, quindi spuntare la riscrittura cancellava la
 // gara appena impostata (e viceversa).
@@ -556,9 +560,8 @@ function applyWkOv(pl){
       // 2) del pianificato tengo UNA sola qualità: il carico più alto che non ripete un sistema già allenato
       // Una gara messa a mano non si tocca: resta al suo giorno ed è LEI la qualità della settimana
       // (se quel giorno hai già corso, la corsa vera prende il suo posto).
-      const isRaceS=s=>s.race||/🏁/.test(s.n||'');
-      const raceS=w0.sess.filter(s=>isRaceS(s)&&!done.some(d=>d.t===s.t));
-      const raceRun=w0.sess.filter(s=>isRaceS(s)&&done.some(d=>d.t===s.t)); // gara nel passato: vale la corsa vera
+      const raceS=w0.sess.filter(s=>isRaceSess(s)&&!done.some(d=>d.t===s.t));
+      const raceRun=w0.sess.filter(s=>isRaceSess(s)&&done.some(d=>d.t===s.t)); // gara nel passato: vale la corsa vera
       const hard=w0.sess.filter(s=>!raceS.includes(s)&&sysOf(s)!=='easy');
       const scoreOf=s=>sLoad(s)-(doneSys.has(sysOf(s))?5:0);
       const ranked=hard.slice().sort((a,b)=>scoreOf(b)-scoreOf(a));
@@ -780,7 +783,7 @@ function fxCtx(key){
 }
 const fxIso=(key,t)=>addDaysISO(key,FX_DAYS.indexOf(t)-6);
 const fxDL=iso=>{const d=dOnly(iso);return `${['dom','lun','mar','mer','gio','ven','sab'][d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`};
-const fxHard=s=>!!s&&(sLoad(s)>=2||!!s.race||isRaceName(s.n));
+const fxHard=s=>!!s&&(sLoad(s)>=2||isRaceSess(s));
 const fxSort=ss=>ss.slice().sort((a,b)=>FX_DAYS.indexOf(a.t)-FX_DAYS.indexOf(b.t));
 const fxEsc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fxCost=s=>{const L=sLoad(s);return L>=3?'alto':L===2?'medio':'basso'};
@@ -908,7 +911,7 @@ function fxMove(){
 function fxMoveTo(i,back){
   const d=FX.days[i],o=fxLists([FX.key,d.key]),src=o[FX.key],s=src[FX.si],fromT=s.t,from=fxIso(FX.key,fromT);
   src.splice(FX.si,1);
-  const there=o[d.key].filter(x=>x.t===d.t&&!x.done&&!/^GARA/.test(x.n));
+  const there=o[d.key].filter(x=>x.t===d.t&&!x.done&&!isGoalRace(x));
   o[d.key]=o[d.key].filter(x=>!there.includes(x));
   there.forEach(x=>{x.t=fromT;src.push(x)});
   o[d.key].push({...s,t:d.t});
