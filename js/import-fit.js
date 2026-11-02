@@ -83,7 +83,7 @@ async function importZip(file,onProg,nameHint){ // nameHint: titolo da usare se 
    Parte solo quando premi il pulsante (nessuna interrogazione pianificata). Gli id Garmin già importati stanno
    in st.garmin.ids (rp_st, sincronizzato): una corsa non si riscarica due volte. Alla prima sincronizzazione
    si guarda solo dal giorno dell'ultima corsa in archivio in avanti, così lo storico già importato non si ripete.
-   Il pulsante si aggiunge da qui, non da index.html (vedi layoutV125 in monitor.js). */
+   Il pulsante (in cima al tab Oggi) si aggiunge da qui, non da index.html (vedi layoutV125 in monitor.js). */
 async function garminSync(btn,out){
   const say=t=>{if(out)out.textContent=t};
   const u=typeof fbAuth!=='undefined'&&fbAuth.currentUser;
@@ -125,12 +125,16 @@ async function garminSync(btn,out){
   }catch(e){say('❌ '+e.message)}
   finally{if(btn)btn.disabled=false}
 }
-(function garminButton(){ // nel tab Dati, sotto "Importa corse"
-  const fit=document.getElementById('dt-fit');const card=fit&&fit.closest('.card');
-  if(!card||document.getElementById('garmin-sync'))return;
-  const box=document.createElement('div');box.style.marginTop='12px';
-  box.innerHTML='<button class="btn" id="garmin-sync" style="margin:0">⟳ Sincronizza da Garmin</button>'
-    +'<p class="muted" id="garmin-out" style="margin-top:6px">Scarica da Garmin Connect le attività nuove (corse e cardio) e le importa come i file .fit. Parte solo quando premi.</p>';
-  card.appendChild(box);
-  document.getElementById('garmin-sync').addEventListener('click',e=>garminSync(e.currentTarget,document.getElementById('garmin-out')));
+(function garminButton(){ // in cima al tab Oggi: dopo una corsa è il primo tab che si apre
+  const dash=document.getElementById('tab-dash');
+  if(!dash||document.getElementById('garmin-sync'))return;
+  const card=document.createElement('div');card.className='card';card.id='garmin-card';card.style.cssText='padding:10px 14px;order:0'; // order: #tab-dash è flex con order sulle card (app.css)
+  card.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+    +'<button class="btn btn2" id="garmin-sync" style="margin:0;width:auto;padding:8px 14px;font-size:14px">⟳ Sincronizza da Garmin</button>'
+    +'<span class="muted" id="garmin-out" style="font-size:12.5px;flex:1 1 160px"></span></div>';
+  dash.insertBefore(card,dash.firstChild);
+  const out=document.getElementById('garmin-out');
+  const at=st&&st.garmin&&st.garmin.at;
+  out.textContent=at?'Ultima sincronizzazione: '+new Date(at).toLocaleString('it-IT',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Scarica da Garmin Connect le attività nuove. Parte solo quando premi.';
+  document.getElementById('garmin-sync').addEventListener('click',e=>garminSync(e.currentTarget,out));
 })();
