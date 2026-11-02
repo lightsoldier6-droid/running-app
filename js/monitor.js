@@ -119,6 +119,7 @@ function rPlan(plan){
 /* ---------- progressione vs piano ---------- */
 function rTrack(){
   const el=document.getElementById('p-track');
+  if(!el||(el.closest('.card')||{}).style?.display==='none')return; // v125: sostituita da "Settimana per settimana" dell'Aderenza
   const pl=applyWkEdits(LS('rp_plan'));
   if(!pl){el.innerHTML='<p class="muted">Genera un piano: da qui traccio settimana per settimana come lo stai seguendo.</p>';return}
   const todayS=isoLoc(new Date());
@@ -353,6 +354,22 @@ function sessCls(s){return s&&s.done&&s.rcls?s.rcls:planCls(s&&s.n)}
     const p=rc.nextElementSibling;
     if(p&&p.tagName==='P')p.innerHTML='Più invasivo: tengo gara e data del piano, prendo VDOT e volume reali dai .fit e rigenero le settimane da oggi alla gara. Le passate restano, e anche lo storico del Monitor. Scarico anche il nuovo .ics.';
   }
+})();
+/* ---------- v125: Settimane = piano + decisioni, Aderenza = solo statistiche ----------
+   Il calendario si gestisce nel piano, quindi la card "Quando ricalibrare il piano" (verdetto + "Ricalibra i passi"
+   + "Rigenera dal reale") si sposta nel pannello Settimane, subito sotto il piano. "Progressione vs piano" sparisce:
+   era un doppione di "Settimana per settimana" dell'Aderenza, e meno preciso (confrontava con le settimane
+   originali del piano, senza gare al volo né riscritture sul reale). Gli elementi si spostano qui e non in
+   index.html, così un aggiornamento non può mescolare un index nuovo con script vecchi: quando tutti i
+   dispositivi avranno il service worker della v125 si potrà riordinare direttamente index.html. */
+(function layoutV125(){
+  const adv=document.getElementById('mon-advice');
+  const recal=adv&&adv.closest('.card');
+  const pout=document.getElementById('p-out');
+  if(recal&&pout&&pout.parentElement){recal.id='recal-card';pout.parentElement.insertBefore(recal,pout.nextSibling)}
+  const tr=document.getElementById('p-track');
+  const trCard=tr&&tr.closest('.card');
+  if(trCard)trCard.style.display='none';
 })();
 document.getElementById('mon-addrun').addEventListener('click',()=>{
   if(!monitor)monFreeze();
@@ -658,6 +675,7 @@ function rMonitor(){
   // corse selezionate manualmente: se presenti, monitoro solo quelle; altrimenti aggancio tutto l'archivio
   const monRuns=(monitor&&monitor.runs)||[];
   const manual=monRuns.length>0;
+  {const c=document.getElementById('mon-info');const card=c&&c.closest('.card');if(card)card.style.display=manual?'':'none'}
   const pool=manual?runs.filter(r=>monRuns.includes(r.date)):runs;
   // menù a tendina: corse già in archivio non ancora selezionate
   const sel=document.getElementById('mon-runsel');
