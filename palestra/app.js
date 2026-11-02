@@ -563,7 +563,7 @@ function finish({ rpe, note, name, update, saveNew }) {
   if (saveNew) { const nr = routineFrom(a.name, '', itemsFrom(a.exercises)); state.routines.push(nr); a.routineId = nr.id; }
   state.history.push(a);
   state.active = null;
-  state.timer = null;
+  stopTimer();
   save();
   navigate('home');
   summaryModal(a);
@@ -596,6 +596,16 @@ function confirmAction(title, text, fn) {
   confirmation = fn;
   openModal(title, `<p class="muted">${text}</p><div class="grow"><button class="btn btn2" data-action="close">Indietro</button><button class="btn" data-action="confirm">Conferma</button></div>`);
 }
+function pushSetting() {
+  if (!restPush) return '';
+  const st = restPush.status();
+  const note = {
+    install: 'Su iPhone arriva solo se apri RunPlan dall’icona nella schermata Home (Condividi › Aggiungi alla schermata Home).',
+    denied: 'Notifiche bloccate: riattivale in Impostazioni › Notifiche › RunPlan.',
+    unsupported: 'Questo browser non riceve notifiche push.',
+  }[st] || 'Arriva anche a telefono bloccato o con l’app in secondo piano. Serve l’accesso a RunPlan.';
+  return `<label class="gtoggle"><input type="checkbox" id="push-setting" ${st === 'on' ? 'checked' : ''} ${['on', 'off'].includes(st) ? '' : 'disabled'}> Notifica a fine recupero</label><p class="muted">${note}</p>`;
+}
 function settingsModal() {
   const p = pos();
   openModal('Impostazioni', `<label>Obiettivo: allenamenti a settimana</label><select id="goal-setting">${[1, 2, 3, 4, 5].map(n => `<option ${n === (state.settings.goal || 2) ? 'selected' : ''}>${n}</option>`).join('')}</select>
@@ -603,6 +613,7 @@ function settingsModal() {
     ${state.settings.deload !== false ? `<label>Questa settimana è la</label><select id="cycle-week">${[1, 2, 3, 4].map(w => `<option value="${w}" ${w === p.week ? 'selected' : ''}>${w}ª${w === 4 ? ' (scarico)' : ''}</option>`).join('')}</select>` : ''}
     <p class="muted">In taper e in settimana gara della corsa lo scarico scatta comunque.</p>
     <label class="gtoggle"><input type="checkbox" id="sound-setting" ${state.settings.sound ? 'checked' : ''}> Suono a fine recupero</label>
+    ${pushSetting()}
     <h2 class="mh2">Backup</h2><p class="muted">Con l’accesso a RunPlan schede, esercizi e allenamenti si sincronizzano nel cloud su tutti i dispositivi. Il backup resta utile come copia di sicurezza; importarlo sostituisce i dati anche sugli altri dispositivi.</p>
     <div class="grow"><button class="btn btn2" data-action="export">Esporta backup</button><label class="btn btn2 gfile">Importa backup<input id="import-file" type="file" accept="application/json,.json" hidden></label></div>
     <p class="muted">${gymHistory().length} allenamenti · ${state.routines.length} schede${storageOK ? '' : ' · archivio locale non disponibile: esporta subito'}.</p>`);
@@ -632,17 +643,27 @@ function validateBackup(raw) {
 let audioCtx;
 function unlockAudio() { try { audioCtx ??= new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch {} }
 async function wake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible' && state.active) await navigator.wakeLock.request('screen'); } catch {} }
-function startTimer(sec) { state.timer = { end: Date.now() + sec * 1000, total: sec }; save(); tick(); }
+const restPush = bridge?.restPush || null;
+function startTimer(sec, body) { state.timer = { end: Date.now() + sec * 1000, total: sec, body: body || '' }; save(); restPush?.schedule(state.timer.end, state.timer.body); tick(); }
+function stopTimer() { if (state.timer) restPush?.cancel(); state.timer = null; }
+// prossima serie da fare, per il testo della notifica
+function nextUp() {
+  const e = state.active?.exercises.find(x => x.sets.some(y => !y.done));
+  return e ? `Prossima serie: ${e.variant.name}.` : 'Serie finite: chiudi l’allenamento.';
+}
 function tick() {
   if ($('#elapsed') && state.active) $('#elapsed').textContent = duration((Date.now() - state.active.startedAt) / 1000);
   const t = state.timer;
   if (!t) { $('#timer').innerHTML = ''; return; }
   const left = Math.ceil((t.end - Date.now()) / 1000);
   if (left <= 0) {
+    const late = Date.now() - t.end > 3000; // pagina sospesa (telefono bloccato): ha già avvisato la notifica
     state.timer = null;
     save();
+    restPush?.done();
     $('#timer').innerHTML = '';
     toast('Recupero finito: prossima serie.');
+    if (late) return;
     if (state.settings.sound && audioCtx) {
       try { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); g.gain.value = 0.12; o.frequency.value = 660; o.start(); o.stop(audioCtx.currentTime + 0.35); } catch {}
     }
@@ -740,8 +761,11 @@ document.addEventListener('click', ev => {
     setTimeout(() => URL.revokeObjectURL(url), 3000);
     return;
   }
-  if (act === 'timer-plus' || act === 'timer-minus') { if (state.timer) { state.timer.end += act === 'timer-plus' ? 15000 : -15000; save(); tick(); } return; }
-  if (act === 'timer-skip') { state.timer = null; save(); return tick(); }
+  if (act === 'timer-plus' || act === 'timer-minus') {
+    if (state.timer) { state.timer.end += act === 'timer-plus' ? 15000 : -15000; save(); if (state.timer.end > Date.now()) restPush?.schedule(state.timer.end, state.timer.body); tick(); }
+    return;
+  }
+  if (act === 'timer-skip') { stopTimer(); save(); return tick(); }
   // allenamento in corso
   if (!state.active) return;
   if (act === 'finish') {
@@ -756,7 +780,7 @@ document.addEventListener('click', ev => {
       ${!r ? `<label class="gtoggle"><input type="checkbox" name="saveNew"> Salvalo anche come nuova scheda</label>` : ''}
       <button class="btn">Salva allenamento</button></form><p class="muted">Con RPE 9–10 la prossima volta non aumento i carichi.</p>`);
   }
-  if (act === 'discard') return confirmAction('Annullare l’allenamento?', 'Le serie di oggi non verranno salvate.', () => { state.active = null; state.timer = null; save(); navigate('home'); });
+  if (act === 'discard') return confirmAction('Annullare l’allenamento?', 'Le serie di oggi non verranno salvate.', () => { state.active = null; stopTimer(); save(); navigate('home'); });
   if (act === 'manual-timer') return openModal('Timer', `<form id="timer-form"><label>Secondi</label><input name="seconds" type="number" min="5" max="3600" value="90" required><button class="btn">Avvia</button></form>`);
   if (act === 'swap') return openPicker('replace-session', i);
   const e = state.active.exercises[i];
@@ -774,7 +798,7 @@ document.addEventListener('click', ev => {
       // la serie dopo parte da quanto hai appena fatto, se non l'hai già modificata
       const nx = e.sets[j + 1];
       if (nx && !nx.done && on && x.kind !== 'warmup' && (nx.kg === '' || nx.kg === e.presc?.kg)) nx.kg = x.kg;
-      if (e.rest > 0 && x.kind !== 'warmup') startTimer(e.rest);
+      if (e.rest > 0 && x.kind !== 'warmup') startTimer(e.rest, nextUp());
     } else x.done = false;
     save();
     return render();
@@ -850,6 +874,14 @@ document.addEventListener('change', async ev => {
   if (t.id === 'goal-setting') { state.settings.goal = +t.value; save(); return render(); }
   if (t.id === 'deload-setting') { state.settings.deload = t.checked; save(); render(); return settingsModal(); }
   if (t.id === 'cycle-week') { state.program.start = E.addDays(E.monday(today()), -(+t.value - 1) * 7); save(); render(); return toast(`Ciclo aggiornato: settimana ${t.value}.`); }
+  if (t.id === 'push-setting') {
+    if (!t.checked) { restPush.disable(); return toast('Notifica di fine recupero spenta.'); }
+    return restPush.enable().then(st => {
+      if (st === 'on' && state.timer && state.timer.end > Date.now()) restPush.schedule(state.timer.end, state.timer.body);
+      toast(st === 'on' ? 'Notifica attiva: la ricevi anche a telefono bloccato.' : st === 'denied' ? 'Permesso negato: riattivalo in Impostazioni › Notifiche.' : 'Notifica non attivata.');
+      settingsModal();
+    });
+  }
   if (t.id === 'sound-setting') { state.settings.sound = t.checked; if (t.checked) unlockAudio(); return save(); }
   if (t.id === 'import-file' && t.files[0]) {
     try {
@@ -868,7 +900,7 @@ document.addEventListener('submit', ev => {
   if (!f.reportValidity()) return;
   const d = Object.fromEntries(new FormData(f));
   if (f.id === 'finish-form') return finish({ rpe: Math.round(+d.rpe), note: d.note || '', name: (d.name || '').trim(), update: !!d.update, saveNew: !!d.saveNew });
-  if (f.id === 'timer-form') { unlockAudio(); startTimer(+d.seconds); return close(); }
+  if (f.id === 'timer-form') { unlockAudio(); startTimer(+d.seconds, 'Timer finito.'); return close(); }
   if (f.id === 'rest-form') { state.active.exercises[+f.dataset.index].rest = +d.seconds; save(); close(); return render(); }
   if (f.id === 'custom-form') {
     const old = f.dataset.v;

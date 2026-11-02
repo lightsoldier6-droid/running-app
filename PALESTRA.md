@@ -91,6 +91,27 @@ Calcolata da `prescribe` in `palestra/engine.js`, sulla base dell'ultima volta c
 - **calendario** mensile con gli allenamenti e le settimane di fila con almeno una seduta;
 - **storico**: tocca un allenamento per i dettagli, per ripeterlo, salvarlo come scheda o eliminarlo.
 
+## Notifica a fine recupero
+
+A telefono bloccato iOS sospende la pagina: il timer si ferma e il beep non suona. Per questo c'è una **notifica push** (Impostazioni della Palestra › *Notifica a fine recupero*), da attivare su ogni dispositivo. Su iPhone funziona solo aprendo RunPlan dall'icona nella schermata Home (iOS 16.4+) e con l'accesso a RunPlan.
+
+Come funziona:
+
+- quando parte un recupero (o lo cambi con ±15), `RunPlanGym.restPush` (`gym-bridge.js`) chiama la Cloud Function `restSchedule`, che mette in coda in Cloud Tasks un invio all'ora di fine. *Salta*, *Annulla* e la fine dell'allenamento lo tolgono (`restCancel`);
+- all'ora giusta `restFire` manda la notifica Web Push (chiavi VAPID) con la prossima serie; `sw.js` la mostra. Se l'app è aperta in primo piano la notifica si chiude subito, perché lì suona già il timer;
+- nessun dato salvato: l'indirizzo push del dispositivo viaggia dentro il task. Attivazione per dispositivo in `localStorage['rp_restpush']`.
+
+Codice in `functions/` (regione `europe-west1`). La chiave VAPID privata sta in `functions/.env`, **solo in locale** (esclusa da Git); la pubblica è anche in `gym-bridge.js`. Pubblicazione, dalla cartella del progetto, con il piano Blaze attivo:
+
+```
+cd functions && npm install && cd ..
+npx firebase-tools login
+npx firebase-tools deploy --only functions
+npx firebase-tools functions:artifacts:setpolicy --location europe-west1 --days 1 --force
+```
+
+Costi: tutto dentro le quote gratuite mensili (Cloud Functions 2 M chiamate, Cloud Tasks 1 M operazioni, Cloud Build 2.500 minuti, Artifact Registry 0,5 GB con la pulizia a 1 giorno). `maxInstances: 2` limita la spesa anche in caso di errori.
+
 ## Collegamento con la corsa
 
 `gym-bridge.js` legge la settimana del piano di RunPlan (`RunPlanGym.runWeek`):

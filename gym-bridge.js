@@ -48,6 +48,79 @@
     return null;
   }
 
+  /* Notifica push di fine recupero (functions/index.js): a telefono bloccato la pagina è sospesa e il timer
+     non suona, quindi a ogni recupero si chiede al server una notifica all'ora di fine.
+     Attivazione per dispositivo (rp_restpush in localStorage, non sincronizzato): l'iscrizione push è del
+     dispositivo. Su iPhone funziona solo dall'app aggiunta alla schermata Home (iOS 16.4+). */
+  function restPush() {
+    const FN = 'https://europe-west1-runplan-359bd.cloudfunctions.net/';
+    const VAPID = 'BGMhX5AwX2IVsEY8WEpmeYGG4v7XkNeelUIqkKatVEBri8g-H861HmHfMVM-88hGfWN8zrFuRUlqMOZh-hdla3I';
+    const ON = 'rp_restpush', TASK = 'rp_resttask';
+    const get = k => { try { return localStorage.getItem(k); } catch { return null; } };
+    const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} };
+    const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    const ios = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const installed = () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+    const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+    const key = () => { const s = atob(VAPID.replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(s, c => c.charCodeAt(0)); };
+    async function subscription(create) {
+      const reg = await navigator.serviceWorker.ready;
+      let s = await reg.pushManager.getSubscription();
+      if (!s && create) s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key() });
+      return s;
+    }
+    async function call(name, data) {
+      const u = typeof fbAuth !== 'undefined' && fbAuth.currentUser;
+      if (!u) throw Error('accesso a RunPlan assente');
+      const r = await fetch(FN + name, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (await u.getIdToken()) }, body: JSON.stringify({ data }) });
+      if (!r.ok) throw Error(name + ' ' + r.status + ' ' + (await r.text()).slice(0, 200));
+      return (await r.json()).result;
+    }
+    // le chiamate vanno in fila: un annullamento non deve superare la programmazione che lo precede
+    let chain = Promise.resolve();
+    const queue = fn => (chain = chain.then(fn).catch(e => console.warn('Notifica recupero', e)));
+    const api = {
+      // 'on' | 'off' | 'denied' | 'install' (iPhone fuori dall'app Home) | 'unsupported'
+      status() {
+        if (!supported()) return ios() && !installed() ? 'install' : 'unsupported';
+        if (Notification.permission === 'denied') return 'denied';
+        return get(ON) === '1' && Notification.permission === 'granted' ? 'on' : 'off';
+      },
+      // va chiamata dentro il tocco dell'utente: il permesso si chiede subito, prima di ogni await
+      enable() {
+        if (!supported()) return Promise.resolve(api.status());
+        const perm = Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission();
+        return perm.then(async p => {
+          if (p !== 'granted') return api.status();
+          await subscription(true);
+          set(ON, '1');
+          return 'on';
+        }).catch(e => { console.warn('Notifica recupero', e); set(ON, null); return 'error'; });
+      },
+      disable() { api.cancel(); set(ON, null); },
+      // ora di fine recupero (ms); sostituisce il recupero già programmato
+      schedule(at, body) {
+        if (api.status() !== 'on') return;
+        const id = newId(), prev = get(TASK);
+        set(TASK, id);
+        queue(async () => {
+          const sub = await subscription(false);
+          if (!sub) { set(ON, null); return; } // iscrizione tolta dal sistema: va riattivata
+          await call('restSchedule', { id, prev, at: Math.round(at), sub: sub.toJSON(), title: 'Recupero finito', body: body || 'Prossima serie.' });
+        });
+      },
+      cancel() {
+        const id = get(TASK);
+        if (!id) return;
+        set(TASK, null);
+        queue(() => call('restCancel', { id }));
+      },
+      // recupero arrivato alla fine: il task è già partito, niente da annullare
+      done() { set(TASK, null); },
+    };
+    return api;
+  }
+
   let lastSignature = JSON.stringify(window.runPlanGymActivities());
   window.RunPlanGym = {
     runWeek(dateISO) {
@@ -61,6 +134,7 @@
       try { if (typeof refresh === 'function') refresh(); } catch (e) { console.warn('Riepilogo palestra', e); }
     },
     isDark() { return document.body.classList.contains('dark'); },
+    restPush: restPush(),
   };
   window.addEventListener('storage', e => { if (e.key === KEY) window.RunPlanGym.changed(); });
 })();
