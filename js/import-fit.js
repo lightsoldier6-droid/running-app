@@ -57,7 +57,7 @@ async function gunzipBuf(buf){
   if(typeof DecompressionStream==='undefined')throw new Error('browser senza supporto gzip');
   return await new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
 }
-async function importZip(file,onProg){
+async function importZip(file,onProg,nameHint){ // nameHint: titolo da usare se l'archivio contiene un solo .fit (es. nome Garmin)
   const JSZip=await loadJSZip();
   const ctx={nr:0,nu:0,nx:0,skip:0,nf:0,err:0};const queue=[];
   async function walk(zip,depth){
@@ -69,10 +69,68 @@ async function importZip(file,onProg){
   await walk(await JSZip.loadAsync(file),0);
   for(let i=0;i<queue.length;i++){const e=queue[i];
     try{let b=await e.async('arraybuffer');if(e.name.toLowerCase().endsWith('.gz'))b=await gunzipBuf(b);
-      await ingestFitBuf(b,e.name.split('/').pop().replace(/\.gz$/i,''),ctx);ctx.nf++}catch(err){ctx.err++}
+      await ingestFitBuf(b,(nameHint&&queue.length===1)?nameHint:e.name.split('/').pop().replace(/\.gz$/i,''),ctx);ctx.nf++}catch(err){ctx.err++}
     if(i%8===0){onProg&&onProg(i+1,queue.length);await new Promise(r=>setTimeout(r,0))}}
   runs.sort((a,b)=>a.date<b.date?-1:1);
   LS('rp_lapsdb',lapsDB);LS('rp_runs',runs);saveX();zCache=null;refresh();
   return{...ctx,total:queue.length};
 }
 
+
+/* ---------- Garmin: "Sincronizza ora" ----------
+   Chiede alla funzione garminSync (functions/index.js) le attività nuove dell'API personale di Garmin Connect e
+   le importa come un archivio .zip: stesso parser, stesso controllo dei doppioni dell'import manuale.
+   Parte solo quando premi il pulsante (nessuna interrogazione pianificata). Gli id Garmin già importati stanno
+   in st.garmin.ids (rp_st, sincronizzato): una corsa non si riscarica due volte. Alla prima sincronizzazione
+   si guarda solo dal giorno dell'ultima corsa in archivio in avanti, così lo storico già importato non si ripete.
+   Il pulsante si aggiunge da qui, non da index.html (vedi layoutV125 in monitor.js). */
+async function garminSync(btn,out){
+  const say=t=>{if(out)out.textContent=t};
+  const u=typeof fbAuth!=='undefined'&&fbAuth.currentUser;
+  if(!u)return say('Serve l’accesso a RunPlan (tab Dati, in alto).');
+  if(btn)btn.disabled=true;
+  try{
+    st.garmin=st.garmin||{ids:[]};
+    const after=st.garmin.ids.length?null:(runs.length?runs[runs.length-1].date.slice(0,10):null);
+    let imported={nr:0,nu:0,xt:0,nf:0,err:0},rounds=0,more=true,errors=[];
+    while(more&&rounds<4){ // al massimo 4 giri da 5 attività
+      rounds++;say(rounds===1?'Chiedo a Garmin le attività nuove…':`Ce ne sono altre: giro ${rounds}…`);
+      const r=await fetch('https://europe-west1-runplan-359bd.cloudfunctions.net/garminSync',{method:'POST',
+        headers:{'Content-Type':'application/json',Authorization:'Bearer '+(await u.getIdToken())},
+        body:JSON.stringify({data:{known:st.garmin.ids,after,max:5}})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok)throw Error((j.error&&j.error.message)||('HTTP '+r.status));
+      const res=j.result||{files:[]};
+      errors=errors.concat(res.errors||[]);
+      for(const f of res.files){
+        say(`Importo ${f.name||f.id} (${(f.start||'').slice(0,10)})…`);
+        const bytes=Uint8Array.from(atob(f.zip),c=>c.charCodeAt(0));
+        // titolo: il nome dato su Garmin se dice che allenamento era (criss, soglia, 8x200, gara…), altrimenti
+        // quello automatico dai lap. "Lecce - 10k" o "… Corsa" non dicono niente e farebbero sembrare tutto easy.
+        const hint=f.name&&cls({title:f.name,km:0,sec:0})!=='easy'?f.name:null;
+        const c=await importZip(new Blob([bytes],{type:'application/zip'}),null,hint);
+        imported.nr+=c.nr;imported.nu+=c.nu;imported.xt+=c.xt||0;imported.nf+=c.nf;imported.err+=c.err||0;
+        if(c.nf)st.garmin.ids.push(f.id);
+      }
+      st.garmin.ids=st.garmin.ids.slice(-1000);st.garmin.at=new Date().toISOString();LS('rp_st',st);
+      more=!!res.more&&res.files.length>0;
+    }
+    const parts=[];
+    if(imported.nr)parts.push(`${imported.nr} ${imported.nr===1?'corsa nuova':'corse nuove'}`);
+    if(imported.nu)parts.push(`${imported.nu} già in archivio, completate`);
+    if(imported.xt)parts.push(`${imported.xt} altri sport`);
+    say((parts.length?'✅ Importate: '+parts.join(' · ')+'.':'Nessuna attività nuova su Garmin.')
+      +(more?' Ce ne sono ancora: premi di nuovo.':'')
+      +(errors.length||imported.err?` ⚠️ ${errors.length+imported.err} file non scaricati o non letti.`:''));
+  }catch(e){say('❌ '+e.message)}
+  finally{if(btn)btn.disabled=false}
+}
+(function garminButton(){ // nel tab Dati, sotto "Importa corse"
+  const fit=document.getElementById('dt-fit');const card=fit&&fit.closest('.card');
+  if(!card||document.getElementById('garmin-sync'))return;
+  const box=document.createElement('div');box.style.marginTop='12px';
+  box.innerHTML='<button class="btn" id="garmin-sync" style="margin:0">⟳ Sincronizza da Garmin</button>'
+    +'<p class="muted" id="garmin-out" style="margin-top:6px">Scarica da Garmin Connect le attività nuove (corse e cardio) e le importa come i file .fit. Parte solo quando premi.</p>';
+  card.appendChild(box);
+  document.getElementById('garmin-sync').addEventListener('click',e=>garminSync(e.currentTarget,document.getElementById('garmin-out')));
+})();
