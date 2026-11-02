@@ -24,7 +24,7 @@ La barra in basso ha 6 voci; quelle con due viste hanno un selettore in alto:
 | Voce | Contenuto |
 |---|---|
 | **Oggi** | Card della seduta del giorno (passo, fascia FC, schema della seduta, settimana a pallini), **Carico e rischio infortuni** (con gli altri sport), **Come stai**, **Da tenere d'occhio**, **Cosa ho notato** (note automatiche sulle ultime 5 corse). |
-| **Piano** | **Settimane** (piano con "sei qui", schema di ogni seduta, menù ⋯ per cambiarla, progressione, guida alle sedute, generazione del piano) · **Aderenza** (l'ex Monitor). |
+| **Piano** | **Settimane** (piano con "sei qui", schema di ogni seduta, menù ⋯ per cambiarla, quando e come ricalibrare, guida alle sedute, generazione del piano) · **Aderenza** (l'ex Monitor: solo statistiche su come stai seguendo il piano). |
 | **Gara** | Previsione gara dalla soglia recente, obiettivo: cosa serve (sedute prova, errori da evitare), tempi previsti, passi di allenamento, ora/previsto/migliore/obiettivo, capacità e lacune, VDOT nel tempo (tutto lo storico), record personali, gare riconosciute. |
 | **Forma** | **Fitness** (fitness da FC, indice aerobico, efficienza a FC di riferimento, passo a ogni FC, passo accumulato, migliori tratti) · **Zone** (zone attuali, minuti per zona e di soglia, dove passi il tempo, costo del passo, piramide, qualità del segnale FC). |
 | **Progressi** | Analisi del blocco, periodo e bilancio, miglioramento dei passi, ultima corsa vs precedente, volume, passo e efficienza delle corse facili, dinamiche di corsa. |
@@ -57,7 +57,7 @@ Colori fissi delle zone in tutta l'app: Z1 grigio-azzurro, Z2 blu, Z3/LT1 verde,
 
 ## 2. Tab "Oggi" — cosa fare oggi e lo stato di forma
 
-- **Seduta del giorno**: la seduta di oggi presa dal piano che segui (prima il Monitor/.ics, poi il piano generato), coi ritmi già pronti e — per le sedute di qualità — riscaldamento e defaticamento. Se oggi è riposo mostra la **prossima** seduta ("Domani"/"Tra X giorni") e sotto il riepilogo della settimana con ✓ su quelle già fatte. Se non hai un piano attivo, la card lo spiega.
+- **Seduta del giorno**: la seduta di oggi presa dal piano, coi ritmi già pronti e — per le sedute di qualità — riscaldamento e defaticamento. Se oggi è riposo mostra la **prossima** seduta ("Domani"/"Tra X giorni") e sotto il riepilogo della settimana con ✓ su quelle già fatte. Se non hai un piano attivo, la card lo spiega.
 - **Carico e rischio infortuni**: il rapporto tra i km degli ultimi 7 giorni e la tua media settimanale delle ultime 4 (*acute:chronic workload ratio*). Fascia consigliata **0.8–1.3** (verde); sopra 1.3 arancio, sopra 1.5 rosso = picco di carico e massimo rischio; sotto 0.8 = carico in calo. Mostra anche l'incremento % rispetto alla settimana scorsa (limite prudente +10%). Serve a non salire troppo in fretta.
 - **VDOT stimato**: il tuo livello secondo le tabelle di Jack Daniels, calcolato dal miglior sforzo degli ultimi 90 giorni. La freccia confronta col trimestre precedente. È il numero che guida tutti i ritmi dell'app.
 - **km ultimi 7/28 giorni** con confronto sul periodo precedente.
@@ -141,39 +141,33 @@ Funziona sulle corse importate da **.fit** o da **archivio .zip** (vedi §5): da
 
 **Obiettivo: cosa serve**: VDOT e passi che il tempo obiettivo richiede contro quelli attuali (puoi scrivere un tempo diverso da quello del piano), cosa chiede quella gara (quota di lavoro per tipo), le sedute prova con la finestra di settimane in cui farle e gli errori da evitare.
 
-**Progressione vs piano**: settimana per settimana, km fatti/pianificati, corse completate, qualità e lungo spuntati. Verdetti: ✅ a target (≥85% km + qualità + lungo), 🟡 parziale, 🔴 saltata, ⏳ in corso. In testa: aderenza complessiva.
+**Quando ricalibrare il piano** (sotto il piano): un box dà un verdetto — 🟢 prosegui / 🟠 valuta / 🔴 ricalibra ora — in base a segnali concreti: aderenza km recente sotto 85%/75%, VDOT salito ≥1.5 punti (ritmi ormai troppo morbidi) o sceso ≥1.5 (troppo duri), sedute di qualità saltate, passaggio a una nuova fase, o troppe settimane senza ritocchi. Il VDOT di riferimento è quello dell'ultima ricalibrazione. Sotto, i due bottoni per agire:
 
-**Rigenera dal reale (Monitor)**: aggiorna il piano *dov'è*. Se il piano in memoria è della stessa gara, il calendario non si muove — stesse settimane, stesse fasi, stessi scarichi, stesse gare intermedie — e vengono riscritti solo i contenuti: passi ricalcolati sul VDOT attuale, tipologie di seduta scelte di nuovo dal generatore, lunghi della fase specifica con le strutture aggiornate. Le settimane già concluse restano intatte. Se invece il Monitor segue un'altra gara, il piano viene ricostruito da capo e le settimane si rinumerano da oggi.
+**Rigenera il piano dal reale (.fit)**: aggiorna il piano *dov'è*. Tiene gara, data, distanza e giorni/settimana; il calendario non si muove — stesse settimane, stesse fasi, stessi scarichi, stesse gare intermedie — e vengono riscritti solo i contenuti: passi ricalcolati sul VDOT attuale, tipologie di seduta scelte di nuovo dal generatore, lunghi della fase specifica con le strutture aggiornate. Le settimane già concluse restano intatte e viene scaricato il **nuovo `.ics`**. Se alla gara mancano meno di 6 settimane si blocca.
 
-**Ricalibra il piano dai dati reali** (tab Piano): rigenera le settimane future col VDOT attuale e il volume che stai davvero reggendo. Le settimane passate restano in archivio (attenuate, "passata") per il confronto. Da usare a ogni cambio di fase o quando l'aderenza cala. Il nuovo blocco **eredita il punto della progressione già raggiunto**: se avevi già fatto progressivo e blocchi RM, riparte da fast finish, non dal lungo facile; la rampa dei km e i minuti a ritmo gara ripartono da dove eri, così ricalibrare tardi non ammorbidisce il picco.
+**Ricalibra i passi delle sedute**: rigenera le settimane future col VDOT attuale e il volume che stai davvero reggendo (non riscarica il `.ics`: usa "Esporta .ics"). Le settimane passate restano in archivio (attenuate, "passata") per il confronto. Da usare a ogni cambio di fase o quando l'aderenza cala. Il nuovo blocco **eredita il punto della progressione già raggiunto**: se avevi già fatto progressivo e blocchi RM, riparte da fast finish, non dal lungo facile; la rampa dei km e i minuti a ritmo gara ripartono da dove eri, così ricalibrare tardi non ammorbidisce il picco.
 
 **Esportare**:
 - *Copia piano (markdown)*: per incollarlo dove vuoi.
 - *Esporta per Google Calendar (.ics)*: un evento per seduta col giorno giusto (gara inclusa, anche se di sabato). Nella descrizione: fase, riscaldamento e defaticamento per le sedute di qualità, lavoro coi ritmi, km totali. Su Google Calendar: Impostazioni → Importa. Consiglio: crea prima un calendario dedicato "Corsa", così quando ricalibri cancelli quello e reimporti pulito. Dopo una ricalibrazione il .ics contiene solo le settimane future.
 
-## 4b. Tab "Monitor" — come stai seguendo il piano
+## 4b. Pannello "Aderenza" — come stai seguendo il piano
 
-Confronta il piano con le tue corse, seduta per seduta. Non c'è niente da caricare: il calendario del Monitor ha **una sola fonte per ogni periodo**:
-- **dalla settimana in corso in avanti** è il piano del tab Piano, sempre aggiornato (scarichi, gare al volo, sedute spostate o tolte, ricalibrazioni: tutto arriva subito, senza bottoni di riallineamento);
-- **le settimane concluse** sono lo **storico**: quello che era previsto davvero in quella settimana (gare al volo, settimane riscritte sulle corse svolte), congelato quando la settimana finisce. Il piano da solo non basta, perché alle settimane già passate non riapplica le modifiche fatte a mano.
+Solo statistiche: confronta il piano con le tue corse. Le decisioni (ricalibrare, rigenerare) stanno nel pannello **Settimane**, sotto il piano. Il calendario su cui si misura ha **una sola fonte per ogni periodo**:
+- **dalla settimana in corso in avanti** è il piano, sempre aggiornato (scarichi, gare al volo, sedute spostate o tolte, ricalibrazioni);
+- **le settimane concluse** sono lo **storico**: quello che era previsto davvero in quella settimana (gare al volo, settimane riscritte sulle corse svolte), congelato quando la settimana finisce. Il piano da solo non basta, perché alle settimane già passate non riapplica le modifiche fatte a mano. Lo storico viaggia nel cloud con il resto (`rp_monitor`).
 
-Lo storico viaggia nel cloud con il resto (`rp_monitor`). L'export `.ics` verso Google Calendar resta nel tab Piano.
+Le corse sono agganciate **in automatico**: tutte quelle dell'archivio che cadono nelle settimane del piano. L'abbinamento è **settimanale**: ogni seduta pianificata viene agganciata alla corsa migliore di quella settimana (preferendo tipo e giorno giusti), così se sposti un allenamento di un giorno non risulta saltato.
 
-**Quali corse considera**:
-- di default aggancia **in automatico** tutte le corse dell'archivio che cadono nelle settimane del piano;
-- oppure scegli manualmente dal menù a tendina le corse **già importate** (nessun nuovo caricamento): in quel caso il Monitor considera **solo quelle**. Le corse scelte compaiono come chip, con la ✕ per toglierle.
-
-L'abbinamento è **settimanale**: ogni seduta pianificata viene agganciata alla corsa migliore di quella settimana (preferendo tipo e giorno giusti), così se sposti un allenamento di un giorno non risulta saltato.
-
-**Aderenza al piano** (con barre di stato): % di km pianificati fatti, settimane a target, sedute svolte. Considera anche la **settimana in corso** (parziale), segnalandolo. Le barre diventano verde/arancio/rosso sopra 85% / 60% / sotto.
+**Aderenza al piano** (anelli): % di km pianificati fatti, settimane a target, sedute svolte, sulle settimane **concluse**; la settimana in corso ha una riga a parte.
 
 **Andamento**: grafico a barre dell'aderenza % delle settimane concluse e grafico dello scostamento km cumulato dal piano (sopra zero = più km del previsto, sotto = meno).
 
-**Settimana per settimana** e **Seduta per seduta**: per ogni allenamento — ✅ svolto / 🔁 tipo diverso / 🔴 saltata / ⏳ in programma, km reali vs previsti e, per easy/lungo, passo reale vs range target ("in target / più veloce / più lento"). Per le ripetute il passo medio è indicativo (rimanda ai lap in Analisi). Segnala anche le corse extra fuori piano. Ogni settimana ha la data (giorno + mese) e una barra di volume.
+**Settimana per settimana**: km fatti/pianificati, corse completate, qualità e lungo spuntati. Verdetti: ✅ a target (≥85% km + qualità + lungo), 🟡 parziale, 🔴 saltata, ⏳ in corso.
 
-**Quando ricalibrare**: un box dà un verdetto — 🟢 prosegui / 🟠 valuta / 🔴 ricalibra ora — in base a segnali concreti: aderenza km recente sotto 85%/75%, VDOT salito ≥1.5 punti (ritmi ormai troppo morbidi) o sceso ≥1.5 (troppo duri), sedute di qualità saltate, passaggio a una nuova fase, o troppe settimane senza ritocchi. Il VDOT di riferimento è quello dell'ultima ricalibrazione (o dell'inizio del monitoraggio).
+**Passi: target vs reale** e **Distribuzione dell'intensità**: quanto i passi corsi stanno nei range del piano e come si distribuisce il tempo fra le intensità.
 
-**Rigenera il piano dal reale (.fit)**: un pulsante che ricalibra il piano. Tiene gara, data, distanza e giorni/settimana del piano, e usa VDOT e volume **reali** dai tuoi dati per rigenerare le settimane **da oggi alla gara**. Le settimane passate e lo storico del Monitor restano, il Monitor segue subito il piano nuovo e viene scaricato il **nuovo `.ics`** da importare nel calendario. Se alla gara mancano meno di 6 settimane si blocca (troppo poche per un blocco sensato).
+**Seduta per seduta**: per ogni allenamento — ✅ svolto / 🔁 tipo diverso / 🔴 saltata / ⏳ in programma, km reali vs previsti e, per easy/lungo, passo reale vs range target ("in target / più veloce / più lento"). Per le ripetute il passo medio è indicativo (rimanda ai lap in Analisi). Segnala anche le corse extra fuori piano.
 
 ## 5. Tab "Dati" — importare le corse
 
