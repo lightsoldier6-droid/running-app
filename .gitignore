@@ -2,3 +2,8 @@ node_modules/
 .DS_Store
 # .fit personali usati dai test: contengono la traccia GPS, restano solo in locale
 tests/fixtures/
+# chiavi delle Cloud Functions (VAPID privata): restano solo in locale
+functions/.env
+functions/.env.*
+.firebase/
+firebase-debug.log
