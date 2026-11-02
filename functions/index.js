@@ -77,3 +77,63 @@ exports.restFire = onTaskDispatched({ retryConfig: { maxAttempts: 2, minBackoffS
     throw e;
   }
 });
+
+/* ---------- Garmin: "Sincronizza ora" (API personale di Garmin Connect) ----------
+   La chiama SOLO il pulsante dell'app (niente interrogazioni pianificate: nessuna chiamata inutile).
+   Scambia la chiave personale (segreto GARMIN_PERSONAL_API_KEY in Secret Manager) con un token di 24 ore,
+   elenca le ultime attività e restituisce gli ZIP originali (.FIT) di quelle nuove: l'app li importa col
+   suo parser, come un import manuale. Nessun dato salvato sul server.
+   Riservata al proprietario: account di RunPlan con l'email GARMIN_OWNER_EMAIL (functions/.env, solo in
+   locale). In Firebase Auth un'email appartiene a un solo account, quindi nessun altro può usarla.
+   Solo corse e attività cardio: la forza no, perché la registra già la Palestra di RunPlan (doppioni).
+   Endpoint dal client ufficiale github.com/garmin/connect-personal-api-python. */
+const { defineSecret } = require('firebase-functions/params');
+const GARMIN_KEY = defineSecret('GARMIN_PERSONAL_API_KEY');
+const GARMIN = 'https://personal.connectapi.garmin.com';
+const SYNC_TYPES = /run|cycl|bik|walk|hik|swim/i;
+const typeOf = a => String((a && a.activityType && a.activityType.typeKey) || (a && a.activityType) || '');
+
+exports.garminSync = onCall({ secrets: [GARMIN_KEY], timeoutSeconds: 120, memory: '512MiB', maxInstances: 1 }, async req => {
+  if (!req.auth) throw new HttpsError('unauthenticated', 'Serve l’accesso a RunPlan');
+  const owner = String(process.env.GARMIN_OWNER_EMAIL || '').trim().toLowerCase();
+  const email = String(req.auth.token.email || '').toLowerCase();
+  if (!owner || email !== owner) throw new HttpsError('permission-denied', 'La sincronizzazione Garmin è riservata al proprietario');
+  const d = req.data || {};
+  const known = new Set((Array.isArray(d.known) ? d.known : []).slice(-1000).map(String));
+  const after = typeof d.after === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.after) ? d.after : null;
+  const max = Math.min(5, Math.max(1, Number(d.max) || 5));
+
+  // 1) chiave → token (POST con corpo vuoto, come il client ufficiale)
+  const tr = await fetch(`${GARMIN}/personalapitoken-service/personal-api/personal-api-key/token`, {
+    method: 'POST', body: new Uint8Array(0), headers: { Accept: '*/*', Authorization: `ApiKey ${GARMIN_KEY.value().trim()}` },
+  });
+  if (!tr.ok) {
+    logger.warn('garmin token', tr.status, (await tr.text()).slice(0, 200));
+    throw new HttpsError('failed-precondition', tr.status === 401 || tr.status === 400 || tr.status === 403
+      ? 'Garmin ha rifiutato la chiave: forse è scaduta o è stata revocata. Creane una nuova e aggiorna il segreto.'
+      : `Garmin non risponde (token, HTTP ${tr.status}). Riprova più tardi.`);
+  }
+  const auth = { Authorization: `Bearer ${(await tr.text()).trim()}` };
+
+  // 2) ultime attività
+  const lr = await fetch(`${GARMIN}/activitylist-service/activities/search/activities?start=0&limit=20`, { headers: { ...auth, Accept: 'application/json' } });
+  if (!lr.ok) throw new HttpsError('unavailable', `Garmin non risponde (elenco attività, HTTP ${lr.status}). Riprova più tardi.`);
+  const body = await lr.json();
+  const list = Array.isArray(body) ? body : (body.activityList || body.activities || []);
+  const fresh = list.filter(a => a && a.activityId && SYNC_TYPES.test(typeOf(a)) && !known.has(String(a.activityId))
+    && (!after || String(a.startTimeLocal || '').slice(0, 10) >= after))
+    .sort((a, b) => String(a.startTimeLocal).localeCompare(String(b.startTimeLocal))); // dalla più vecchia
+  const pick = fresh.slice(0, max);
+
+  // 3) file originali (ZIP con il .FIT)
+  const files = [], errors = [];
+  for (const a of pick) {
+    const r = await fetch(`${GARMIN}/download-service/files/activity/${a.activityId}`, { headers: { ...auth, Accept: 'application/x-zip-compressed' } });
+    if (!r.ok) { errors.push(`${a.activityId}: HTTP ${r.status}`); continue; }
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > 8e6) { errors.push(`${a.activityId}: file troppo grande`); continue; }
+    files.push({ id: String(a.activityId), name: String(a.activityName || '').slice(0, 100), start: String(a.startTimeLocal || ''), type: typeOf(a), zip: buf.toString('base64') });
+  }
+  if (errors.length) logger.warn('garmin download', errors);
+  return { files, more: fresh.length > pick.length, seen: list.length, errors };
+});
