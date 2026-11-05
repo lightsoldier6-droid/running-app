@@ -181,27 +181,78 @@ function progressCarry(weeks){
   return {wOff:spec.length,lDone:real.length,qDone:real.filter(s=>QS.test(s.n)).length,
           startTot:real.length?Math.max(...real.map(s=>+s.km||0)):0};
 }
+/* ---------- "↻ Ricalibra i passi delle sedute" = SOLO I PASSI ----------
+   Fino alla v128 questa funzione rigenerava le settimane da oggi alla gara con genPlan() come se il piano
+   partisse oggi: ricalcolava fasi (base/velocità/specifico), tipologie e km sul volume delle ultime 4
+   settimane. Effetto reale il 05/11/2026: specifico maratona da 14 a 11 settimane, velocità slittata di 3.
+   Ora il piano resta IDENTICO — fasi, sedute, strutture, durate, km, gare — e cambiano solo i passi scritti
+   nelle sedute non ancora svolte, ricalcolati sul VDOT attuale (curVdot: le corse accumulate).
+   Come: ogni passo m:ss nel testo di una seduta corrisponde a un'intensità (% del VDOT) al VDOT della sua
+   settimana. Lo si riconverte alla stessa intensità col nuovo VDOT della settimana — così vale per E, M, T,
+   I, R, ritmo gara, progressivi, steady, sopra/sotto, previsioni gara, senza dover sapere da quale formula
+   del generatore viene ciascun numero. La progressione verso il VDOT target resta quella del piano: il target
+   si sposta della stessa differenza (se c'è un tempo obiettivo scritto, il target resta quello). */
+function repacePlan(old,vdNew,todayS){
+  const ph=old.ph||{},core=Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.ispecW||0)+(ph.specW||0));
+  const vd0=+old.vd,vt0=+(old.vdTarget||old.vd);
+  const vd1=+(+vdNew).toFixed(1);
+  if(Math.abs(vd1-vd0)<0.05)return {plan:old,nSess:0,vd0,vd1:vd0};   // forma invariata: niente da riscrivere
+  // con un tempo obiettivo scritto il target è quello (calcolato preciso, non dal valore arrotondato salvato)
+  const ts=old.targetSet&&old.target?parseHMS(old.target):null;
+  const vt1=ts?vdotOf(+old.goal,ts):vt0+(vd1-vd0);
+  const vdAt=(a,b,w)=>a+(b-a)*Math.min(1,w/core);
+  const isM=+old.goal>=42;
+  // passo (s/km) all'intensità equivalente: stesso VO2 relativo, nuovo VDOT
+  const conv=(s,from,to)=>{const v=60000/s;return vAt(vo2(v)/from,to)};
+  const PACE=/(?<![\d:.])(\d{1,2}):([0-5]\d)(?![\d:])/g;
+  const reText=(txt,from,to,fromT,toT)=>{
+    if(Math.abs(from-to)<1e-9&&Math.abs(fromT-toT)<1e-9)return txt;
+    const cut=txt.indexOf(' · obiettivo:');                      // il tempo obiettivo scritto a mano non si tocca
+    const head=cut<0?txt:txt.slice(0,cut),tail=cut<0?'':txt.slice(cut);
+    // nelle mezze/10k il ritmo "(gara)" della fase specifica viene dal VDOT target, non da quello della settimana
+    return head.replace(PACE,(m,mm,ss,off)=>{
+      const s=+mm*60+ +ss;if(s<150||s>600)return m;               // non è un passo (es. minuti, orari)
+      const gara=/\(gara\)/.test(head.slice(off).split(/[+,@\/]/)[0]);
+      return fmtP(gara?conv(s,fromT,toT):conv(s,from,to));
+    })+tail;
+  };
+  const day0=w=>wkSunDate(old,w);
+  let nSess=0;
+  const weeks=old.weeks.map(w=>{
+    if(w.hist||wkSunISO(old,w)<todayS)return w;                    // settimane concluse: storia, non si toccano
+    const wf=w.w,a=vdAt(vd0,vt0,wf),b=vdAt(vd1,vt1,wf);
+    const spec=(w.phase==='spec'||w.phase==='taper')&&!isM;
+    const sess=(w.sess||[]).map(s=>{
+      if(!s||!s.d||/^svolta/.test(s.d)||s.done)return s;           // corse già fatte: sono dati, non prescrizioni
+      const di=FX_DAYS.indexOf(s.t);
+      if(di>=0&&isoLoc(addD(day0(w),di-6))<todayS)return s;       // giorno già passato della settimana in corso
+      const d=reText(String(s.d),a,b,spec?vt0:a,spec?vt1:b);
+      if(d!==s.d)nSess++;
+      return d===s.d?s:{...s,d};
+    });
+    return {...w,sess};
+  });
+  const p=paces(vd1);
+  const tFast=predict(+old.goal,vt1),tSlow=predict(+old.goal,Math.max(vt1-0.8,vd1-1.2));
+  const GP=`${fmtP(tFast/+old.goal)}–${fmtP(tSlow/+old.goal)}`,GT=`${fmtD(tFast)}–${fmtD(tSlow)}`;
+  // gara obiettivo: passo e tempo come li scrive il generatore (stesso VDOT target del box obiettivo)
+  const last=weeks[weeks.length-1];
+  if(last&&!last.hist)last.sess=(last.sess||[]).map(s=>s&&s.n==='GARA 🏁'&&/— obiettivo /.test(s.d||'')
+    ?{...s,d:`${+old.goal>=21?(+old.goal).toFixed(1):old.goal} km @ ${GP}/km — obiettivo ${GT}`}:s);
+  return {plan:{...old,weeks,vd:vd1,vdTarget:+vt1.toFixed(1),
+    E:`${fmtP(p.E[1])}–${fmtP(p.E[0])}`,I:rngP(p.I),T:rngP(p.T),GP,GT},nSess,vd0,vd1};
+}
 function updatePlan(){
-  const old=LS('rp_plan');if(!old)return alert('Genera prima un piano');
+  const old=LS('rp_plan');if(!old||!old.weeks)return alert('Genera prima un piano');
   const vd=curVdot();
-  document.getElementById('p-goal').value=old.goal;
-  document.getElementById('p-date').value=old.dateStr;
-  document.getElementById('p-days').value=old.days;
-  restorePlanOptions(old);   // gare intermedie + "+1 easy": senza questo la rigenerazione le perde
-  document.getElementById('p-mode').value=old.modeVal||({Conservativo:'cons',Moderato:'mod',Ambizioso:'amb','Molto ambizioso':'amb'})[old.mode]||'mod';
-  document.getElementById('p-target').value=old.target||'';
-  document.getElementById('p-vdot').value=vd?vd.toFixed(1):old.vd;
-  const wk=weeklyKm().slice(-4).map(([,v])=>v);
-  document.getElementById('p-base').value=Math.max(15,Math.round(wk.reduce((a,b)=>a+b,0)/Math.max(1,wk.length)));
-  // conserva le settimane già concluse del vecchio piano
-  const todayS=isoLoc(new Date());
-  const hist=old.weeks.filter(w=>wkSunISO(old,w)<todayS).map(h=>({...h,hist:1}));
-  const np=genPlan(true,progressCarry(hist));if(!np)return;
-  np.weeks=[...hist,...np.weeks];
-  np.weeks.forEach((w,i)=>w.w=i+1);
-  LS('rp_plan',np);monFreeze();rPlan(np);rTrack();rToday();
+  if(!vd)return alert('Non riesco a stimare il VDOT dalle tue corse: importane qualcuna dal tab Corse.');
+  const r=repacePlan(old,vd,isoLoc(new Date()));
+  LS('rp_plan',r.plan);monFreeze();rPlan(r.plan);rTrack();rToday();
   logRecal('repace');rMonitor();   // il box "Quando ricalibrare" riparte a contare da oggi
-  alert(`Piano ricalibrato: VDOT ${np.vd}, volume di partenza ${document.getElementById('p-base').value} km (dai tuoi dati reali).${old.target?` Obiettivo mantenuto: ${old.target} (${np.mode}).`:` Modalità: ${np.mode}.`} ${np.weeks.length-hist.length} settimane rimanenti aggiornate, ${hist.length} passate conservate. Riesporta il .ics: contiene solo le settimane future.`);
+  const dv=r.vd1-r.vd0;
+  alert(Math.abs(dv)<0.05
+    ? `VDOT invariato (${r.vd1}): i passi delle sedute restano quelli. Fasi, sedute e km non sono stati toccati.`
+    : `Passi ricalibrati: VDOT ${r.vd0} → ${r.vd1} (${dv>0?'+':''}${dv.toFixed(1)}). Aggiornate ${r.nSess} sedute ancora da fare. Fasi, tipologie, durate, km e gare non sono cambiati; le settimane concluse e i giorni già passati restano com'erano.`);
 }
 function exportICS(silent){
   // Il piano va letto CON gli override manuali applicati: leggendo `rp_plan` grezzo il calendario
@@ -460,7 +511,7 @@ function planToSessions(pl,withHist){
   });
   return out;
 }
-// ricalibrazione leggera: stessa gara e stesso calendario, cambiano solo i contenuti delle sedute
+// ricalibrazione leggera: piano identico, cambiano solo i passi delle sedute ancora da fare
 document.getElementById('mon-repace').addEventListener('click',updatePlan);
 document.getElementById('mon-recal').addEventListener('click',monRecalibrate);
 function monRecalibrate(){
