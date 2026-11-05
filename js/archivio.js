@@ -6,7 +6,7 @@ function zoneBest(i){ // migliore passo in zona: finestre di 40 gg ogni 14 gg ne
   return REFBEST[k]=b}
 function rRefs(){
   const el=document.getElementById('f-refs');if(!el)return;
-  const vd=curVdot(),pc=vd?paces(vd):null,g=goalTarget(),gp=g?paces(vdotOf(g.km,g.sec)):null;
+  const vd=curVdot(),pc=vd?paces(vd):null,g=raceTarget(),gp=g?paces(vdotOf(g.km,g.sec)):null;
   const R=[[1,'Steady',p=>(p.E[0]+p.E[1])/2,"60' facili con la FC sempre in Steady"],
            [2,'LT1',p=>p.M,"40–60' continui con la FC in LT1"],
            [3,'LT2',p=>p.T,"2×15' (rec 3') con la FC limitata alla fascia LT2"],
@@ -20,7 +20,7 @@ function rRefs(){
       <td class="r">${o.best?fmtP(o.best.p):'–'}<br>${o.best?`<small class="muted">${labDay(addDaysISO(o.best.e,-39))}–${labDay(o.best.e)}</small>`:''}</td>
       <td class="r">${o.goal?fmtP(o.goal):'–'}<br>${d(o.now,o.goal)}</td></tr>`).join('')}</table>
     ${rows.filter(o=>!o.now).length?`<h3 class="fh">Per misurare quelli che mancano</h3><ul class="muted" style="padding-left:18px;font-size:12.5px;line-height:1.5">${rows.filter(o=>!o.now).map(o=>`<li><b>${o.n}</b>: ${o.test}.</li>`).join('')}</ul>`:''}
-    <p class="muted" style="margin-top:6px"><b>Ora</b> = passo tenuto con la FC dentro la zona negli ultimi 40 giorni (almeno 10'). <b>Previsto</b> = quello che il VDOT da gara (${vd?vd.toFixed(1):'–'}) fa attendere. <b>Migliore 2 anni</b> = la finestra di 40 giorni più veloce. <b>Obiettivo</b> = il passo che serve per ${g?fmtD(g.sec)+' in '+(g.km>=42?'maratona':g.km>=21?'mezza':g.km+' km'):'l\'obiettivo del piano'}. Δ: verde se sei già lì.</p>`;
+    <p class="muted" style="margin-top:6px"><b>Ora</b> = passo tenuto con la FC dentro la zona negli ultimi 40 giorni (almeno 10'). <b>Previsto</b> = quello che il VDOT da gara (${vd?vd.toFixed(1):'–'}) fa attendere. <b>Migliore 2 anni</b> = la finestra di 40 giorni più veloce. <b>Obiettivo</b> = il passo che serve per ${g?fmtD(g.sec)+' in '+(g.name?escH(g.name):kmName(g.km)):'la gara scelta'}. Δ: verde se sei già lì.</p>`;
 }
 
 /* ---------- 2. efficienza aerobica a una FC di riferimento ---------- */

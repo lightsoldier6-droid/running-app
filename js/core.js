@@ -20,7 +20,7 @@ const LS=(k,v)=>{
   if(k==='rp_plan'&&v&&typeof v==='object')v.savedAt=new Date().toISOString();
   localStorage.setItem(k,JSON.stringify(v));
   if(k==='rp_plan'||k==='rp_wkedit'||k==='rp_wkskip'||k==='rp_flex'||k==='rp_monitor')calCache=null;
-  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit'||k==='rp_wkskip'||k==='rp_flex'||k==='rp_wx'||k==='rp_xt') pushCloud();
+  if(k==='rp_runs'||k==='rp_lapsdb'||k==='rp_edits'||k==='rp_st'||k==='rp_monitor'||k==='rp_plan'||k==='rp_ics'||k==='rp_wkedit'||k==='rp_wkskip'||k==='rp_flex'||k==='rp_wx'||k==='rp_xt'||k==='rp_races') pushCloud();
   return v;
 };
 let edits=LS('rp_edits')||{}; // rinomine ed eliminazioni manuali, sopravvivono ai rebuild

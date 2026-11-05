@@ -14,9 +14,9 @@ function lt2Evidence(end,days){
 function vdotFromT(tSec){let lo=20,hi=90;for(let i=0;i<50;i++){const v=(lo+hi)/2;paces(v).T>tSec?lo=v:hi=v}return(lo+hi)/2}
 function rOutlook(){
   const el=document.getElementById('p-outlook');if(!el)return;
-  const g=goalTarget();
-  if(!g){el.innerHTML='<p class="muted">Genera o apri un piano per avere la previsione sulla gara obiettivo.</p>';return}
-  const gName=g.km>=42?'maratona':g.km>=21?'mezza':g.km+' km',todayS=todayISO(),raceDone=g.date<todayS;
+  const g=raceTarget();
+  if(!g){el.innerHTML='<p class="muted">Scegli una gara in cima (o genera un piano) per avere la previsione.</p>';return}
+  const gName=kmName(g.km).toLowerCase(),todayS=todayISO(),raceDone=g.date<todayS;
   const asOf=raceDone?addDaysISO(g.date,-1):todayS;
   const ev=lt2Evidence(asOf),cv=curVdot();
   const proj=ev.ok?(()=>{const v=vdotFromT(ev.pace);return{v,t:predict(g.km,v),lo:predict(g.km,vdotFromT(ev.pace-3)),hi:predict(g.km,vdotFromT(ev.pace+3))}})():null;
@@ -45,17 +45,17 @@ function rOutlook(){
 }
 function rGoal(){
   const el=document.getElementById('p-goalgap');if(!el)return;
-  const g=goalTarget();
-  if(!g){el.innerHTML='<p class="muted">Genera o apri un piano per vedere cosa chiede la gara.</p>';return}
+  const g=raceTarget();
+  if(!g){el.innerHTML='<p class="muted">Scegli una gara in cima (o genera un piano) per vedere cosa chiede.</p>';return}
   const gv=vdotOf(g.km,g.sec),cv=curVdot()||0,gp=paces(gv),cp=paces(cv||gv);
   const dm=demand(g.km,g.sec);
-  const race=dOnly(g.date);const wkOut=k=>{const d=new Date(race);d.setDate(d.getDate()-7*k);return d};
+  const race=dOnly(g.date||addDaysISO(todayISO(),70));const wkOut=k=>{const d=new Date(race);d.setDate(d.getDate()-7*k);return d};
   const fmtDay=d=>d.getDate()+' '+MESI[d.getMonth()];
   const today=new Date();
   const eq=[[5,'5 km'],[10,'10 km'],[21.0975,'Mezza'],[42.195,'Maratona']];
   el.innerHTML=`<div class="ggrid"><div>
-    <p style="margin-bottom:6px">Obiettivo <b class="pace">${fmtD(g.sec)}</b> · ${g.km>=42?'maratona':g.km>=21?'mezza':g.km+' km'} del ${g.date} <span class="muted">(${st.goalT?'scelto da te':'dal piano'})</span></p>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="text" id="g-t" placeholder="es. 2:59:59" value="${st.goalT?fmtD(st.goalT):''}" style="flex:1"><button class="btn btn2" style="width:auto;margin:0;padding:9px 12px" onclick="const v=parseHMS(document.getElementById('g-t').value);if(v)st.goalT=v;else delete st.goalT;LS('rp_st',st);rGoal()">Confronta</button></div>
+    <p style="margin-bottom:6px">Obiettivo <b class="pace">${fmtD(g.sec)}</b> · ${escH(g.name||kmName(g.km))} del ${g.date?labDay(g.date):'–'} <span class="muted">(${escH(g.src||'dal piano')})</span></p>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><input type="text" id="g-t" placeholder="es. 1:34:59" value="${g.src==='scelto da te'?fmtD(g.sec):''}" style="flex:1"><button class="btn btn2" style="width:auto;margin:0;padding:9px 12px" onclick="setRaceTarget(document.getElementById('g-t').value)">Confronta</button></div>
     <table><tr><th></th><th class="r">Oggi</th><th class="r">Serve</th><th class="r">Δ</th></tr>
       <tr><td>VDOT</td><td class="r">${cv.toFixed(1)}</td><td class="r">${gv.toFixed(1)}</td><td class="r ${gv-cv>0?'down':'up'}">${(gv-cv>=0?'+':'')+(gv-cv).toFixed(1)}</td></tr>
       ${[['Soglia T','T'],['Maratona M','M'],['Interval I','I']].map(([n,k])=>`<tr><td>${n}</td><td class="r">${fmtP(cp[k])}</td><td class="r">${fmtP(gp[k])}</td><td class="r">${Math.round(gp[k]-cp[k])}s</td></tr>`).join('')}

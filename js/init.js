@@ -34,8 +34,7 @@ function refresh(){zCache=null;calCache=null;applyRunFlags();
       <button class="btn btn2" style="margin:0" onclick="showPlan()">Mostra ultimo piano</button></div>`;
   }else pout.innerHTML='';
   rTrack();rMonitor();
-  try{rGoal()}catch(e){console.warn('rGoal',e)}
-  try{rOutlook()}catch(e){console.warn('rOutlook',e)}
+  try{rRaceAll()}catch(e){console.warn('rRaceAll',e)}
   setTimeout(()=>{wxSync().catch(e=>console.warn('wxSync',e))},1500);
   try{rFit()}catch(e){console.warn('rFit',e)}
   try{rAlerts()}catch(e){console.warn('rAlerts',e)}

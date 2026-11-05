@@ -15,7 +15,7 @@ const CLOUD_KEYS=[
   ['st','rp_st',()=>st,true],
   ['monitor','rp_monitor',()=>monitor],
   ['plan','rp_plan'],['ics','rp_ics'],['wkedit','rp_wkedit'],['wkskip','rp_wkskip'],
-  ['flex','rp_flex'],['wx','rp_wx'],['xt','rp_xt'],
+  ['flex','rp_flex'],['wx','rp_wx'],['xt','rp_xt'],['races','rp_races'],
 ];
 const cloudSessionId=Math.random().toString(36).slice(2);
 
