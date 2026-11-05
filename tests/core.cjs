@@ -87,3 +87,33 @@ test('la palestra non finisce nei dati inviati al cloud', () => {
   assert.equal(store.get('rp_xt'), '[]');
   assert.ok(!/passo/.test(run(`JSON.stringify({runs,xt:LS('rp_xt')})`)));
 });
+
+test('strategia di gara: GPX a giri, passi che tornano al tempo obiettivo', () => {
+  const { run } = loadApp();
+  // anello quadrato di 2,5 km percorso 4 volte = 10 km, con una salitella di 5 m sul primo lato
+  const run2 = run(`(()=>{
+    const pts=[],lat0=40.25,lon0=18.28,dLat=625/110540,dLon=625/(111320*Math.cos(lat0*Math.PI/180));
+    for(let g=0;g<4;g++)for(let i=0;i<100;i++){const s=Math.floor(i/25),f=(i%25)/25;
+      const [la,lo]=s===0?[lat0+f*dLat,lon0]:s===1?[lat0+dLat,lon0+f*dLon]:s===2?[lat0+dLat-f*dLat,lon0+dLon]:[lat0,lon0+dLon-f*dLon];
+      pts.push('<trkpt lat="'+la+'" lon="'+lo+'"><ele>'+(50+(s===0?5*f:s===1?5:s===2?5*(1-f):0))+'</ele></trkpt>')}
+    pts.push('<trkpt lat="'+lat0+'" lon="'+lon0+'"><ele>50</ele></trkpt>');
+    const gpx='<gpx><trk><name>Anello &amp; test</name><trkseg>'+pts.join('')+'</trkseg></trk><wpt lat="'+(lat0+dLat)+'" lon="'+lon0+'"><name>Ristoro</name></wpt></gpx>';
+    const c=courseBuild(gpxParse(gpx));
+    racesDB={'u:t':{name:'T',km:10,date:'2026-11-15',target:2700,course:c}};
+    const r=raceList()[0],S=stratCompute(r);
+    return JSON.stringify({name:c.name,len:c.len,laps:c.laps.length,turns:c.turns.length,wp:c.wp.length,up:c.up,km:snapKm(c.len),
+      tot:S.K[S.K.length-1].cum,n:S.K.length,tgt:raceTarget().sec,src:raceTarget().src});
+  })()`);
+  const o = JSON.parse(run2);
+  assert.equal(o.name, 'Anello & test');
+  near(o.len, 10000, 60, 'lunghezza misurata');
+  assert.equal(o.km, 10);
+  assert.equal(o.laps, 3); // 3 ripassaggi dal via = 4 giri
+  assert.ok(o.turns >= 12 && o.turns <= 16, 'curve a 90°: ' + o.turns);
+  assert.equal(o.wp, 1); // un punto notevole, agganciato al punto di traccia più vicino
+  near(o.up, 20, 4, 'dislivello positivo (4 × 5 m)');
+  near(o.tot, 2700, 0.5, 'la somma dei km torna al tempo obiettivo');
+  assert.equal(o.n, 10);
+  assert.equal(o.tgt, 2700);
+  assert.equal(o.src, 'scelto da te');
+});
