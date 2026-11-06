@@ -59,6 +59,22 @@ function parseHMS(s){const a=String(s).trim().split(':');if(!a.length||a.some(x=
 function bestVdot(list){let b=null;for(const r of list){if(r.km<3||r.np)continue;if(typeof st!=='undefined'&&st&&st.races&&st.races[r.date]==='n')continue;const v=vdotOf(r.km,r.sec);if(!b||v>b)b=v}return b}
 const curVdot=()=>bestVdot(runs.filter(r=>daysAgo(r)<90))||bestVdot(runs);
 function paces(vd){return{E:[vAt(.62,vd),vAt(.70,vd)],M:vAt(.82,vd),T:vAt(.88,vd),I:vAt(.975,vd),R:vAt(1.07,vd)}}
+/* ---------- VDOT di una settimana del piano, per intensità (v130) ----------
+   La forma non è un numero solo. E = corsa facile (dal passo reale nell'alto della Z2), T = soglia e
+   ritmo maratona (dal passo con la FC in LT2), R = velocità, cioè I e R (dalle gare). Una settimana
+   ricalibrata li porta scritti in `w.vdk`; le altre seguono la rampa del generatore, contata dalla prima
+   settimana NON storica. Prima Flex, "gara al volo" e strategia contavano da w.w, che include lo storico:
+   con 16 settimane passate davano passi di circa 3 VDOT troppo veloci (T 4:11–4:17 invece di 4:28). */
+function planCore(pl){const ph=(pl&&pl.ph)||{};return Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.ispecW||0)+(ph.specW||0))}
+function planRel(pl,w){return Math.max(0,w.w-((pl&&pl.weeks)||[]).filter(x=>x.hist).length)}
+function planWeekVd(pl,w){
+  if(w&&w.vdk&&w.vdk.R)return w.vdk;
+  const v=+pl.vd+((+pl.vdTarget||+pl.vd)-pl.vd)*Math.min(1,planRel(pl,w)/planCore(pl));
+  return{E:v,T:v,R:v};
+}
+function pacesK(k){const e=paces(k.E),t=paces(k.T),r=paces(k.R);return{E:e.E,M:t.M,T:t.T,I:r.I,R:r.R}}
+// VDOT per cui il limite veloce del range E coincide con il passo s (s/km)
+function vdotFromE(s){let lo=20,hi=90;for(let i=0;i<50;i++){const v=(lo+hi)/2;paces(v).E[1]>s?lo=v:hi=v}return(lo+hi)/2}
 // target di una seduta a ripetute preso dalla seduta PIANIFICATA (tag I/R/T/M e range di passo),
 // non indovinato dalla distanza della ripetuta (un 6×2' Interval fa frazioni ~490m ma non è ripetute R).
 function plannedFor(dateISO){
