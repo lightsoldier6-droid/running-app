@@ -117,3 +117,41 @@ test('strategia di gara: GPX a giri, passi che tornano al tempo obiettivo', () =
   assert.equal(o.tgt, 2700);
   assert.equal(o.src, 'scelto da te');
 });
+
+test('ricalibra i passi: tre VDOT (gare, soglia FC, facile FC) e rampa dalla prima settimana futura', () => {
+  const { run } = loadApp({ now: '2026-11-04T10:00:00+01:00' });
+  const S = (t, n, d) => ({ t, n, d, km: 10 });
+  const plan = { goal: 42.195, dateStr: '2026-12-13', vd: 47, vdTarget: 52, ph: { baseW: 3, speedW: 3, ispecW: 0, specW: 0, taper: 2 },
+    weeks: [
+      { w: 1, hist: 1, phase: 'base', sess: [S('Domenica', 'Lungo', "60' @ 5:30–6:00")] },
+      { w: 2, hist: 1, phase: 'base', sess: [S('Domenica', 'Lungo', "60' @ 5:30–6:00")] },
+      { w: 3, phase: 'base', sess: [S('Martedì', 'Easy', "40' @ 5:20–5:52"), S('Domenica', 'Lungo con finale', "60' @ 5:20–5:52 + 20' @ 4:35–4:41 (M)")] },
+      { w: 4, phase: 'speed', sess: [S('Martedì', 'Interval', "8×5' @ 4:06–4:12 (I), rec 3' @ 5:15–5:47")] },
+      { w: 5, phase: 'speed', sess: [] }, { w: 6, phase: 'speed', sess: [] }, { w: 7, phase: 'taper', sess: [] },
+      { w: 8, phase: 'taper', sess: [{ t: 'Domenica', n: 'GARA 🏁', d: '42.2 km @ 4:20/km — obiettivo 3:03:00', km: 42.2 }] }] };
+  const J = c => JSON.parse(run(`JSON.stringify(${c})`));
+  run(`var P=${JSON.stringify(plan)}`);
+  // la rampa conta dalla prima settimana non storica: w3 è la 1ª di 6 → 47 + 5/6
+  near(J('planWeekVd(P,P.weeks[2])').R, 47 + 5 / 6, 1e-9, 'VDOT della settimana in corso');
+  const r = J(`(()=>{const r=repacePlan(P,{R:47,T:46,E:44},'2026-11-04');return{p:r.plan,n:r.nSess}})()`);
+  const w3 = r.p.weeks[2], w4 = r.p.weeks[3];
+  assert.deepEqual(w3.vdk, { E: 44, T: 46, R: 47 }, 'la settimana in corso parte dai valori misurati');
+  assert.equal(w3.sess[0].d, "40' @ 5:20–5:52", 'martedì è già passato: non si tocca');
+  const m = w3.sess[1].d.match(/(\d:\d\d)–(\d:\d\d) \+ 20' @ (\d:\d\d)–(\d:\d\d)/);
+  assert.ok(m, w3.sess[1].d);
+  // stessa intensità del testo di partenza (5:20 a VDOT 47.83), riportata al VDOT facile 44
+  assert.equal(m[1], run(`fmtP(vAt(vo2(60000/320)/(47+5/6),44))`), 'facile: limite veloce dal VDOT facile');
+  near(run(`parseHMS('${m[1]}')`), run('paces(44).E[1]'), 3, 'facile ≈ limite veloce del range E a VDOT 44');
+  assert.ok(run(`parseHMS('${m[3]}')`) > run(`parseHMS('4:35')`), 'ritmo maratona più lento con la soglia più bassa');
+  // un range si converte tutto con la stessa classe: le ripetute I restano I (passi dalle gare)
+  const iv = w4.sess[0].d.match(/@ (\d:\d\d)–(\d:\d\d) \(I\)/);
+  const gap = run(`parseHMS('${iv[2]}')-parseHMS('${iv[1]}')`);
+  assert.ok(gap >= 5 && gap <= 7, `ampiezza del range I conservata: ${iv[1]}–${iv[2]}`);
+  assert.ok(w4.vdk.E > 44 && w4.vdk.T > 46 && w4.vdk.R > 47, 'la progressione verso il target riparte dai valori misurati');
+  near(r.p.vdkT.R - 47, 52 - (47 + 5 / 6), 0.02, 'resta il guadagno che il piano prevedeva ancora');
+  run(`var P2=${JSON.stringify(r.p)}`);
+  assert.deepEqual(J('planWeekVd(P2,P2.weeks[3])'), w4.vdk, 'le settimane ricalibrate portano i loro VDOT');
+  assert.equal(run(`repacePlan(P2,{R:47,T:46,E:44},'2026-11-04').nSess`), 0, 'stessa forma: niente da riscrivere');
+  // Flex: una foto fatta prima della v130 si legge dal range facile scritto nella seduta
+  near(J(`legacyFlexVd("35' @ 5:12–5:43 + 4 allunghi")`).E, run(`vdotFromE(312)`), 1e-9, 'VDOT dalla seduta');
+});
