@@ -20,8 +20,7 @@ const dayLab=iso=>iso?`${GIORNI[dOnly(iso).getDay()]} ${labDay(iso)}`:'data da f
 function planWeekAt(pl,date){return pl&&pl.weeks&&date?pl.weeks.find(w=>wkMonISO(pl,w)<=date&&date<=wkSunISO(pl,w))||null:null}
 function planVdAt(pl,date){ // VDOT che il piano prevede nella settimana di `date` (stessa rampa di applyWkOv)
   const w=planWeekAt(pl,date);if(!w||!pl.vd)return null;
-  const ph=pl.ph||{},core=Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.ispecW||0)+(ph.specW||0));
-  return pl.vd+((pl.vdTarget||pl.vd)-pl.vd)*Math.min(1,w.w/core);
+  return planWeekVd(pl,w).R;
 }
 
 /* ---- elenco gare ---- */
