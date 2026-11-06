@@ -43,9 +43,9 @@ function rPlan(plan){
   plan.weeks.forEach(w=>{if(w.hist)return;const sun=wkSunDate(plan,w),mon=addD(sun,-6);if(todayS>=isoLoc(mon)&&todayS<=isoLoc(sun))curWeek=w.w});
   const peakVol=Math.max(1,...plan.weeks.map(w=>w.vol||0));
   document.getElementById('p-out').innerHTML=`<div class="card">
-    <h2>${gn} · ${plan.dateStr} · VDOT ${plan.vd}${plan.vdTarget&&plan.vdTarget!==plan.vd?` → ${plan.vdTarget}`:''}</h2>
+    <h2>${gn} · ${plan.dateStr} · VDOT ${plan.vd}${plan.vdTarget&&plan.vdTarget!==plan.vd?` → ${plan.vdTarget}`:''}${plan.vdk?` <span class="muted" style="font-size:12px;font-weight:400">· soglia ${plan.vdk.T} · facile ${plan.vdk.E}</span>`:''}</h2>
     <div style="margin-bottom:2px">Obiettivo: <b class="pace">${plan.GT}</b> (${plan.GP}/km).${plan.mode?` <span class="muted">· Modalità: <b>${plan.mode}</b>${plan.targetSet?' (tempo scelto da te)':''}</span>`:''}<br>
-    <details class="pinfo"><summary>Come leggere obiettivo e ritmi</summary><span class="muted">È un range, non un numero: dove cadi dentro dipende da meteo, percorso e giornata. Entrambi gli estremi sono un buon risultato.${plan.vdTarget&&plan.vdTarget>plan.vd?` I ritmi delle sedute progrediscono nel blocco: partono dal VDOT ${plan.vd} attuale e salgono fino al VDOT ${plan.vdTarget} previsto in gara, così le settimane finali mostrano il passo che punti a raggiungere. Rigenera dal reale per ricalibrarli su/giù coi tuoi dati.`:''}</span></details></div>
+    <details class="pinfo"><summary>Come leggere obiettivo e ritmi</summary><span class="muted">È un range, non un numero: dove cadi dentro dipende da meteo, percorso e giornata. Entrambi gli estremi sono un buon risultato.${plan.vdTarget&&plan.vdTarget>plan.vd?` I ritmi delle sedute progrediscono nel blocco: partono dal VDOT ${plan.vd} attuale e salgono fino al VDOT ${plan.vdTarget} previsto in gara, così le settimane finali mostrano il passo che punti a raggiungere. Rigenera dal reale per ricalibrarli su/giù coi tuoi dati.`:''}${plan.vdk?` Dalla ricalibrazione del ${plan.vdk.at} i passi usano tre VDOT misurati: velocità (I, R) ${plan.vdk.R} dalle gare, soglia e ritmo maratona (T, M) ${plan.vdk.T} dal passo con la FC in LT2, facile (E) ${plan.vdk.E} dal passo nell’alto della Z2.`:''}</span></details></div>
     ${phaseBar}
     ${hereMarker(plan,curWeek,nAll,race)}
     ${plan.readiness?`<p class="muted" style="margin:6px 0;padding:8px 10px;border-left:3px solid var(--warn,#e0a800);background:rgba(224,168,0,.08);border-radius:6px">⚠️ <b>Base leggera</b> — ${plan.readiness.text} ${plan.readiness.advice} Il piano parte comunque nei limiti di sicurezza, ma le prime settimane saranno più impegnative.</p>`:''}
@@ -185,74 +185,140 @@ function progressCarry(weeks){
    Fino alla v128 questa funzione rigenerava le settimane da oggi alla gara con genPlan() come se il piano
    partisse oggi: ricalcolava fasi (base/velocità/specifico), tipologie e km sul volume delle ultime 4
    settimane. Effetto reale il 05/11/2026: specifico maratona da 14 a 11 settimane, velocità slittata di 3.
-   Ora il piano resta IDENTICO — fasi, sedute, strutture, durate, km, gare — e cambiano solo i passi scritti
-   nelle sedute non ancora svolte, ricalcolati sul VDOT attuale (curVdot: le corse accumulate).
-   Come: ogni passo m:ss nel testo di una seduta corrisponde a un'intensità (% del VDOT) al VDOT della sua
-   settimana. Lo si riconverte alla stessa intensità col nuovo VDOT della settimana — così vale per E, M, T,
-   I, R, ritmo gara, progressivi, steady, sopra/sotto, previsioni gara, senza dover sapere da quale formula
-   del generatore viene ciascun numero. La progressione verso il VDOT target resta quella del piano: il target
-   si sposta della stessa differenza (se c'è un tempo obiettivo scritto, il target resta quello). */
-function repacePlan(old,vdNew,todayS){
-  const ph=old.ph||{},core=Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.ispecW||0)+(ph.specW||0));
-  const vd0=+old.vd,vt0=+(old.vdTarget||old.vd);
-  const vd1=+(+vdNew).toFixed(1);
-  if(Math.abs(vd1-vd0)<0.05)return {plan:old,nSess:0,vd0,vd1:vd0};   // forma invariata: niente da riscrivere
-  // con un tempo obiettivo scritto il target è quello (calcolato preciso, non dal valore arrotondato salvato)
+   Dalla v129 il piano resta IDENTICO — fasi, sedute, strutture, durate, km, gare — e cambiano solo i passi
+   scritti nelle sedute non ancora svolte.
+   Dalla v130 la forma si misura con TRE numeri, non con il solo VDOT da gara (fitnessVdots):
+     R  velocità (passi I e R)          → miglior VDOT da gara degli ultimi 90 giorni (curVdot)
+     T  soglia e ritmo maratona (T, M)  → passo tenuto con la FC in LT2 (lt2Evidence / curva passo-FC)
+     E  facile (E, recuperi, lunghi)    → passo tenuto nell'alto della Z2 = limite veloce del range E
+   Perché: chi ha la velocità avanti e la parte aerobica indietro, con un solo VDOT da gara si vede
+   prescrivere facili e ritmo maratona troppo veloci (visto il 06/11/2026: M a 4:31–4:37 = FC di LT2).
+   Come: ogni passo m:ss nel testo corrisponde a un'intensità (% del VDOT). Si capisce a quale classe
+   appartiene (sotto il 72,5% del VDOT facile = E, sotto il 93% di quello di soglia = T/M, sopra = I/R) e
+   lo si riconverte alla stessa intensità col nuovo VDOT di quella classe.
+   Progressione: riparte dai valori misurati nella settimana in corso e sale fino alla fine del blocco
+   dello stesso guadagno che il piano prevedeva ancora da qui (prima ripartiva da w.w, cioè contava di
+   nuovo anche le settimane già fatte). Con un tempo obiettivo scritto, il traguardo della velocità è
+   quello e le altre classi salgono dello stesso guadagno. */
+function fitnessVdots(end){
+  const R=curVdot();if(!R)return null;
+  const Z=Zcur(),src={R:'gare: miglior VDOT degli ultimi 90 giorni'};
+  let T=null;const ev=lt2Evidence(end);
+  if(ev.ok){T=vdotFromT(ev.pace);src.T=`${Math.round(ev.s/60)}' con la FC in LT2 (${zLab(3)}) in ${ev.n} corse nelle ultime 3 settimane, a ${fmtP(ev.pace)}/km`}
+  else{const zp=zonePaceWin(3,end);if(zp){T=vdotFromT(zp);src.T=`passo con la FC in LT2 (${zLab(3)}) nelle ultime settimane, ${fmtP(zp)}/km`}}
+  if(!T){T=R;src.T='nessuna prova di soglia con la FC: resta il VDOT da gara'}
+  // facile: il passo tenuto nei 5 bpm più alti della Z2 diventa il limite veloce del range E
+  const hi=Z.c[1],lo=hi-5,cw=curveWin(end);let s=0,m=0;
+  xRuns(cw.days,end).forEach(r=>{if(r.np)return;const[ss,mm]=histSum(X[r.date],lo,hi);s+=ss;m+=mm});
+  let E=null;
+  if(s>=600&&m>0){const pe=s/(m/1000);E=vdotFromE(pe);src.E=`passo con la FC a ${lo}–${hi-1} (alto della Z2) negli ultimi ${cw.days} giorni, ${fmtP(pe)}/km in ${Math.round(s/60)}'`}
+  if(!E){E=T;src.E='poca corsa facile con la FC: uso la soglia'}
+  return{R,T,E,src};
+}
+// VDOT con cui sono state scritte le sedute di una foto di Flex fatta prima della v130 (rampa sbagliata,
+// non ricostruibile): lo si ricava dal range facile scritto nella seduta stessa
+function legacyFlexVd(d){
+  const m=String(d).match(/(\d{1,2}):([0-5]\d)–(\d{1,2}):([0-5]\d)/g)||[];
+  for(const x of m){const[a,b]=x.split('–').map(t=>{const[q,w]=t.split(':');return +q*60+ +w});if(b-a>=20&&a>=240){const v=vdotFromE(a);return{E:v,T:v,R:v}}}
+  return null;
+}
+// un passo singolo o un range "a–b": il range si converte tutto con la stessa classe (quella del suo centro),
+// altrimenti un 8×5' a 4:06–4:12 finiva con un estremo in I e l'altro in T
+const RK_PACE=/(?<![\d:.])(\d{1,2}):([0-5]\d)(?:–(\d{1,2}):([0-5]\d))?(?![\d:])/g;
+// riscrive i passi di un testo: kf = VDOT {E,T,R} con cui è scritto, kt = quelli nuovi;
+// gf/gt = VDOT target per i passi marcati "(gara)" (mezze/10k nello specifico), altrimenti null
+function repaceText(txt,kf,kt,gf,gt){
+  const cut=txt.indexOf(' · obiettivo:');                      // il tempo obiettivo scritto a mano non si tocca
+  const head=cut<0?txt:txt.slice(0,cut),tail=cut<0?'':txt.slice(cut);
+  const vf=s=>vo2(60000/s),conv=(s,a,b)=>vAt(vf(s)/a,b);
+  return head.replace(RK_PACE,(m,mm,ss,m2,s2,off)=>{
+    const s=+mm*60+ +ss,b=m2!=null?+m2*60+ +s2:null;
+    if(s<150||s>600||(b!=null&&(b<150||b>600)))return m;        // non è un passo (es. minuti, orari)
+    const one=x=>fmtP(x),out=f=>b==null?one(f(s)):one(f(s))+'–'+one(f(b));
+    if(gf&&/\(gara\)/.test(head.slice(off).split(/[+,@\/]/)[0]))return out(x=>conv(x,gf,gt));
+    const c=b==null?s:(s+b)/2,k=vf(c)/kf.E<0.725?'E':vf(c)/kf.T<0.93?'T':'R';
+    return out(x=>conv(x,kf[k],kt[k]));
+  })+tail;
+}
+function repacePlan(old,K1,todayS){
+  if(typeof K1==='number')K1={R:K1,T:K1,E:K1};
+  const core=planCore(old),r1=x=>+(+x).toFixed(1),r2=x=>+(+x).toFixed(2);
+  const m={R:r1(K1.R),T:r1(K1.T),E:r1(K1.E)};
+  const fut=old.weeks.filter(w=>!w.hist&&wkSunISO(old,w)>=todayS);
+  const cur=fut[0]||old.weeks[old.weeks.length-1];
+  const r0=planRel(old,cur),k0=planWeekVd(old,cur);
+  const vt0=+(old.vdTarget||old.vd);
+  const tg0=old.vdkT||{E:vt0,T:vt0,R:vt0};                       // traguardi di fine blocco del piano attuale
+  const span=core-r0;
+  const gain=k=>span>0?Math.max(0,tg0[k]-k0[k]):0;                // quanto il piano voleva ancora salire da qui
   const ts=old.targetSet&&old.target?parseHMS(old.target):null;
-  const vt1=ts?vdotOf(+old.goal,ts):vt0+(vd1-vd0);
-  const vdAt=(a,b,w)=>a+(b-a)*Math.min(1,w/core);
-  const isM=+old.goal>=42;
-  // passo (s/km) all'intensità equivalente: stesso VO2 relativo, nuovo VDOT
-  const conv=(s,from,to)=>{const v=60000/s;return vAt(vo2(v)/from,to)};
-  const PACE=/(?<![\d:.])(\d{1,2}):([0-5]\d)(?![\d:])/g;
-  const reText=(txt,from,to,fromT,toT)=>{
-    if(Math.abs(from-to)<1e-9&&Math.abs(fromT-toT)<1e-9)return txt;
-    const cut=txt.indexOf(' · obiettivo:');                      // il tempo obiettivo scritto a mano non si tocca
-    const head=cut<0?txt:txt.slice(0,cut),tail=cut<0?'':txt.slice(cut);
-    // nelle mezze/10k il ritmo "(gara)" della fase specifica viene dal VDOT target, non da quello della settimana
-    return head.replace(PACE,(m,mm,ss,off)=>{
-      const s=+mm*60+ +ss;if(s<150||s>600)return m;               // non è un passo (es. minuti, orari)
-      const gara=/\(gara\)/.test(head.slice(off).split(/[+,@\/]/)[0]);
-      return fmtP(gara?conv(s,fromT,toT):conv(s,from,to));
-    })+tail;
-  };
+  const tg={};['E','T','R'].forEach(k=>tg[k]=m[k]+gain(k));
+  if(ts){const vr=vdotOf(+old.goal,ts);['E','T'].forEach(k=>tg[k]=m[k]+Math.max(0,vr-m.R));tg.R=vr}
+  const vdk=w=>{const f=span>0?Math.min(1,Math.max(0,(planRel(old,w)-r0)/span)):0;
+    return{E:r2(m.E+(tg.E-m.E)*f),T:r2(m.T+(tg.T-m.T)*f),R:r2(m.R+(tg.R-m.R)*f)}};
+  const same=['E','T','R'].every(k=>Math.abs(m[k]-k0[k])<0.05)&&!!cur.vdk;
+  if(same)return{plan:old,nSess:0,k0,k1:m,m,src:K1.src};
   const day0=w=>wkSunDate(old,w);
   let nSess=0;
   const weeks=old.weeks.map(w=>{
     if(w.hist||wkSunISO(old,w)<todayS)return w;                    // settimane concluse: storia, non si toccano
-    const wf=w.w,a=vdAt(vd0,vt0,wf),b=vdAt(vd1,vt1,wf);
-    const spec=(w.phase==='spec'||w.phase==='taper')&&!isM;
+    const kf=planWeekVd(old,w),kt=vdk(w);
+    // nello specifico e nel taper i passi "(gara)" seguono il VDOT target (lo stesso del passo gara obiettivo)
+    const spec=w.phase==='spec'||w.phase==='taper';
     const sess=(w.sess||[]).map(s=>{
       if(!s||!s.d||/^svolta/.test(s.d)||s.done)return s;           // corse già fatte: sono dati, non prescrizioni
       const di=FX_DAYS.indexOf(s.t);
       if(di>=0&&isoLoc(addD(day0(w),di-6))<todayS)return s;       // giorno già passato della settimana in corso
-      const d=reText(String(s.d),a,b,spec?vt0:a,spec?vt1:b);
+      const d=repaceText(String(s.d),kf,kt,spec?tg0.R:null,spec?tg.R:null);
       if(d!==s.d)nSess++;
       return d===s.d?s:{...s,d};
     });
-    return {...w,sess};
+    return {...w,sess,vdk:kt};
   });
-  const p=paces(vd1);
-  const tFast=predict(+old.goal,vt1),tSlow=predict(+old.goal,Math.max(vt1-0.8,vd1-1.2));
+  const pe=paces(m.E),pt=paces(m.T),pr=paces(m.R);
+  const tFast=predict(+old.goal,tg.R),tSlow=predict(+old.goal,Math.max(tg.R-0.8,m.R-1.2));
   const GP=`${fmtP(tFast/+old.goal)}–${fmtP(tSlow/+old.goal)}`,GT=`${fmtD(tFast)}–${fmtD(tSlow)}`;
   // gara obiettivo: passo e tempo come li scrive il generatore (stesso VDOT target del box obiettivo)
   const last=weeks[weeks.length-1];
   if(last&&!last.hist)last.sess=(last.sess||[]).map(s=>s&&s.n==='GARA 🏁'&&/— obiettivo /.test(s.d||'')
     ?{...s,d:`${+old.goal>=21?(+old.goal).toFixed(1):old.goal} km @ ${GP}/km — obiettivo ${GT}`}:s);
-  return {plan:{...old,weeks,vd:vd1,vdTarget:+vt1.toFixed(1),
-    E:`${fmtP(p.E[1])}–${fmtP(p.E[0])}`,I:rngP(p.I),T:rngP(p.T),GP,GT},nSess,vd0,vd1};
+  return {plan:{...old,weeks,vd:m.R,vdTarget:r1(tg.R),vdk:{...m,at:todayS,src:K1.src||null},vdkT:{E:r2(tg.E),T:r2(tg.T),R:r2(tg.R)},
+    E:`${fmtP(pe.E[1])}–${fmtP(pe.E[0])}`,I:rngP(pr.I),T:rngP(pt.T),GP,GT},nSess,k0,k1:m,m,src:K1.src};
+}
+// le foto di Flex delle settimane non ancora finite seguono la ricalibrazione come il piano
+function repaceFlex(old,np,todayS){
+  const fx=flexAll();let n=0;
+  Object.keys(fx).forEach(key=>{
+    if(key<todayS)return;                                          // settimana conclusa (la chiave è la domenica)
+    const w0=old.weeks.find(w=>wkSunISO(old,w)===key),w1=np.weeks.find(w=>wkSunISO(np,w)===key);
+    if(!w0||!w1||!w1.vdk||!Array.isArray(fx[key]))return;
+    const kPlan=planWeekVd(old,w0);
+    fx[key]=fx[key].map(s=>{
+      if(!s||!s.d||s.done||s.race||/^svolta/.test(s.d))return s;
+      if(fxIso(key,s.t)<todayS)return s;
+      const kf=s.vk||(w0.sess||[]).some(x=>x&&x.d===s.d)?kPlan:(legacyFlexVd(s.d)||kPlan);
+      const d=repaceText(String(s.d),kf,w1.vdk,null,null);
+      if(d===s.d&&s.vk)return s;
+      if(d!==s.d)n++;
+      return {...s,d,vk:1};
+    });
+  });
+  if(n)LS('rp_flex',fx);
+  return n;
 }
 function updatePlan(){
   const old=LS('rp_plan');if(!old||!old.weeks)return alert('Genera prima un piano');
-  const vd=curVdot();
-  if(!vd)return alert('Non riesco a stimare il VDOT dalle tue corse: importane qualcuna dal tab Corse.');
-  const r=repacePlan(old,vd,isoLoc(new Date()));
+  const K=fitnessVdots();
+  if(!K)return alert('Non riesco a stimare il VDOT dalle tue corse: importane qualcuna dal tab Corse.');
+  const todayS=isoLoc(new Date());
+  const r=repacePlan(old,K,todayS);
+  const nFx=r.plan===old?0:repaceFlex(old,r.plan,todayS);
   LS('rp_plan',r.plan);monFreeze();rPlan(r.plan);rTrack();rToday();
   logRecal('repace');rMonitor();   // il box "Quando ricalibrare" riparte a contare da oggi
-  const dv=r.vd1-r.vd0;
-  alert(Math.abs(dv)<0.05
-    ? `VDOT invariato (${r.vd1}): i passi delle sedute restano quelli. Fasi, sedute e km non sono stati toccati.`
-    : `Passi ricalibrati: VDOT ${r.vd0} → ${r.vd1} (${dv>0?'+':''}${dv.toFixed(1)}). Aggiornate ${r.nSess} sedute ancora da fare. Fasi, tipologie, durate, km e gare non sono cambiati; le settimane concluse e i giorni già passati restano com'erano.`);
+  const f=x=>(+x).toFixed(1),ln=(lab,k)=>`• ${lab}: ${f(r.k0[k])} → ${f(r.k1[k])} — ${(K.src&&K.src[k])||''}`;
+  alert(r.nSess===0&&!nFx&&r.plan===old
+    ? `Forma invariata (velocità ${f(r.m.R)} · soglia ${f(r.m.T)} · facile ${f(r.m.E)}): i passi delle sedute restano quelli. Fasi, sedute e km non sono stati toccati.`
+    : `Passi ricalibrati sulla forma misurata:\n${ln('Facile (E, recuperi, lunghi)','E')}\n${ln('Soglia e ritmo maratona (T, M)','T')}\n${ln('Velocità (I, R)','R')}\n\nAggiornate ${r.nSess} sedute del piano${nFx?` e ${nFx} sedute modificate a mano`:''}. Da qui alla fine del blocco i passi salgono dello stesso guadagno previsto prima. Fasi, tipologie, durate, km e gare non sono cambiati; le settimane concluse e i giorni già passati restano com'erano.`);
 }
 function exportICS(silent){
   // Il piano va letto CON gli override manuali applicati: leggendo `rp_plan` grezzo il calendario
@@ -953,6 +1019,11 @@ function rMonitor(){
     if(cur&&base&&dv>=1.5){level=2;reasons.push(`il tuo VDOT è salito di <b>${dv.toFixed(1)}</b> punti ${from} (${base.toFixed(1)}→${cur.toFixed(1)}): i ritmi target sono ormai troppo morbidi, ricalibrando corri ai valori giusti`)}
     else if(cur&&base&&dv<=-1.5){level=2;reasons.push(`il tuo VDOT è sceso di <b>${Math.abs(dv).toFixed(1)}</b> punti ${from} (${base.toFixed(1)}→${cur.toFixed(1)}): i ritmi attuali rischiano di essere troppo duri — meglio ritararli`)}
     else if(cur&&base&&Math.abs(dv)>=0.7){level=Math.max(level,1);reasons.push(`VDOT variato di <b>${dv>0?'+':''}${dv.toFixed(1)}</b> ${from}`)}
+    // forma misurata con la FC (v130): soglia e facile possono muoversi anche senza gare
+    {const fv=fitnessVdots(),pk=(LS('rp_plan')||{}).vdk;
+     if(fv&&pk){const dT=fv.T-pk.T,dE=fv.E-pk.E;
+       if(Math.max(Math.abs(dT),Math.abs(dE))>=1){level=Math.max(level,Math.abs(dT)>=2||Math.abs(dE)>=2?2:1);reasons.push(`con la FC la soglia vale ora <b>${fv.T.toFixed(1)}</b> (${dT>0?'+':''}${dT.toFixed(1)}) e il facile <b>${fv.E.toFixed(1)}</b> (${dE>0?'+':''}${dE.toFixed(1)}) rispetto ai passi del piano`)}}
+     else if(fv&&(Math.abs(fv.T-fv.R)>=1||Math.abs(fv.E-fv.R)>=1)){level=2;reasons.push(`i passi del piano vengono solo dalle gare (VDOT ${fv.R.toFixed(1)}), ma con la FC la soglia vale <b>${fv.T.toFixed(1)}</b> e il facile <b>${fv.E.toFixed(1)}</b>: ricalibra i passi per tararli sulla forma reale`)}}
     if(missedQ>=3){level=2;reasons.push(`<b>${missedQ}</b> sedute di qualità saltate di recente: sono quelle che spostano davvero la forma`)}
     else if(missedQ>=1){level=Math.max(level,1);reasons.push(`${missedQ} seduta/e di qualità saltata/e nelle ultime settimane`)}
     if(phaseChange){level=Math.max(level,1);reasons.push('stai entrando in una nuova fase del piano: è il momento naturale per ritarare volume e ritmi sui dati reali')}
