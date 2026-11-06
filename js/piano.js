@@ -524,8 +524,8 @@ function applyWkOv(pl){
     const _p=String(ovRaw).split('+');
     const real=_p.includes('real');
     const ov=_p.filter(x=>x&&x!=='real')[0]||'';
-    const vdW=pl.vd+((pl.vdTarget||pl.vd)-pl.vd)*Math.min(1,w.w/core);
-    const p=paces(vdW),Ea=(p.E[0]+p.E[1])/2;
+    const K=planWeekVd(pl,w),vdW=K.R;   // VDOT della settimana (v130: per intensità, rampa dalla prima settimana futura)
+    const p=pacesK(K),Ea=(p.E[0]+p.E[1])/2;
     const E=`${fmtP(p.E[1])}–${fmtP(p.E[0])}`;
     // RISCRITTURA SULLE CORSE SVOLTE. È un modificatore, non un tipo di settimana: si applica SOPRA
     // la settimana così com'è (normale, scarico o con la gara al volo), che resta quella che è.
@@ -776,9 +776,9 @@ function fxCtx(key){
   const pl=applyWkEdits(raw);
   const w=pl.weeks.find(x=>wkSunISO(pl,x)===key);if(!w)return null;
   const ph=raw.ph||{},core=Math.max(1,(ph.baseW||0)+(ph.speedW||0)+(ph.ispecW||0)+(ph.specW||0));
-  const vd=raw.vd+((raw.vdTarget||raw.vd)-raw.vd)*Math.min(1,w.w/core);
-  const p=paces(vd),Ea=(p.E[0]+p.E[1])/2;
-  const Z={p,vd,Ea,E:`${fmtP(p.E[1])}–${fmtP(p.E[0])}`,M:rngP(p.M),T:rngP(p.T),I:rngP(p.I),R:rngP(p.R)};
+  const K=planWeekVd(pl,w),vd=K.R;
+  const p=pacesK(K),Ea=(p.E[0]+p.E[1])/2;
+  const Z={p,vd,K,Ea,E:`${fmtP(p.E[1])}–${fmtP(p.E[0])}`,M:rngP(p.M),T:rngP(p.T),I:rngP(p.I),R:rngP(p.R)};
   return {pl,w,Z,nAll:pl.weeks.length,editable:!w.hist&&w.w!==pl.weeks.length};
 }
 const fxIso=(key,t)=>addDaysISO(key,FX_DAYS.indexOf(t)-6);
@@ -888,7 +888,7 @@ function fxPreview(changes,lines,back){
 function fxCommit(){
   if(!FX||!FX.pending)return;
   const fx=flexAll(),sp=wkSkips();
-  Object.entries(FX.pending).forEach(([k,ss])=>{fx[k]=fxSort(ss);delete sp[k]}); // le sedute tolte sono già fuori dalla foto
+  Object.entries(FX.pending).forEach(([k,ss])=>{fx[k]=fxSort(ss).map(s=>s&&!s.vk?{...s,vk:1}:s);delete sp[k]}); // le sedute tolte sono già fuori dalla foto
   LS('rp_flex',fx);LS('rp_wkskip',sp);
   fxClose();monFreeze();
   const pl=LS('rp_plan');if(pl){rPlan(pl);rTrack();rToday()}
@@ -959,7 +959,7 @@ function fxPick(stim){
   const c=fxCtx(FX.key);FX.stim=stim;FX.bank=fxBank(stim,c.Z);
   const t=(FX_STIM.find(x=>x[0]===stim)||[])[1];
   fxShell(FX.si!=null?'Cambia seduta · 2 di 2':'Aggiungi seduta · 3 di 3',t,
-    `<p class="fx-note">Passi calcolati sul VDOT di questa settimana (${c.Z.vd.toFixed(1)}).</p>`+
+    `<p class="fx-note">${Math.abs(c.Z.K.T-c.Z.K.R)<0.05&&Math.abs(c.Z.K.E-c.Z.K.R)<0.05?`Passi calcolati sul VDOT di questa settimana (${c.Z.vd.toFixed(1)}).`:`Passi calcolati sui VDOT di questa settimana: facile ${c.Z.K.E.toFixed(1)} · soglia e maratona ${c.Z.K.T.toFixed(1)} · velocità ${c.Z.K.R.toFixed(1)}.`}</p>`+
     FX.bank.map((b,i)=>`<button class="fx-opt" onclick="fxUse(${i})"><b>${fxEsc(b.n)} · ≈${b.km} km</b><span>${hrTag(fxEsc(b.d))}</span>${sessBar(b.d,14)}<em>costo di recupero ${fxCost(b)}</em></button>`).join(''),
     `<button class="btn btn2" onclick="fxStim()">Indietro</button>`);
 }
