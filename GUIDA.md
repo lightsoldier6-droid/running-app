@@ -36,7 +36,7 @@ La barra in basso ha 6 voci; quelle con due viste hanno un selettore in alto:
 - **Martedì a ritmo maratona**: nella fase specifica, 2 settimane di carico su 3 il martedì è una seduta a sé a ritmo M, in km e in progressione: 3×3 km → 2×5 km → 4×3 km → 3×4 km → 10 km continui → 2×6 km. La terza settimana resta a soglia (cruise o criss-cross); anche la settimana del big workout.
 - **Giovedì**: se il martedì è a ritmo M e il lungo è facile, il giovedì diventa **Soglia** (6×1000 m a T); se il lungo ha ritmo gara resta Base (mai più di due sedute dure).
 - **Lunghi con più ritmo gara**: la parte a ritmo M nei lunghi qualificati cresce di 6' a settimana fino a 70' (circa 16 km), contro i 50' di prima.
-- Per applicarlo al piano in corso: Piano › Aderenza › **↻ Ricalibra i passi delle sedute** (rigenera solo le settimane future; la modalità del piano, es. Ambizioso, ora viene mantenuta).
+- Per applicarlo al piano in corso: Piano › Settimane › **↻ Ricalibra i passi delle sedute** (dalla v130 cambia solo i passi, tarati su tre VDOT: gare, soglia con la FC, facile con la FC).
 - Correzione: in v104 il selettore «Guida a passo / a FC» aveva lo stesso identificativo del menu Modalità del generatore, che così non veniva letto. Risolto.
 
 ### Novità v104 (le funzioni di RunZones che mancavano)
@@ -145,7 +145,14 @@ Funziona sulle corse importate da **.fit** o da **archivio .zip** (vedi §5): da
 
 **Rigenera il piano dal reale (.fit)**: aggiorna il piano *dov'è*. Tiene gara, data, distanza e giorni/settimana; il calendario non si muove — stesse settimane, stesse fasi, stessi scarichi, stesse gare intermedie — e vengono riscritti solo i contenuti: passi ricalcolati sul VDOT attuale, tipologie di seduta scelte di nuovo dal generatore, lunghi della fase specifica con le strutture aggiornate. Le settimane già concluse restano intatte e viene scaricato il **nuovo `.ics`**. Se alla gara mancano meno di 6 settimane si blocca.
 
-**Ricalibra i passi delle sedute**: rigenera le settimane future col VDOT attuale e il volume che stai davvero reggendo (non riscarica il `.ics`: usa "Esporta .ics"). Le settimane passate restano in archivio (attenuate, "passata") per il confronto. Da usare a ogni cambio di fase o quando l'aderenza cala. Il nuovo blocco **eredita il punto della progressione già raggiunto**: se avevi già fatto progressivo e blocchi RM, riparte da fast finish, non dal lungo facile; la rampa dei km e i minuti a ritmo gara ripartono da dove eri, così ricalibrare tardi non ammorbidisce il picco.
+**Ricalibra i passi delle sedute** (dalla v130): cambia **solo i passi** scritti nelle sedute non ancora svolte. Fasi, settimane, tipologie, durate, km e gare restano identici. La forma si misura con **tre numeri**, non con il solo VDOT da gara:
+- **velocità** (passi I e R) → il miglior VDOT da gara degli ultimi 90 giorni;
+- **soglia e ritmo maratona** (passi T e M) → il passo tenuto con la FC in LT2 nelle ultime 3 settimane (≥20' in ≥2 corse; altrimenti dalla curva passo-FC);
+- **facile** (passi E, recuperi, lunghi) → il passo tenuto nei 5 bpm più alti della Z2: diventa il limite veloce del range E.
+
+Ogni passo del testo viene riconosciuto come facile, soglia/maratona o velocità (un range "a–b" sempre tutto intero) e riportato alla stessa intensità col VDOT nuovo della sua classe. La progressione verso il target riparte dai valori misurati nella settimana in corso e sale dello stesso guadagno che il piano prevedeva ancora da qui. Seguono la ricalibrazione anche le sedute cambiate a mano (Flex) delle settimane non finite. I tre valori compaiono nel titolo del piano ("VDOT 47.1 → 51.9 · soglia 46.3 · facile 44.3") e il box "Quando ricalibrare" avvisa se soglia o facile misurati con la FC si spostano di ≥1 punto. *Perché:* con la velocità avanti e la parte aerobica indietro, un solo VDOT da gara prescriveva facili e ritmo maratona troppo veloci (il 06/11/2026 il ritmo M a 4:31–4:37 corrispondeva alla FC di LT2).
+
+*Correzione collegata (v130):* Flex, "gara al volo" e strategia di gara calcolavano il VDOT della settimana contando anche le settimane storiche: con 16 settimane passate davano passi di circa 3 VDOT troppo veloci (T 4:11–4:17 invece di 4:28). Ora usano la stessa rampa del piano.
 
 **Esportare**:
 - *Copia piano (markdown)*: per incollarlo dove vuoi.
