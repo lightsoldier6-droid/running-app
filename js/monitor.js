@@ -306,12 +306,25 @@ function repaceFlex(old,np,todayS){
   if(n)LS('rp_flex',fx);
   return n;
 }
+// "Impronta" della struttura del piano: date, fasi, scarichi, volumi, sedute e km di ogni settimana.
+// "Ricalibra i passi" deve lasciarla IDENTICA: cambiano solo i passi scritti nel testo delle sedute.
+function planShape(pl){
+  return (pl.weeks||[]).map(w=>[wkSunISO(pl,w),w.phase||'',w.isDeload?1:0,w.hist?1:0,w.vol||0,
+    (w.sess||[]).map(s=>s?[s.t,s.n,s.km].join('|'):'').join(';')].join('#')).join('\n')+'|'+pl.dateStr+'|'+JSON.stringify(pl.ph||{});
+}
 function updatePlan(){
   const old=LS('rp_plan');if(!old||!old.weeks)return alert('Genera prima un piano');
   const K=fitnessVdots();
   if(!K)return alert('Non riesco a stimare il VDOT dalle tue corse: importane qualcuna dal tab Corse.');
   const todayS=isoLoc(new Date());
   const r=repacePlan(old,K,todayS);
+  // Garanzia (v131): se il risultato tocca la struttura del piano non si salva niente. Il 05/11/2026 la v128
+  // rigenerava da oggi e aveva accorciato lo specifico maratona da 14 a 11 settimane, spostando la velocità
+  // di 3: non deve poter succedere di nuovo, nemmeno per un errore futuro in repacePlan.
+  if(r.plan!==old&&planShape(r.plan)!==planShape(old)){
+    console.warn('Ricalibra i passi: struttura del piano cambiata, annullato');
+    return alert('Ricalibrazione annullata: il risultato avrebbe cambiato fasi, settimane o sedute del piano, non solo i passi. Il piano è rimasto com\'era.');
+  }
   const nFx=r.plan===old?0:repaceFlex(old,r.plan,todayS);
   LS('rp_plan',r.plan);monFreeze();rPlan(r.plan);rTrack();rToday();
   logRecal('repace');rMonitor();   // il box "Quando ricalibrare" riparte a contare da oggi
@@ -625,6 +638,14 @@ function monRecalibrate(){
   if(same){ // le settimane già concluse restano quelle vere: la numerazione coincide, si sostituiscono in blocco
     const past=pastWeeks(prev).map(h=>({...h,hist:1}));
     np.weeks=[...past,...np.weeks.slice(past.length)];
+    // Settimana in corso = recupero di una gara intermedia appena corsa (nella settimana prima o in questa):
+    // resta com'era. La gara ormai è passata, il generatore non la vede più e al posto del recupero metteva
+    // una settimana piena (il 16/11/2026, il giorno dopo la mezza: fartlek e lungo da 20 km).
+    {const ci=past.length,pw=prev.weeks[ci];
+     if(pw&&np.weeks[ci]){
+       const mon=wkMonISO(prev,pw),mon7=isoLoc(addD(dOnly(mon),-7)),tdy=isoLoc(new Date());
+       if((prev.interRaces||[]).some(r=>r&&r.date&&r.date>=mon7&&r.date<tdy&&r.date<isoLoc(addD(dOnly(mon),7))))np.weeks[ci]={...pw};
+     }}
     np.weeks.forEach((w,i)=>w.w=i+1);
     LS('rp_plan',np);rPlan(np);rTrack();
   }
