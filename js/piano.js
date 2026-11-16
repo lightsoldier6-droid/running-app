@@ -24,18 +24,27 @@ function genPlan(silent,carry){
   // quella della gara, inclusa. Con il vecchio conteggio (giorni-alla-gara/7 arrotondato) rigenerare a
   // metà settimana poteva produrre una settimana in meno: siccome il tab Piano ricalcola le date a
   // ritroso dalla domenica di gara, l'intera griglia scivolava di 7 giorni e si sfalsava dal Monitor.
-  let n=nFix;
-  if(!n){
+  let nLeft;
+  {
     const _add=(dt,k)=>{const x=new Date(dt);x.setDate(x.getDate()+k);return x};
     const _race=dOnly(dateStr);
     const _raceSun=_add(_race,(7-_race.getDay())%7);          // domenica della settimana di gara
     const _today=new Date();_today.setHours(12,0,0,0);
     const _curSun=_add(_today,(7-_today.getDay())%7);         // domenica della settimana in corso
-    n=Math.round((_raceSun-_curSun)/(7*864e5))+1;             // +1: la settimana in corso conta
+    nLeft=Math.round((_raceSun-_curSun)/(7*864e5))+1;         // +1: la settimana in corso conta
   }
+  let n=nFix||nLeft;
+  // v133: con "Rigenera dal reale" a calendario invariato (nFix) le prime settimane sono già passate e
+  // verranno sostituite dallo storico. La progressione dei passi deve partire dalla settimana in corso,
+  // non dalla prima del piano: prima la settimana in corso nasceva già con mezzo guadagno (VDOT ~49 invece di 47).
+  const nPast=nFix?Math.max(0,nFix-nLeft):0;
   if(n<6)return alert('Servono almeno 6 settimane alla gara');
   n=Math.min(n,52);
-  const p=paces(vd);
+  // v133: tre VDOT come "Ricalibra i passi": velocità (I, R) = VDOT del piano; soglia/maratona (T, M) e facile (E)
+  // spostati dello scarto misurato con la FC (fitnessVdots). Senza dati FC restano uguali al VDOT del piano.
+  const fv=typeof fitnessVdots==='function'?fitnessVdots():null;
+  const K0={R:vd,T:fv?vd-(fv.R-fv.T):vd,E:fv?vd-(fv.R-fv.E):vd};
+  const p=pacesK(K0);
   const Ea=(p.E[0]+p.E[1])/2;
   const E=`${fmtP(p.E[1])}–${fmtP(p.E[0])}`,T=rngP(p.T),I=rngP(p.I),R=rngP(p.R),M=rngP(p.M);
   const kmAt=(min,sp)=>min*60/sp;
@@ -89,9 +98,10 @@ function genPlan(silent,carry){
   const build=baseW+speedW;
   // modalità obiettivo: quanti punti VDOT punto a guadagnare nel blocco
   const mode=document.getElementById('p-mode').value||'mod';
-  const GAIN={cons:0,mod:Math.min(0.12*n,3),amb:Math.min(0.21*n,5)};
-  const CEIL=Math.min(0.30*n,7);       // oltre = irrealistico
-  const permo=n/4.345;                  // mesi disponibili
+  const nRem=n-nPast;                   // settimane da qui alla gara (le passate non fanno guadagnare)
+  const GAIN={cons:0,mod:Math.min(0.12*nRem,3),amb:Math.min(0.21*nRem,5)};
+  const CEIL=Math.min(0.30*nRem,7);    // oltre = irrealistico
+  const permo=nRem/4.345;               // mesi disponibili
   const volK={cons:1,mod:1.05,amb:1.12}[mode]||1;
   const peak=Math.min(base*(baseW>4?1.55:1.4)*volK,(goal>=42?90:goal>=21?75:60)*volK);
   // VDOT target = forma attuale + guadagno atteso; il tempo obiettivo esplicito lo sovrascrive
@@ -109,7 +119,7 @@ function genPlan(silent,carry){
     const mCav=goal>=42?'\n\nNota maratona: il VDOT estrapolato è meno affidabile su 42 km — contano endurance, volume del lungo e alimentazione.':'';
     if(dv>CEIL){
       modeLabel='Irrealistico';
-      if(!silent&&!confirm(`⚠️ Obiettivo poco realistico\n\n${fmtD(ts)} sulla ${gNm} richiede VDOT ${vdReq.toFixed(1)} (ora ${vd.toFixed(1)}): +${dv.toFixed(1)} punti in ${n} settimane, cioè ~${rate.toFixed(1)} punti/mese. Anche chi risponde bene raramente supera ~1 punto/mese.${mCav}\n\nProcedo comunque a costruire il piano su questo tempo?`))return;
+      if(!silent&&!confirm(`⚠️ Obiettivo poco realistico\n\n${fmtD(ts)} sulla ${gNm} richiede VDOT ${vdReq.toFixed(1)} (ora ${vd.toFixed(1)}): +${dv.toFixed(1)} punti in ${nRem} settimane, cioè ~${rate.toFixed(1)} punti/mese. Anche chi risponde bene raramente supera ~1 punto/mese.${mCav}\n\nProcedo comunque a costruire il piano su questo tempo?`))return;
     }else if(dv>GAIN.amb*1.1){
       modeLabel='Molto ambizioso';
       if(!silent)alert(`Obiettivo molto ambizioso\n\n${fmtD(ts)} richiede +${dv.toFixed(1)} punti VDOT (~${rate.toFixed(1)}/mese). Possibile ma raro: tienilo come stretch e valuta ${fmtD(predict(goal,vd+GAIN.amb))} come obiettivo primario.${mCav}`);
@@ -195,8 +205,9 @@ function genPlan(silent,carry){
     const phase=isTaper?'taper':inIspec(w)?'ispec':diaEntry?'speed':(inSpeedRange?'base':(w<=baseW?'base':'spec'));
     // ritmi progressivi: il VDOT sale linearmente da attuale (sett.1) a target (fine blocco), poi tenuto nel taper.
     // Questi shadowano p/E/T/I/R/M/Ea del blocco per questa iterazione, così TUTTE le sedute usano i passi della settimana.
-    const vdW=vd+(vdTarget-vd)*Math.min(1,w/Math.max(1,core));
-    const p=paces(vdW);
+    const gW=(vdTarget-vd)*Math.min(1,Math.max(0,w-nPast)/Math.max(1,core-nPast));   // v133: da questa settimana
+    const vdW=vd+gW,Kw={E:K0.E+gW,T:K0.T+gW,R:vdW};
+    const p=pacesK(Kw);
     const Ea=(p.E[0]+p.E[1])/2;
     const E=`${fmtP(p.E[1])}–${fmtP(p.E[0])}`,T=rngP(p.T),I=rngP(p.I),R=rngP(p.R),M=rngP(p.M);
     // Mona Fartlek: 20' esatti a piramide discendente (2×90" / 4×60" / 4×30" / 4×15") con recupero
@@ -469,12 +480,16 @@ function genPlan(silent,carry){
       sess.splice(1,0,{t:'Mercoledì',n:'Easy',d:`40' @ ${E} (Z2)`,km:kmAt(40,Ea)});
     }
     sess.forEach(s=>s.km=Math.round(s.km*2)/2);
-    weeks.push({w,vol:Math.round(sess.reduce((a,s)=>a+(w===n&&isGoalRace(s)?0:s.km),0)),phase,summer,isDeload,isTaper,sess});
+    weeks.push({w,vol:Math.round(sess.reduce((a,s)=>a+(w===n&&isGoalRace(s)?0:s.km),0)),phase,summer,isDeload,isTaper,sess,
+      vdk:{E:+Kw.E.toFixed(2),T:+Kw.T.toFixed(2),R:+Kw.R.toFixed(2)}});   // v133: i VDOT con cui è scritta la settimana
   }
   // conteggio fasi dalle settimane effettivamente costruite: il nominale non conosce il blocco intermedio
   const phC={base:0,speed:0,ispec:0,spec:0,taper:0};
   weeks.forEach(w=>{if(phC[w.phase]!=null)phC[w.phase]++});
-  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,maraExtraEasy,weeks,GP,GT,E,I,T,interRaces,iSpec,readiness,ph:{baseW:phC.base,speedW:phC.speed,ispecW:phC.ispec,specW:phC.spec,taper:phC.taper}};
+  const gTot=vdTarget-vd;
+  const plan={goal,dateStr,vd:+vd.toFixed(1),vdTarget:+vdTarget.toFixed(1),
+    vdk:fv?{R:+vd.toFixed(1),T:+K0.T.toFixed(1),E:+K0.E.toFixed(1),at:todayISO(),src:fv.src}:undefined,
+    vdkT:{E:+(K0.E+gTot).toFixed(2),T:+(K0.T+gTot).toFixed(2),R:+vdTarget.toFixed(2)},mode:modeLabel,modeVal:mode,target:tgtStr,targetSet,days,maraExtraEasy,weeks,GP,GT,E,I,T,interRaces,iSpec,readiness,ph:{baseW:phC.base,speedW:phC.speed,ispecW:phC.ispec,specW:phC.spec,taper:phC.taper}};
   LS('rp_plan',plan);
   if(!silent)monFreeze(); // piano generato a mano: lo storico del Monitor resta, il futuro è il piano nuovo
   rPlan(plan);rTrack();rToday();
