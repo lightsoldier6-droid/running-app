@@ -156,6 +156,8 @@ Ogni passo del testo viene riconosciuto come facile, soglia/maratona o velocità
 
 *Correzione collegata (v130):* Flex, "gara al volo" e strategia di gara calcolavano il VDOT della settimana contando anche le settimane storiche: con 16 settimane passate davano passi di circa 3 VDOT troppo veloci (T 4:11–4:17 invece di 4:28). Ora usano la stessa rampa del piano.
 
+*v133:* la ricalibrazione legge dal **testo** di ogni settimana a che VDOT sono scritti i passi (range con tag I/R, T/M e range facili), invece di fidarsi dei VDOT salvati: così ripara anche un piano rimasto incoerente. Anche **Rigenera dal reale** e **Genera** scrivono i passi con i tre VDOT (velocità dal piano, soglia e facile spostati dello scarto misurato con la FC) e li salvano in ogni settimana; a calendario invariato la progressione parte dalla settimana in corso, non da luglio (prima la settimana in corso nasceva già a VDOT ~49 con gli I a 3:42–3:59).
+
 **Esportare**:
 - *Copia piano (markdown)*: per incollarlo dove vuoi.
 - *Esporta per Google Calendar (.ics)*: un evento per seduta col giorno giusto (gara inclusa, anche se di sabato). Nella descrizione: fase, riscaldamento e defaticamento per le sedute di qualità, lavoro coi ritmi, km totali. Su Google Calendar: Impostazioni → Importa. Consiglio: crea prima un calendario dedicato "Corsa", così quando ricalibri cancelli quello e reimporti pulito. Dopo una ricalibrazione il .ics contiene solo le settimane future.
