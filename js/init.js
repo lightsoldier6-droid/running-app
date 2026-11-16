@@ -75,5 +75,18 @@ document.querySelectorAll('#pr-pills .pill').forEach(pl=>pl.onclick=()=>{
 document.getElementById('pr-metric').onchange=()=>rProg();
 document.getElementById('a-sel').onchange=()=>rAna();
 refresh();
-// update(): controlla subito se c'è una versione nuova del service worker (register da solo non lo fa)
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{});
+// update(): controlla subito se c'è una versione nuova del service worker (register da solo non lo fa).
+// v131: quando la versione nuova prende il controllo la pagina si ricarica da sola. Prima restava aperta col
+// codice vecchio finché non chiudevi del tutto l'app: su iPhone anche giorni, e i bottoni facevano ancora
+// quello che facevano prima dell'aggiornamento. Il controllo si ripete ogni volta che l'app torna in primo piano.
+if('serviceWorker'in navigator){
+  const swHad=!!navigator.serviceWorker.controller;let swReloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!swHad||swReloading)return;            // primo avvio in assoluto: niente da ricaricare
+    swReloading=true;location.reload();
+  });
+  navigator.serviceWorker.register('sw.js').then(r=>{
+    r.update();
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')r.update().catch(()=>{})});
+  }).catch(()=>{});
+}
