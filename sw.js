@@ -1,4 +1,4 @@
-const C = 'runplan-v131';
+const C = 'runplan-v132';
 const FILES = ['.', 'index.html', 'data.js', 'manifest.webmanifest', 'icon-180.png', 'icon-512.png', 'css/app.css', 'js/date.js', 'js/core.js', 'js/cloud.js', 'js/util.js', 'js/oggi.js', 'js/progressi.js', 'js/piano.js', 'js/monitor.js', 'js/dati.js', 'js/corsa.js', 'js/fc.js', 'js/import-fit.js', 'js/forma.js', 'js/gara.js', 'js/archivio.js', 'js/strategia.js', 'js/init.js', 'gym-bridge.js', 'palestra/index.html', 'palestra/data.js', 'palestra/engine.js', 'palestra/app.js', 'palestra/palestra.css'];
 const OPTIONAL = ['https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js','https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js','https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js'];
 // install: bypassa la cache HTTP del browser (cache:'reload') così in cache finisce sempre la versione fresca
@@ -14,6 +14,11 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // v132: le richieste verso altri siti (Firestore, meteo, Garmin) non passano dal service worker, tranne le
+  // librerie Firebase tenute in cache. La connessione di Firestore resta aperta finché l'app è aperta: passando
+  // da qui teneva occupato il service worker in uso, e quello di una versione nuova restava "in attesa" senza
+  // attivarsi, quindi l'app girava col codice vecchio finché non la chiudevi del tutto.
+  if (url.origin !== self.location.origin && !OPTIONAL.includes(req.url)) return;
   const isPage = req.mode === 'navigate' || (url.origin === self.location.origin && /\/(index\.html)?$/.test(url.pathname));
   e.respondWith(caches.open(C).then(async c => {
     const hit = await c.match(req, { ignoreSearch: isPage });
