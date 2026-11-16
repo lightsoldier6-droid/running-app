@@ -135,6 +135,7 @@ test('ricalibra i passi: tre VDOT (gare, soglia FC, facile FC) e rampa dalla pri
   near(J('planWeekVd(P,P.weeks[2])').R, 47 + 5 / 6, 1e-9, 'VDOT della settimana in corso');
   const r = J(`(()=>{const r=repacePlan(P,{R:47,T:46,E:44},'2026-11-04');return{p:r.plan,n:r.nSess}})()`);
   const w3 = r.p.weeks[2], w4 = r.p.weeks[3];
+  assert.equal(run(`planShape(${JSON.stringify(r.p)})`), run('planShape(P)'), 'struttura del piano identica: cambiano solo i passi');
   assert.deepEqual(w3.vdk, { E: 44, T: 46, R: 47 }, 'la settimana in corso parte dai valori misurati');
   assert.equal(w3.sess[0].d, "40' @ 5:20–5:52", 'martedì è già passato: non si tocca');
   const m = w3.sess[1].d.match(/(\d:\d\d)–(\d:\d\d) \+ 20' @ (\d:\d\d)–(\d:\d\d)/);
