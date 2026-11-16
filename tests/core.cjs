@@ -140,8 +140,8 @@ test('ricalibra i passi: tre VDOT (gare, soglia FC, facile FC) e rampa dalla pri
   assert.equal(w3.sess[0].d, "40' @ 5:20–5:52", 'martedì è già passato: non si tocca');
   const m = w3.sess[1].d.match(/(\d:\d\d)–(\d:\d\d) \+ 20' @ (\d:\d\d)–(\d:\d\d)/);
   assert.ok(m, w3.sess[1].d);
-  // stessa intensità del testo di partenza (5:20 a VDOT 47.83), riportata al VDOT facile 44
-  assert.equal(m[1], run(`fmtP(vAt(vo2(60000/320)/(47+5/6),44))`), 'facile: limite veloce dal VDOT facile');
+  // v133: il VDOT di partenza si legge dal testo, quindi il facile finisce esattamente sul range E del VDOT 44
+  assert.equal(m[1], run('fmtP(paces(44).E[1])'), 'facile: limite veloce dal VDOT facile');
   near(run(`parseHMS('${m[1]}')`), run('paces(44).E[1]'), 3, 'facile ≈ limite veloce del range E a VDOT 44');
   assert.ok(run(`parseHMS('${m[3]}')`) > run(`parseHMS('4:35')`), 'ritmo maratona più lento con la soglia più bassa');
   // un range si converte tutto con la stessa classe: le ripetute I restano I (passi dalle gare)
@@ -155,4 +155,25 @@ test('ricalibra i passi: tre VDOT (gare, soglia FC, facile FC) e rampa dalla pri
   assert.equal(run(`repacePlan(P2,{R:47,T:46,E:44},'2026-11-04').nSess`), 0, 'stessa forma: niente da riscrivere');
   // Flex: una foto fatta prima della v130 si legge dal range facile scritto nella seduta
   near(J(`legacyFlexVd("35' @ 5:12–5:43 + 4 allunghi")`).E, run(`vdotFromE(312)`), 1e-9, 'VDOT dalla seduta');
+});
+
+test('ricalibra i passi ripara un piano con VDOT salvati che non corrispondono al testo (v133)', () => {
+  const { run } = loadApp({ now: '2026-11-04T10:00:00+01:00' });
+  // testo scritto a VDOT 50 ma w.vdk dice 47 (quello che lasciava "Rigenera dal reale" con la rampa da luglio)
+  run(`var p50=paces(50),E50=fmtP(p50.E[1])+'–'+fmtP(p50.E[0]),I50=rngP(p50.I),T50=rngP(p50.T);
+    var P={goal:42.195,dateStr:'2026-12-13',vd:47,vdTarget:52,vdkT:{E:52,T:52,R:52},ph:{baseW:3,speedW:3,ispecW:0,specW:0,taper:2},weeks:[
+      {w:1,hist:1,phase:'base',sess:[]},{w:2,hist:1,phase:'base',sess:[]},
+      {w:3,phase:'speed',vdk:{E:47,T:47,R:47},sess:[{t:'Domenica',n:'Lungo',d:"60' @ "+E50,km:12}]},
+      {w:4,phase:'speed',vdk:{E:47,T:47,R:47},sess:[{t:'Martedì',n:'Interval',d:"5×3' @ "+I50+" (I), rec 2' @ "+E50,km:9},{t:'Giovedì',n:'Medio-soglia',d:"20' @ "+T50+" (T)",km:9}]},
+      {w:5,phase:'speed',sess:[]},{w:6,phase:'speed',sess:[]},{w:7,phase:'taper',sess:[]},{w:8,phase:'taper',sess:[]}]}`);
+  const inf = JSON.parse(run(`JSON.stringify(inferVd(P.weeks[3].sess.map(s=>s.d),{E:47,T:47,R:47}))`));
+  for (const k of ['E', 'T', 'R']) near(inf[k], 50, 0.3, `VDOT ${k} letto dal testo`);
+  const d = JSON.parse(run(`JSON.stringify((()=>{const r=repacePlan(P,{R:47,T:46,E:44},'2026-11-04');const w=r.plan.weeks[3];
+    return {s:w.sess.map(s=>s.d),k:pacesK(w.vdk),again:repacePlan(r.plan,{R:47,T:46,E:44},'2026-11-04').nSess}})())`));
+  const P2 = s => run(`parseHMS('${s}')`);
+  const mid = re => { const m = d.s.join(' ').match(re); return (P2(m[1]) + P2(m[2])) / 2; };
+  near(mid(/(\d:\d\d)–(\d:\d\d) \(I\)/), d.k.I, 1.5, 'ripetute I al passo del VDOT di velocità');
+  near(mid(/(\d:\d\d)–(\d:\d\d) \(T\)/), d.k.T, 1.5, 'soglia al passo del VDOT di soglia');
+  near(P2(d.s[0].match(/rec 2' @ (\d:\d\d)/)[1]), d.k.E[1], 1.5, 'recupero al passo facile');
+  assert.equal(d.again, 0, 'una seconda ricalibrazione non cambia niente');
 });
