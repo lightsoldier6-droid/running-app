@@ -224,6 +224,28 @@ function legacyFlexVd(d){
 }
 // un passo singolo o un range "a–b": il range si converte tutto con la stessa classe (quella del suo centro),
 // altrimenti un 8×5' a 4:06–4:12 finiva con un estremo in I e l'altro in T
+// v133: a che VDOT è DAVVERO scritta una seduta, letto dal testo. Ogni range con tag (I)/(R) dà il VDOT di
+// velocità, (T)/(M) quello di soglia, i range facili larghi (≥20") quello facile. Le classi che mancano si
+// stimano dal VDOT salvato, scalato come quelle trovate. Serve perché i VDOT salvati in w.vdk possono non
+// corrispondere al testo: il 16/11/2026 "Rigenera dal reale" aveva riscritto i passi con la rampa da luglio,
+// la ricalibrazione si è fidata di w.vdk e ha lasciato gli I a 3:42–3:59 invece di ~4:05.
+const RK_F={E:v=>paces(v).E[1],M:v=>paces(v).M,T:v=>paces(v).T,I:v=>paces(v).I,R:v=>paces(v).R};
+function vdotAtPace(f,s){let lo=20,hi=90;for(let i=0;i<50;i++){const v=(lo+hi)/2;RK_F[f](v)>s?lo=v:hi=v}return(lo+hi)/2}
+function inferVd(txts,kb){
+  const acc={E:[],T:[],R:[]};
+  (txts||[]).forEach(t=>{if(!t)return;
+    for(const m of String(t).matchAll(/(\d{1,2}):([0-5]\d)–(\d{1,2}):([0-5]\d)(?:\s*\((I|R|T|M)\))?/g)){
+      const a=+m[1]*60+ +m[2],b=+m[3]*60+ +m[4],tag=m[5];
+      if(a<150||b>600)continue;
+      if(tag)acc[tag==='I'||tag==='R'?'R':'T'].push(vdotAtPace(tag,(a+b)/2));
+      else if(b-a>=20&&a>=240)acc.E.push(vdotAtPace('E',a));
+    }});
+  const med=x=>{const s=x.slice().sort((p,q)=>p-q);return s[Math.floor(s.length/2)]};
+  const got={},rs=[];['E','T','R'].forEach(c=>{if(acc[c].length){got[c]=med(acc[c]);rs.push(got[c]/kb[c])}});
+  if(!rs.length)return kb;
+  const f=rs.reduce((a,b)=>a+b,0)/rs.length;
+  return{E:got.E!=null?got.E:kb.E*f,T:got.T!=null?got.T:kb.T*f,R:got.R!=null?got.R:kb.R*f};
+}
 const RK_PACE=/(?<![\d:.])(\d{1,2}):([0-5]\d)(?:–(\d{1,2}):([0-5]\d))?(?![\d:])/g;
 // riscrive i passi di un testo: kf = VDOT {E,T,R} con cui è scritto, kt = quelli nuovi;
 // gf/gt = VDOT target per i passi marcati "(gara)" (mezze/10k nello specifico), altrimenti null
@@ -256,13 +278,19 @@ function repacePlan(old,K1,todayS){
   if(ts){const vr=vdotOf(+old.goal,ts);['E','T'].forEach(k=>tg[k]=m[k]+Math.max(0,vr-m.R));tg.R=vr}
   const vdk=w=>{const f=span>0?Math.min(1,Math.max(0,(planRel(old,w)-r0)/span)):0;
     return{E:r2(m.E+(tg.E-m.E)*f),T:r2(m.T+(tg.T-m.T)*f),R:r2(m.R+(tg.R-m.R)*f)}};
-  const same=['E','T','R'].every(k=>Math.abs(m[k]-k0[k])<0.05)&&!!cur.vdk;
+  // sedute ancora da scrivere di una settimana → VDOT letti dal testo (fallback: quelli salvati)
+  // (le sedute dei giorni già passati restano com'erano: non dicono come è scritto il resto della settimana)
+  const pastDay=(w,s)=>{const di=FX_DAYS.indexOf(s.t);return di>=0&&isoLoc(addD(wkSunDate(old,w),di-6))<todayS};
+  const live=w=>s=>s&&s.d&&!s.done&&!/^svolta/.test(s.d)&&!pastDay(w,s);
+  const kTxt=w=>inferVd((w.sess||[]).filter(live(w)).map(s=>s.d),planWeekVd(old,w));
+  const coherent=fut.every(w=>{const a=kTxt(w),b=planWeekVd(old,w);return['E','T','R'].every(k=>Math.abs(a[k]-b[k])<0.3)});
+  const same=['E','T','R'].every(k=>Math.abs(m[k]-k0[k])<0.05)&&!!cur.vdk&&coherent;
   if(same)return{plan:old,nSess:0,k0,k1:m,m,src:K1.src};
   const day0=w=>wkSunDate(old,w);
   let nSess=0;
   const weeks=old.weeks.map(w=>{
     if(w.hist||wkSunISO(old,w)<todayS)return w;                    // settimane concluse: storia, non si toccano
-    const kf=planWeekVd(old,w),kt=vdk(w);
+    const kf=kTxt(w),kt=vdk(w);   // v133: si parte da com'è scritto il testo, non da w.vdk
     // nello specifico e nel taper i passi "(gara)" seguono il VDOT target (lo stesso del passo gara obiettivo)
     const spec=w.phase==='spec'||w.phase==='taper';
     const sess=(w.sess||[]).map(s=>{
@@ -296,7 +324,7 @@ function repaceFlex(old,np,todayS){
     fx[key]=fx[key].map(s=>{
       if(!s||!s.d||s.done||s.race||/^svolta/.test(s.d))return s;
       if(fxIso(key,s.t)<todayS)return s;
-      const kf=s.vk||(w0.sess||[]).some(x=>x&&x.d===s.d)?kPlan:(legacyFlexVd(s.d)||kPlan);
+      const kf=inferVd([s.d],kPlan);   // v133: dal testo della seduta stessa
       const d=repaceText(String(s.d),kf,w1.vdk,null,null);
       if(d===s.d&&s.vk)return s;
       if(d!==s.d)n++;
